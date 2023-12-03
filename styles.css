@@ -1,8 +1,25 @@
-/*
+.loading {
+	display: inline-block;
+	overflow: hidden;
+	height: 1.3em;
+	line-height: 1.5em;
+	vertical-align: text-bottom;
+    margin: -0.3em 0.3em 0;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.loading::after {
+	display: inline-table;
+	white-space: pre;
+	text-align: left;
+}
 
-If your plugin does not need CSS, delete this file.
+.loading.dots::after {
+	content: "⠋\A⠙\A⠹\A⠸\A⠼\A⠴\A⠦\A⠧\A⠇\A⠏";
+	animation: spin10 1s steps(10) infinite;
+}
 
-*/
+@keyframes spin10 {
+	to {
+		transform: translateY(-15em);
+	}
+}
