@@ -12,7 +12,7 @@ Default actions:
 - Find action items in text
 - General help (just use selected text as a prompt for any purpose)
 
-You can also add yours:
+You can also add yours:  
 <img width="700" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/5ea6b648-0944-417c-bcd7-6cdc3db000c6">
 
 >**Limitations:**
@@ -34,6 +34,13 @@ You can install this plugin via [BRAT](https://obsidian.md/plugins?id=obsidian42
 2. Go to Hotkeys
 3. Filter "Local" and you should see "Local GPT: Show context menu"
 4. Click on `+` icon and press hotkey (e.g. `⌘ + M`)
+
+## Roadmap
+- [ ] Ability to select models from the list instead of typing their names
+- [ ] Ability to share and apply presets (system prompt + prompt + model)
+- [ ] Additional AI providers (OpenAI, etc...)
+- [ ] Changing order of the prompts
+- [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian
 
 ## My other Obsidian plugins
 - [Colored Tags](https://github.com/pfrankov/obsidian-colored-tags) that colorizes tags in distinguishable colors. 
