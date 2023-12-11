@@ -32,7 +32,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Default Model")
+			.setName("Default model")
 			.setDesc("Name of the default Ollama model to use for prompts")
 			.addText((text) =>
 				text
@@ -179,7 +179,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h4", {text: "Danger zone"});
 		new Setting(containerEl)
-			.setName("Reset Actions")
+			.setName("Reset actions")
 			.setDesc(
 				"🚨 Reset all actions to the default. This cannot be undone and will delete all your custom actions."
 			)

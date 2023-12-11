@@ -17,7 +17,7 @@ export default class LocalGPT extends Plugin {
 
 	private addCommands() {
 		this.addCommand({
-			id: 'local-gpt-context-menu',
+			id: 'context-menu',
 			name: 'Show context menu',
 			editorCallback: (editor: Editor) => {
 				// @ts-expect-error, not typed
