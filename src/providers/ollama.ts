@@ -1,12 +1,12 @@
-import {requestUrl} from "obsidian";
-import {LocalGPTAction, AIProvider} from "../interfaces";
+import { requestUrl } from "obsidian";
+import { LocalGPTAction, AIProvider } from "../interfaces";
 
 export interface OllamaRequestBody {
 	prompt: string;
 	model: string;
 	options?: {
 		temperature: number;
-	}
+	};
 	system?: string;
 	stream?: boolean;
 }
@@ -26,7 +26,7 @@ export class OllamaAIProvider implements AIProvider {
 			options: {
 				temperature: action.temperature || 0.2,
 			},
-			stream: false
+			stream: false,
 		};
 
 		if (action.system) {
@@ -36,11 +36,9 @@ export class OllamaAIProvider implements AIProvider {
 		return requestUrl({
 			method: "POST",
 			url: `${this.ollamaUrl}/api/generate`,
-			body: JSON.stringify(requestBody)
-		})
-			.then(({json}) => {
-				return json.response;
-			});
-
+			body: JSON.stringify(requestBody),
+		}).then(({ json }) => {
+			return json.response;
+		});
 	}
 }

@@ -9,11 +9,11 @@ export interface OllamaProviderInSettings {
 	ollama: {
 		ollamaUrl: string;
 		defaultModel: string;
-	}
+	};
 }
 
 export const enum Providers {
-	OLLAMA = 'ollama',
+	OLLAMA = "ollama",
 }
 
 export interface LocalGPTAction {
@@ -26,5 +26,5 @@ export interface LocalGPTAction {
 }
 
 export interface AIProvider {
-	process(text: string, action:LocalGPTAction): Promise<string>
+	process(text: string, action: LocalGPTAction): Promise<string>;
 }
