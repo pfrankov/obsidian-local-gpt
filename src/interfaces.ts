@@ -1,15 +1,19 @@
 export interface LocalGPTSettings {
 	selectedProvider: string;
-	providers: OllamaProvider;
+	providers: OllamaProviderInSettings;
 	actions: LocalGPTAction[];
 	_version: number;
 }
 
-export interface OllamaProvider {
+export interface OllamaProviderInSettings {
 	ollama: {
 		ollamaUrl: string;
 		defaultModel: string;
 	}
+}
+
+export const enum Providers {
+	OLLAMA = 'ollama',
 }
 
 export interface LocalGPTAction {
@@ -21,12 +25,6 @@ export interface LocalGPTAction {
 	replace?: boolean;
 }
 
-export interface OllamaRequestBody {
-	prompt: string;
-	model: string;
-	options?: {
-		temperature: number;
-	}
-	system?: string;
-	stream?: boolean;
+export interface AIProvider {
+	process(text: string, action:LocalGPTAction): Promise<string>
 }

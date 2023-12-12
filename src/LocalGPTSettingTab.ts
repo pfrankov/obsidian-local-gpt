@@ -1,7 +1,7 @@
 import {App, Notice, PluginSettingTab, requestUrl, Setting} from "obsidian";
 import {DEFAULT_SETTINGS} from "defaultSettings";
 import LocalGPT from "./main";
-import {LocalGPTAction} from "./interfaces";
+import {LocalGPTAction, Providers} from "./interfaces";
 
 export class LocalGPTSettingTab extends PluginSettingTab {
 	plugin: LocalGPT;
@@ -24,7 +24,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			.setDesc('')
 			.addDropdown(dropdown =>
 				dropdown.addOptions({
-						'ollama': 'Ollama',
+						[Providers.OLLAMA]: 'Ollama',
 					})
 					.setValue(String(this.plugin.settings.selectedProvider))
 					.onChange(async (value) => {
@@ -36,7 +36,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		aiProvider.descEl.innerHTML = `If you would like to use other providers, please let me know <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/1">in the discussions</a>`
 
-		if (this.plugin.settings.selectedProvider === 'ollama') {
+		if (this.plugin.settings.selectedProvider === Providers.OLLAMA) {
 			new Setting(containerEl)
 				.setName("Ollama URL")
 				.setDesc("Default is http://localhost:11434")
@@ -146,7 +146,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					});
 				});
 
-			if (this.plugin.settings.selectedProvider === 'ollama') {
+			if (this.plugin.settings.selectedProvider === Providers.OLLAMA) {
 				new Setting(containerEl)
 					.setName("Model")
 					.setDesc('Optional')
@@ -167,7 +167,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.addToggle((component) => {
 					component.onChange(async (value) => {
 						editingAction.replace = value;
-
 					});
 				});
 

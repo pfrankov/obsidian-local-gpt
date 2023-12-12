@@ -1,8 +1,9 @@
-import {Editor, Notice, Plugin, requestUrl, Menu} from "obsidian";
+import {Editor, Notice, Plugin, Menu} from "obsidian";
 import {LocalGPTSettingTab} from "LocalGPTSettingTab";
 import {DEFAULT_SETTINGS} from "defaultSettings";
 import {spinnerPlugin} from "spinnerPlugin";
-import {LocalGPTSettings, OllamaRequestBody} from "./interfaces";
+import {LocalGPTSettings, AIProvider, Providers} from "./interfaces";
+import {OllamaAIProvider} from "./providers/ollama";
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
@@ -30,21 +31,19 @@ export default class LocalGPT extends Plugin {
 
 				const contextMenu = new Menu();
 
-				this.settings.actions.forEach((action) => {
-					const requestBody: OllamaRequestBody = {
-						prompt: action.prompt + "\n\n" + text,
-						model: action.model || this.settings.providers.ollama.defaultModel,
-						options: {
-							temperature: action.temperature || 0.2,
-						},
-						stream: false
-					};
-
-					if (action.system) {
-						requestBody.system = action.system;
+				let aiProvider: AIProvider;
+				switch (this.settings.selectedProvider) {
+					case Providers.OLLAMA:
+					default: {
+						aiProvider = new OllamaAIProvider({
+							defaultModel: this.settings.providers.ollama.defaultModel,
+							ollamaUrl: this.settings.providers.ollama.ollamaUrl,
+						});
+						break;
 					}
+				}
 
-
+				this.settings.actions.forEach((action) => {
 					contextMenu.addItem((item) => {
 						item.setTitle(action.name)
 							.onClick(() => {
@@ -52,24 +51,20 @@ export default class LocalGPT extends Plugin {
 								const hideSpinner = spinner?.show(editor.posToOffset(cursorPositionTo))
 								this.app.workspace.updateOptions();
 
-								requestUrl({
-									method: "POST",
-									url: `${this.settings.providers.ollama.ollamaUrl}/api/generate`,
-									body: JSON.stringify(requestBody)
-								})
-									.then(({json}) => {
+								aiProvider.process(text, action)
+									.then((data) => {
 										hideSpinner && hideSpinner();
 										this.app.workspace.updateOptions();
 
 										if (action.replace) {
 											editor.replaceRange(
-												json.response.trim(),
+												data.trim(),
 												cursorPositionFrom,
 												cursorPositionTo
 											);
 										} else {
 											editor.replaceRange(
-												['\n', json.response.trim().replace(text, '').trim(), '\n'].join(''),
+												['\n', data.trim().replace(text, '').trim(), '\n'].join(''),
 												{
 													ch: 0,
 													line: cursorPositionTo.line + 1
