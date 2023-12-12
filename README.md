@@ -13,7 +13,7 @@ Default actions:
 - General help (just use selected text as a prompt for any purpose)
 
 You can also add yours:  
-<img width="700" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/66091fde-29b3-46ae-9321-fdd8485ad2eb">
+<img width="700" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/21e1fe6c-a93b-4562-a53a-d7727504e0d6">
 
 >**Limitations:**
 >- Since plugin uses [Ollama](https://ollama.ai/) it depends on it. The main limitation is "Windows coming soon".
@@ -37,7 +37,7 @@ You can install this plugin via [BRAT](https://obsidian.md/plugins?id=obsidian42
 
 ## Roadmap
 - [x] Ability to select models from the list instead of typing their names
-- [ ] Ability to share and apply presets (system prompt + prompt + model)
+- [x] Ability to share and apply presets (system prompt + prompt + model)
 - [ ] Additional AI providers (OpenAI, etc...)
 - [ ] Changing order of the prompts
 - [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian

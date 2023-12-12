@@ -3,6 +3,8 @@ import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction, Providers } from "./interfaces";
 
+const SEPARATOR = "✂️";
+
 export class LocalGPTSettingTab extends PluginSettingTab {
 	plugin: LocalGPT;
 	editEnabled: boolean = false;
@@ -118,16 +120,72 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			replace: false,
 		};
 
+		const sharingActionsMapping = {
+			name: "Name: ",
+			system: "System: ",
+			prompt: "Prompt: ",
+			replace: "Replace: ",
+			model: "Model: ",
+		};
+
 		containerEl.createEl("h3", { text: "Actions" });
 
 		if (!this.editEnabled) {
-			new Setting(containerEl).setName("Add new").addButton((button) =>
-				button.setIcon("plus").onClick(async () => {
-					this.editEnabled = true;
-					this.isNew = true;
-					this.display();
-				}),
-			);
+			new Setting(containerEl)
+				.setName("Add new manually")
+				.addButton((button) =>
+					button.setIcon("plus").onClick(async () => {
+						this.editEnabled = true;
+						this.isNew = true;
+						this.display();
+					}),
+				);
+			const quickAdd = new Setting(containerEl)
+				.setName("Quick add")
+				.setDesc("")
+				.addText((text) => {
+					text.inputEl.style.minWidth = "100%";
+					text.setPlaceholder("Paste action");
+					text.onChange(async (value) => {
+						const quickAddAction: LocalGPTAction = value
+							.split(SEPARATOR)
+							.map((part) => part.trim())
+							.reduce((acc, part) => {
+								const foundMatchKey = Object.keys(
+									sharingActionsMapping,
+								).find((key) => {
+									return part.startsWith(
+										sharingActionsMapping[
+											key as keyof typeof sharingActionsMapping
+										],
+									);
+								});
+
+								if (foundMatchKey) {
+									// @ts-ignore
+									acc[foundMatchKey] = part.substring(
+										sharingActionsMapping[
+											foundMatchKey as keyof typeof sharingActionsMapping
+										].length,
+										part.length,
+									);
+								}
+
+								return acc;
+							}, {} as LocalGPTAction);
+
+						if (
+							quickAddAction.name &&
+							(quickAddAction.system || quickAddAction.prompt)
+						) {
+							await this.addNewAction(quickAddAction);
+							text.setValue("");
+							this.display();
+						}
+					});
+				});
+
+			quickAdd.descEl.innerHTML = `You can share the best sets prompts or get one <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/2">from the community</a>.<br/><strong>Important:</strong> if you already have an action with the same name it will be overwritten.`;
 		} else {
 			new Setting(containerEl).setName("Action name").addText((text) => {
 				text.setPlaceholder("Summarize selection");
@@ -180,6 +238,13 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName("Save action")
+				.addButton((button) => {
+					button.setButtonText("Close").onClick(async () => {
+						this.editEnabled = false;
+						this.isNew = false;
+						this.display();
+					});
+				})
 				.addButton((button) =>
 					button
 						.setCta()
@@ -214,11 +279,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 								return;
 							}
 
-							this.plugin.settings.actions = [
-								editingAction,
-								...this.plugin.settings.actions,
-							];
-							await this.plugin.saveSettings();
+							await this.addNewAction(editingAction);
 							this.editEnabled = false;
 							this.isNew = false;
 							this.display();
@@ -226,30 +287,65 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 		}
 
-		containerEl.createEl("h4", { text: "Actions List" });
+		containerEl.createEl("h4", { text: "Actions list" });
+
+		let defaultModel = "";
+		if (this.plugin.settings.selectedProvider === Providers.OLLAMA) {
+			defaultModel = this.plugin.settings.providers.ollama.defaultModel;
+		}
 
 		this.plugin.settings.actions.forEach((action) => {
-			new Setting(containerEl)
+			const sharingString = [
+				action.name && `${sharingActionsMapping.name}${action.name}`,
+				action.system &&
+					`${sharingActionsMapping.system}${action.system}`,
+				action.prompt &&
+					`${sharingActionsMapping.prompt}${action.prompt}`,
+				action.replace &&
+					`${sharingActionsMapping.replace}${action.replace}`,
+				(action.model || defaultModel) &&
+					`${sharingActionsMapping.model}${
+						action.model || defaultModel
+					}`,
+			]
+				.filter(Boolean)
+				.join(` ${SEPARATOR}\n`);
+
+			const actionLine = new Setting(containerEl)
 				.setName(action.name)
-				.setDesc(
-					[
-						action.system && `System: ${action.system}`,
-						action.prompt && `${action.prompt}`,
-						action.model && `Model: ${action.model}`,
-					]
-						.filter((x) => x)
-						.join(" ✂️ "),
+				.setDesc("")
+				.addButton((button) =>
+					button.setIcon("copy").onClick(async () => {
+						navigator.clipboard.writeText(sharingString);
+						new Notice("Copied");
+					}),
 				)
 				.addButton((button) =>
 					button.setButtonText("Remove").onClick(async () => {
+						if (!button.buttonEl.hasClass("mod-warning")) {
+							button.setClass("mod-warning");
+							return;
+						}
+
 						this.plugin.settings.actions =
 							this.plugin.settings.actions.filter(
-								(action) => action.name !== action.name,
+								(innerAction) =>
+									innerAction.name !== action.name,
 							);
 						await this.plugin.saveSettings();
 						this.display();
 					}),
 				);
+			actionLine.descEl.innerHTML = [
+				action.system &&
+					`<b>${sharingActionsMapping.system}</b>${action.system}`,
+				action.prompt &&
+					`<b>${sharingActionsMapping.prompt}</b>${action.prompt}`,
+				action.model &&
+					`<b>${sharingActionsMapping.model}</b>${action.model}`,
+			]
+				.filter(Boolean)
+				.join("<br/>\n");
 		});
 
 		containerEl.createEl("h4", { text: "Danger zone" });
@@ -271,5 +367,25 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						this.display();
 					}),
 			);
+	}
+
+	async addNewAction(editingAction: LocalGPTAction) {
+		const alreadyExistingActionIndex =
+			this.plugin.settings.actions.findIndex(
+				(action) => action.name === editingAction.name,
+			);
+
+		if (alreadyExistingActionIndex >= 0) {
+			this.plugin.settings.actions[alreadyExistingActionIndex] =
+				editingAction;
+			new Notice(`Rewritten "${editingAction.name}" action`);
+		} else {
+			this.plugin.settings.actions = [
+				editingAction,
+				...this.plugin.settings.actions,
+			];
+			new Notice(`Added "${editingAction.name}" action`);
+		}
+		await this.plugin.saveSettings();
 	}
 }
