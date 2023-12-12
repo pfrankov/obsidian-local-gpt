@@ -13,7 +13,7 @@ Default actions:
 - General help (just use selected text as a prompt for any purpose)
 
 You can also add yours:  
-<img width="700" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/5ea6b648-0944-417c-bcd7-6cdc3db000c6">
+<img width="700" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/66091fde-29b3-46ae-9321-fdd8485ad2eb">
 
 >**Limitations:**
 >- Since plugin uses [Ollama](https://ollama.ai/) it depends on it. The main limitation is "Windows coming soon".
