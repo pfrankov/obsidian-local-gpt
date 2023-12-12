@@ -155,8 +155,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							.addOption('', 'Default model')
 							.addOptions(this.modelsOptions)
 							.onChange(async (value) => {
-								this.plugin.settings.providers.ollama.defaultModel = value;
-								await this.plugin.saveSettings();
+								editingAction.model = value;
 							})
 
 					)
