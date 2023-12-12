@@ -1,8 +1,13 @@
 import {LocalGPTSettings} from "./interfaces";
 
 export const DEFAULT_SETTINGS: LocalGPTSettings = {
-	ollamaUrl: "http://localhost:11434",
-	defaultModel: "orca-mini",
+	providers: {
+		ollama: {
+			ollamaUrl: "http://localhost:11434",
+			defaultModel: "orca-mini",
+		}
+	},
+	selectedProvider: 'ollama',
 	actions: [
 		{
 			name: "🪄 General help",
@@ -31,4 +36,5 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 			system: "You are an AI assistant that follows instruction extremely well. Help as much as you can."
 		}
 	],
+	_version: 1
 };

@@ -33,7 +33,7 @@ export default class LocalGPT extends Plugin {
 				this.settings.actions.forEach((action) => {
 					const requestBody: OllamaRequestBody = {
 						prompt: action.prompt + "\n\n" + text,
-						model: action.model || this.settings.defaultModel,
+						model: action.model || this.settings.providers.ollama.defaultModel,
 						options: {
 							temperature: action.temperature || 0.2,
 						},
@@ -54,7 +54,7 @@ export default class LocalGPT extends Plugin {
 
 								requestUrl({
 									method: "POST",
-									url: `${this.settings.ollamaUrl}/api/generate`,
+									url: `${this.settings.providers.ollama.ollamaUrl}/api/generate`,
 									body: JSON.stringify(requestBody)
 								})
 									.then(({json}) => {
@@ -98,7 +98,29 @@ export default class LocalGPT extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedData:LocalGPTSettings = await this.loadData();
+		let needToSave = false;
+
+		if (loadedData && !loadedData._version || loadedData._version < 1) {
+			needToSave = true;
+
+			loadedData.providers = DEFAULT_SETTINGS.providers;
+			// @ts-ignore
+			loadedData.providers.ollama.ollamaUrl = loadedData.ollamaUrl;
+			// @ts-ignore
+			delete loadedData.ollamaUrl;
+			// @ts-ignore
+			loadedData.providers.ollama.defaultModel = loadedData.defaultModel;
+			// @ts-ignore
+			delete loadedData.defaultModel;
+			loadedData.selectedProvider = DEFAULT_SETTINGS.selectedProvider;
+			loadedData._version = 2;
+		}
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
+
+		if (needToSave) {
+			await this.saveData(this.settings);
+		}
 	}
 
 	reload() {

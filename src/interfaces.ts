@@ -1,7 +1,15 @@
 export interface LocalGPTSettings {
-	ollamaUrl: string;
-	defaultModel: string;
+	selectedProvider: string;
+	providers: OllamaProvider;
 	actions: LocalGPTAction[];
+	_version: number;
+}
+
+export interface OllamaProvider {
+	ollama: {
+		ollamaUrl: string;
+		defaultModel: string;
+	}
 }
 
 export interface LocalGPTAction {

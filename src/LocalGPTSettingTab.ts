@@ -1,4 +1,4 @@
-import {App, Notice, PluginSettingTab, Setting} from "obsidian";
+import {App, Notice, PluginSettingTab, requestUrl, Setting} from "obsidian";
 import {DEFAULT_SETTINGS} from "defaultSettings";
 import LocalGPT from "./main";
 import {LocalGPTAction} from "./interfaces";
@@ -7,6 +7,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	plugin: LocalGPT;
 	editEnabled: boolean = false;
 	isNew: boolean = false;
+	modelsOptions: any = {};
 
 	constructor(app: App, plugin: LocalGPT) {
 		super(app, plugin);
@@ -18,31 +19,79 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		new Setting(containerEl)
-			.setName("Ollama URL")
-			.setDesc("Default is http://localhost:11434")
-			.addText((text) =>
-				text
-					.setPlaceholder("http://localhost:11434")
-					.setValue(this.plugin.settings.ollamaUrl)
-					.onChange(async (value) => {
-						this.plugin.settings.ollamaUrl = value;
-						await this.plugin.saveSettings();
+		const aiProvider = new Setting(containerEl)
+			.setName('AI provider')
+			.setDesc('')
+			.addDropdown(dropdown =>
+				dropdown.addOptions({
+						'ollama': 'Ollama',
 					})
-			);
+					.setValue(String(this.plugin.settings.selectedProvider))
+					.onChange(async (value) => {
+						this.plugin.settings.selectedProvider = value;
+						await this.plugin.saveSettings();
+						this.display()
+					})
+			)
 
-		new Setting(containerEl)
-			.setName("Default model")
-			.setDesc("Name of the default Ollama model to use for prompts")
-			.addText((text) =>
-				text
-					.setPlaceholder("llama2")
-					.setValue(this.plugin.settings.defaultModel)
-					.onChange(async (value) => {
-						this.plugin.settings.defaultModel = value;
-						await this.plugin.saveSettings();
+		aiProvider.descEl.innerHTML = `If you would like to use other providers, please let me know <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/1">in the discussions</a>`
+
+		if (this.plugin.settings.selectedProvider === 'ollama') {
+			new Setting(containerEl)
+				.setName("Ollama URL")
+				.setDesc("Default is http://localhost:11434")
+				.addText((text) =>
+					text
+						.setPlaceholder("http://localhost:11434")
+						.setValue(this.plugin.settings.providers.ollama.ollamaUrl)
+						.onChange(async (value) => {
+							this.plugin.settings.providers.ollama.ollamaUrl = value;
+							await this.plugin.saveSettings();
+						})
+				);
+
+			const ollamaDefaultModel = new Setting(containerEl)
+				.setName("Default model")
+				.setDesc("Name of the default Ollama model to use for prompts")
+			if (this.plugin.settings.providers.ollama.ollamaUrl) {
+				requestUrl(`${this.plugin.settings.providers.ollama.ollamaUrl}/api/tags`)
+					.then(({json}) => {
+						if (!json.models || json.models.length === 0) {
+							return Promise.reject();
+						}
+						this.modelsOptions = json.models.reduce((acc: any, el:any) => {
+							const name = el.name.replace(":latest", "");
+							acc[name] = name;
+							return acc;
+						}, {})
+
+						ollamaDefaultModel
+							.addDropdown(dropdown =>
+								dropdown.addOptions(this.modelsOptions)
+									.setValue(String(this.plugin.settings.providers.ollama.defaultModel))
+									.onChange(async (value) => {
+										this.plugin.settings.providers.ollama.defaultModel = value;
+										await this.plugin.saveSettings();
+									})
+
+							)
+							.addButton((button) =>
+								button.setIcon('refresh-cw').onClick(async () => {
+									this.display()
+								})
+							)
 					})
-			);
+					.catch(() => {
+						ollamaDefaultModel.descEl.innerHTML = `Get the models from <a href="https://ollama.ai/library">Ollama library</a> or check that Ollama URL is correct.`
+						ollamaDefaultModel.addButton((button) =>
+								button.setIcon('refresh-cw').onClick(async () => {
+									this.display()
+								})
+							)
+					})
+			}
+		}
+
 
 		const editingAction: LocalGPTAction = {
 			name: "",
@@ -97,15 +146,21 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					});
 				});
 
-			new Setting(containerEl)
-				.setName("Model")
-				.setDesc('Optional')
-				.addText((text) => {
-					text.setPlaceholder(this.plugin.settings.defaultModel);
-					text.onChange(async (value) => {
-						editingAction.model = value;
-					});
-				});
+			if (this.plugin.settings.selectedProvider === 'ollama') {
+				new Setting(containerEl)
+					.setName("Model")
+					.setDesc('Optional')
+					.addDropdown(dropdown =>
+						dropdown
+							.addOption('', 'Default model')
+							.addOptions(this.modelsOptions)
+							.onChange(async (value) => {
+								this.plugin.settings.providers.ollama.defaultModel = value;
+								await this.plugin.saveSettings();
+							})
+
+					)
+			}
 
 			new Setting(containerEl)
 				.setName("Replace selected text")

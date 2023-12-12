@@ -36,11 +36,14 @@ You can install this plugin via [BRAT](https://obsidian.md/plugins?id=obsidian42
 4. Click on `+` icon and press hotkey (e.g. `⌘ + M`)
 
 ## Roadmap
-- [ ] Ability to select models from the list instead of typing their names
+- [x] Ability to select models from the list instead of typing their names
 - [ ] Ability to share and apply presets (system prompt + prompt + model)
 - [ ] Additional AI providers (OpenAI, etc...)
 - [ ] Changing order of the prompts
 - [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian
+
+## Other AI providers
+If you would like to use other providers, please let me know [in the discussions](https://github.com/pfrankov/obsidian-local-gpt/discussions/1).
 
 ## My other Obsidian plugins
 - [Colored Tags](https://github.com/pfrankov/obsidian-colored-tags) that colorizes tags in distinguishable colors. 
