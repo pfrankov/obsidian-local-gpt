@@ -21,7 +21,7 @@ export class OllamaAIProvider implements AIProvider {
 
 	process(text: string, action: LocalGPTAction) {
 		const requestBody: OllamaRequestBody = {
-			prompt: action.prompt + "\n\n" + text,
+			prompt: [action.prompt, text].filter(Boolean).join("\n\n"),
 			model: action.model || this.defaultModel,
 			options: {
 				temperature: action.temperature || 0.2,
@@ -35,7 +35,7 @@ export class OllamaAIProvider implements AIProvider {
 
 		return requestUrl({
 			method: "POST",
-			url: `${this.ollamaUrl}/api/generate`,
+			url: `${this.ollamaUrl.replace(/\/+$/i, "")}/api/generate`,
 			body: JSON.stringify(requestBody),
 		}).then(({ json }) => {
 			return json.response;

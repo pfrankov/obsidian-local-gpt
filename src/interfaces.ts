@@ -1,6 +1,6 @@
 export interface LocalGPTSettings {
 	selectedProvider: string;
-	providers: OllamaProviderInSettings;
+	providers: OllamaProviderInSettings & OpenAICompatibleProviderInSettings;
 	actions: LocalGPTAction[];
 	_version: number;
 }
@@ -11,9 +11,15 @@ export interface OllamaProviderInSettings {
 		defaultModel: string;
 	};
 }
+export interface OpenAICompatibleProviderInSettings {
+	openaiCompatible: {
+		url: string;
+	};
+}
 
 export const enum Providers {
 	OLLAMA = "ollama",
+	OPENAI_COMPATIBLE = "openaiCompatible",
 }
 
 export interface LocalGPTAction {

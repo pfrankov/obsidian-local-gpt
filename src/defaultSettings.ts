@@ -6,6 +6,9 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 			ollamaUrl: "http://localhost:11434",
 			defaultModel: "orca-mini",
 		},
+		openaiCompatible: {
+			url: "http://localhost:8080",
+		},
 	},
 	selectedProvider: "ollama",
 	actions: [

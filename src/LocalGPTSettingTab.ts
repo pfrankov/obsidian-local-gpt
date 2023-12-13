@@ -28,6 +28,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				dropdown
 					.addOptions({
 						[Providers.OLLAMA]: "Ollama",
+						[Providers.OPENAI_COMPATIBLE]:
+							"OpenAI compatible server",
 					})
 					.setValue(String(this.plugin.settings.selectedProvider))
 					.onChange(async (value) => {
@@ -109,6 +111,36 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						);
 					});
 			}
+		}
+		if (
+			this.plugin.settings.selectedProvider ===
+			Providers.OPENAI_COMPATIBLE
+		) {
+			const openAICompatible = new Setting(containerEl)
+				.setName("OpenAI compatible server URL")
+				.setDesc("")
+				.addText((text) =>
+					text
+						.setPlaceholder("http://localhost:8080")
+						.setValue(
+							this.plugin.settings.providers.openaiCompatible.url,
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.providers.openaiCompatible.url =
+								value;
+							await this.plugin.saveSettings();
+						}),
+				);
+			openAICompatible.descEl.innerHTML = `
+				There are several options to run local OpenAI-like server:
+				<ul>
+					<li><a href="https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md">llama.cpp</a></li>
+					<li><a href="https://github.com/abetlen/llama-cpp-python#openai-compatible-web-server">llama-cpp-python</a></li>
+					<li><a href="https://localai.io/model-compatibility/llama-cpp/#setup">LocalAI</a></li>
+				</ul>
+				After all installation and configuration make sure that you're using compatible model.<br/>
+				For llama.cpp it is necessary to use models in ChatML format (e.g. <a href="https://huggingface.co/TheBloke/Orca-2-7B-GGUF/blob/main/orca-2-7b.Q4_K_M.gguf">Orca 2</a>)
+			`;
 		}
 
 		const editingAction: LocalGPTAction = {
@@ -303,7 +335,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					`${sharingActionsMapping.prompt}${action.prompt}`,
 				action.replace &&
 					`${sharingActionsMapping.replace}${action.replace}`,
-				(action.model || defaultModel) &&
+				this.plugin.settings.selectedProvider === Providers.OLLAMA &&
+					(action.model || defaultModel) &&
 					`${sharingActionsMapping.model}${
 						action.model || defaultModel
 					}`,
@@ -341,7 +374,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					`<b>${sharingActionsMapping.system}</b>${action.system}`,
 				action.prompt &&
 					`<b>${sharingActionsMapping.prompt}</b>${action.prompt}`,
-				action.model &&
+				this.plugin.settings.selectedProvider === Providers.OLLAMA &&
+					action.model &&
 					`<b>${sharingActionsMapping.model}</b>${action.model}`,
 			]
 				.filter(Boolean)

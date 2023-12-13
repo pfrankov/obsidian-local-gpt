@@ -12,11 +12,10 @@ Default actions:
 - Find action items in text
 - General help (just use selected text as a prompt for any purpose)
 
-You can also add yours:  
+You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2)  
 <img width="700" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/21e1fe6c-a93b-4562-a53a-d7727504e0d6">
 
 >**Limitations:**
->- Since plugin uses [Ollama](https://ollama.ai/) it depends on it. The main limitation is "Windows coming soon".
 >- No mobile support.
 
 
@@ -26,8 +25,21 @@ You can also add yours:
 You can install this plugin via [BRAT](https://obsidian.md/plugins?id=obsidian42-brat): `pfrankov/obsidian-local-gpt`
 
 ### Install LLM
-1. Install [Ollama](https://ollama.ai/).
+#### Ollama (recommended)
+1. Install [Ollama](https://ollama.ai/). No Windows support yet.
 2. Install orca-mini (default) `ollama pull orca-mini` or any preferred model [from the library](https://ollama.ai/library).
+
+#### OpenAI compatible server
+There are several options to run local OpenAI-like server:  
+- [llama.cpp](https://github.com/ggerganov/llama.cpp)
+- [llama-cpp-python](https://github.com/abetlen/llama-cpp-python#openai-compatible-web-server)
+- [LocalAI](https://localai.io/model-compatibility/llama-cpp/#setup)
+- ...maybe more
+
+Here is an example for llama.cpp:  
+1. Install [llama.cpp](https://github.com/ggerganov/llama.cpp) and follow build instructions for your OS
+2. Download a model trained on the ChatML dialog format. For example, [Orca 2](https://huggingface.co/TheBloke/Orca-2-7B-GGUF/blob/main/orca-2-7b.Q4_K_M.gguf)
+3. Run the server by calling `./server -c 4096 --host 0.0.0.0 -t 16 --mlock -m models/orca-2-7b.Q4_K_M.gguf` or as described [in the documentation](https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md).
 
 ### Configure Obsidian hotkey (optional)
 1. Open Obsidian Settings
@@ -38,8 +50,10 @@ You can install this plugin via [BRAT](https://obsidian.md/plugins?id=obsidian42
 ## Roadmap
 - [x] Ability to select models from the list instead of typing their names
 - [x] Ability to share and apply presets (system prompt + prompt + model)
-- [ ] Additional AI providers (OpenAI, etc...)
-- [ ] Changing order of the prompts
+- [x] Additional AI providers (OpenAI, etc...)
+- [ ] Optional settings for prompts (top_p, top_k, temperature, repeat_penalty)
+- [ ] Fallback for action if first URL is unavailable (remote GPU)
+- [ ] Changing order of the actions
 - [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian
 
 ## Other AI providers

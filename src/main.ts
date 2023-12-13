@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "spinnerPlugin";
 import { LocalGPTSettings, AIProvider, Providers } from "./interfaces";
 import { OllamaAIProvider } from "./providers/ollama";
+import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
@@ -33,6 +34,12 @@ export default class LocalGPT extends Plugin {
 
 				let aiProvider: AIProvider;
 				switch (this.settings.selectedProvider) {
+					case Providers.OPENAI_COMPATIBLE: {
+						aiProvider = new OpenAICompatibleAIProvider({
+							url: this.settings.providers.openaiCompatible.url,
+						});
+						break;
+					}
 					case Providers.OLLAMA:
 					default: {
 						aiProvider = new OllamaAIProvider({
@@ -40,7 +47,6 @@ export default class LocalGPT extends Plugin {
 								this.settings.providers.ollama.defaultModel,
 							ollamaUrl: this.settings.providers.ollama.ollamaUrl,
 						});
-						break;
 					}
 				}
 
@@ -129,6 +135,23 @@ export default class LocalGPT extends Plugin {
 			loadedData.selectedProvider = DEFAULT_SETTINGS.selectedProvider;
 			loadedData._version = 2;
 		}
+
+		Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {
+			if (
+				loadedData.providers[
+					key as keyof typeof DEFAULT_SETTINGS.providers
+				]
+			) {
+				return;
+			}
+			// @ts-ignore
+			loadedData.providers[key] =
+				DEFAULT_SETTINGS.providers[
+					key as keyof typeof DEFAULT_SETTINGS.providers
+				];
+			needToSave = true;
+		});
+
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
 
 		if (needToSave) {
