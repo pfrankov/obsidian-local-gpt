@@ -1,4 +1,8 @@
-.loading {
+.local-gpt-streaming-text {
+	color: var(--text-faint);
+}
+
+.local-gpt-loading {
 	display: inline-block;
 	overflow: hidden;
 	height: 1.3em;
@@ -7,13 +11,13 @@
     margin: -0.3em 0.3em 0;
 }
 
-.loading::after {
+.local-gpt-loading::after {
 	display: inline-table;
 	white-space: pre;
 	text-align: left;
 }
 
-.loading.dots::after {
+.local-gpt-loading.local-gpt-dots::after {
 	content: "⠋\A⠙\A⠹\A⠸\A⠼\A⠴\A⠦\A⠧\A⠇\A⠏";
 	animation: spin10 1s steps(10) infinite;
 }

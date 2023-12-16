@@ -1,6 +1,7 @@
 # Local GPT plugin for Obsidian
 
-![demo](https://github.com/pfrankov/obsidian-local-gpt/assets/584632/7618bed7-57e4-417e-82e4-5172fba1995b)
+![demo](https://github.com/pfrankov/obsidian-local-gpt/assets/584632/724d4399-cb6c-4531-9f04-a1e5df2e3dad)  
+_No speedup. MacBook Pro 13, M1, 16GB, Ollama, orca-mini._ 
 
 Local GPT assistance for maximum privacy and offline access.  
 The plugin allows you to open a context menu on selected text to pick an AI-assistant's action.
@@ -15,9 +16,12 @@ Default actions:
 You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2)  
 <img width="700" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/21e1fe6c-a93b-4562-a53a-d7727504e0d6">
 
+Supported AI Providers:
+- Ollama
+- OpenAI compatible server
+
 >**Limitations:**
 >- No mobile support.
-
 
 ## Installation
 
@@ -28,6 +32,8 @@ You can install this plugin via [BRAT](https://obsidian.md/plugins?id=obsidian42
 #### Ollama (recommended)
 1. Install [Ollama](https://ollama.ai/). No Windows support yet.
 2. Install orca-mini (default) `ollama pull orca-mini` or any preferred model [from the library](https://ollama.ai/library).
+
+Additional: if you want to enable streaming completion with Ollama you should run it in API-mode: `OLLAMA_ORIGINS='*' ollama serve`. 
 
 #### OpenAI compatible server
 There are several options to run local OpenAI-like server:  
@@ -51,6 +57,7 @@ Here is an example for llama.cpp:
 - [x] Ability to select models from the list instead of typing their names
 - [x] Ability to share and apply presets (system prompt + prompt + model)
 - [x] Additional AI providers (OpenAI, etc...)
+- [x] Streaming completions
 - [ ] Optional settings for prompts (top_p, top_k, temperature, repeat_penalty)
 - [ ] Fallback for action if first URL is unavailable (remote GPU)
 - [ ] Changing order of the actions

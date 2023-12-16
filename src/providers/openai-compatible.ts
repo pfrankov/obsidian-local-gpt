@@ -1,5 +1,6 @@
 import { requestUrl } from "obsidian";
 import { LocalGPTAction, AIProvider } from "../interfaces";
+import { streamer } from "../streamer";
 
 export interface OpenAICompatibleMessage {
 	role: "system" | "user";
@@ -7,16 +8,22 @@ export interface OpenAICompatibleMessage {
 }
 export interface OpenAICompatibleRequestBody {
 	messages: OpenAICompatibleMessage[];
+	stream: boolean;
 }
 
 export class OpenAICompatibleAIProvider implements AIProvider {
-	constructor({ url }: any) {
+	constructor({ url, abortController, onUpdate }: any) {
 		this.url = url;
+		this.abortController = abortController;
+		this.onUpdate = onUpdate;
 	}
 	url: string;
+	onUpdate: (text: string) => void;
+	abortController: AbortController;
 
 	process(text: string, action: LocalGPTAction) {
 		const requestBody: OpenAICompatibleRequestBody = {
+			stream: true,
 			messages: [
 				(action.system && {
 					role: "system",
@@ -29,12 +36,44 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 			].filter(Boolean) as OpenAICompatibleMessage[],
 		};
 
-		return requestUrl({
+		const { abortController } = this;
+
+		return fetch(`${this.url.replace(/\/+$/i, "")}/v1/chat/completions`, {
 			method: "POST",
-			url: `${this.url.replace(/\/+$/i, "")}/v1/chat/completions`,
+			headers: {
+				"Content-Type": "application/json",
+			},
 			body: JSON.stringify(requestBody),
-		}).then(({ json }) => {
-			return json.choices[0].message.content;
+			signal: abortController.signal,
+		}).then((response) => {
+			let combined = "";
+
+			return streamer({
+				response,
+				abortController,
+				onNext: (data: string) => {
+					const lines = data
+						.split("\n")
+						.filter((line: string) => line.trim() !== "");
+					for (const line of lines) {
+						const message = line.replace(/^data: /, "");
+						try {
+							const parsed = JSON.parse(message);
+							combined += parsed.choices[0]?.delta?.content || "";
+						} catch (error) {
+							console.error(
+								"Could not JSON parse stream message",
+								message,
+								error,
+							);
+						}
+					}
+					this.onUpdate(combined);
+				},
+				onDone: () => {
+					return combined;
+				},
+			});
 		});
 	}
 }

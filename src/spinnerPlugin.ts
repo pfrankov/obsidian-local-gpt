@@ -11,11 +11,32 @@ import {
 } from "@codemirror/view";
 
 class Spinner extends WidgetType {
+	constructor(readonly text: string) {
+		super();
+	}
+
+	eq(other: Spinner) {
+		return other.text == this.text;
+	}
+
 	toDOM() {
+		let wrap = document.createElement("div");
+		wrap.innerHTML = this.text;
+		wrap.addClass("local-gpt-streaming-text");
+
 		const span = document.createElement("span");
-		span.addClasses(["loading", "dots"]);
-		span.setAttribute("id", "tg-loading");
-		return span;
+		span.addClasses(["local-gpt-loading", "local-gpt-dots"]);
+
+		if (!this.text.trim()) {
+			return span;
+		}
+
+		wrap.innerHTML = wrap.innerHTML.trimEnd() + span.outerHTML.trim();
+		return wrap;
+	}
+
+	ignoreEvent() {
+		return false;
 	}
 }
 
@@ -46,6 +67,9 @@ export class SpinnerPlugin implements PluginValue {
 		this.decorations = this.buildDecorations();
 	}
 
+	updateContent(text: string) {
+		this.decorations = this.buildDecorations(text);
+	}
 	update(update: ViewUpdate) {
 		if (update.docChanged || update.viewportChanged) {
 			this.decorations = this.buildDecorations();
@@ -54,14 +78,15 @@ export class SpinnerPlugin implements PluginValue {
 
 	destroy() {}
 
-	buildDecorations(): DecorationSet {
+	buildDecorations(text = ""): DecorationSet {
 		const builder = new RangeSetBuilder<Decoration>();
 		this.listOfPositions.forEach((pos) => {
 			const indentationWidget = Decoration.widget({
-				widget: new Spinner(),
+				widget: new Spinner(text),
+				side: 1,
 			});
-			const line = this.editorView.state.doc.lineAt(pos);
-			builder.add(line.to, line.to, indentationWidget);
+
+			builder.add(pos, pos, indentationWidget);
 		});
 		return builder.finish();
 	}
