@@ -21,7 +21,7 @@ class Spinner extends WidgetType {
 
 	toDOM() {
 		let wrap = document.createElement("div");
-		wrap.innerHTML = this.text;
+		wrap.innerText = this.text;
 		wrap.addClass("local-gpt-streaming-text");
 
 		const span = document.createElement("span");
@@ -31,7 +31,6 @@ class Spinner extends WidgetType {
 			return span;
 		}
 
-		wrap.innerHTML = wrap.innerHTML.trimEnd() + span.outerHTML.trim();
 		return wrap;
 	}
 
