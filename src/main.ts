@@ -161,37 +161,39 @@ export default class LocalGPT extends Plugin {
 		const loadedData: LocalGPTSettings = await this.loadData();
 		let needToSave = false;
 
-		if ((loadedData && !loadedData._version) || loadedData._version < 1) {
-			needToSave = true;
+		if (loadedData) {
+			if (!loadedData._version || loadedData._version < 1) {
+				needToSave = true;
 
-			loadedData.providers = DEFAULT_SETTINGS.providers;
-			// @ts-ignore
-			loadedData.providers.ollama.ollamaUrl = loadedData.ollamaUrl;
-			// @ts-ignore
-			delete loadedData.ollamaUrl;
-			// @ts-ignore
-			loadedData.providers.ollama.defaultModel = loadedData.defaultModel;
-			// @ts-ignore
-			delete loadedData.defaultModel;
-			loadedData.selectedProvider = DEFAULT_SETTINGS.selectedProvider;
-			loadedData._version = 2;
-		}
-
-		Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {
-			if (
-				loadedData.providers[
-					key as keyof typeof DEFAULT_SETTINGS.providers
-				]
-			) {
-				return;
+				loadedData.providers = DEFAULT_SETTINGS.providers;
+				// @ts-ignore
+				loadedData.providers.ollama.ollamaUrl = loadedData.ollamaUrl;
+				// @ts-ignore
+				delete loadedData.ollamaUrl;
+				// @ts-ignore
+				loadedData.providers.ollama.defaultModel = loadedData.defaultModel;
+				// @ts-ignore
+				delete loadedData.defaultModel;
+				loadedData.selectedProvider = DEFAULT_SETTINGS.selectedProvider;
+				loadedData._version = 2;
 			}
-			// @ts-ignore
-			loadedData.providers[key] =
-				DEFAULT_SETTINGS.providers[
-					key as keyof typeof DEFAULT_SETTINGS.providers
-				];
-			needToSave = true;
-		});
+
+			Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {
+				if (
+					loadedData.providers[
+						key as keyof typeof DEFAULT_SETTINGS.providers
+						]
+				) {
+					return;
+				}
+				// @ts-ignore
+				loadedData.providers[key] =
+					DEFAULT_SETTINGS.providers[
+						key as keyof typeof DEFAULT_SETTINGS.providers
+						];
+				needToSave = true;
+			});
+		}
 
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
 
