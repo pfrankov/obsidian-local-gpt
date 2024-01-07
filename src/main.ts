@@ -172,6 +172,7 @@ export default class LocalGPT extends Plugin {
 				delete loadedData.ollamaUrl;
 				// @ts-ignore
 				loadedData.providers.ollama.defaultModel =
+					// @ts-ignore
 					loadedData.defaultModel;
 				// @ts-ignore
 				delete loadedData.defaultModel;
