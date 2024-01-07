@@ -171,7 +171,8 @@ export default class LocalGPT extends Plugin {
 				// @ts-ignore
 				delete loadedData.ollamaUrl;
 				// @ts-ignore
-				loadedData.providers.ollama.defaultModel = loadedData.defaultModel;
+				loadedData.providers.ollama.defaultModel =
+					loadedData.defaultModel;
 				// @ts-ignore
 				delete loadedData.defaultModel;
 				loadedData.selectedProvider = DEFAULT_SETTINGS.selectedProvider;
@@ -182,7 +183,7 @@ export default class LocalGPT extends Plugin {
 				if (
 					loadedData.providers[
 						key as keyof typeof DEFAULT_SETTINGS.providers
-						]
+					]
 				) {
 					return;
 				}
@@ -190,7 +191,7 @@ export default class LocalGPT extends Plugin {
 				loadedData.providers[key] =
 					DEFAULT_SETTINGS.providers[
 						key as keyof typeof DEFAULT_SETTINGS.providers
-						];
+					];
 				needToSave = true;
 			});
 		}

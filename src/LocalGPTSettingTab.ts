@@ -8,8 +8,9 @@ const SEPARATOR = "✂️";
 export class LocalGPTSettingTab extends PluginSettingTab {
 	plugin: LocalGPT;
 	editEnabled: boolean = false;
-	isNew: boolean = false;
+	editExistingAction?: LocalGPTAction;
 	modelsOptions: any = {};
+	changingOrder = false;
 
 	constructor(app: App, plugin: LocalGPT) {
 		super(app, plugin);
@@ -143,7 +144,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			`;
 		}
 
-		const editingAction: LocalGPTAction = {
+		const editingAction: LocalGPTAction = this.editExistingAction || {
 			name: "",
 			prompt: "",
 			model: "",
@@ -168,7 +169,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.addButton((button) =>
 					button.setIcon("plus").onClick(async () => {
 						this.editEnabled = true;
-						this.isNew = true;
+						this.editExistingAction = undefined;
 						this.display();
 					}),
 				);
@@ -220,6 +221,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			quickAdd.descEl.innerHTML = `You can share the best sets prompts or get one <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/2">from the community</a>.<br/><strong>Important:</strong> if you already have an action with the same name it will be overwritten.`;
 		} else {
 			new Setting(containerEl).setName("Action name").addText((text) => {
+				editingAction?.name && text.setValue(editingAction.name);
+				text.inputEl.style.minWidth = "100%";
 				text.setPlaceholder("Summarize selection");
 				text.onChange(async (value) => {
 					editingAction.name = value;
@@ -230,6 +233,11 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.setName("System prompt")
 				.setDesc("Optional")
 				.addTextArea((text) => {
+					editingAction?.system &&
+						text.setValue(editingAction.system);
+					text.inputEl.style.minWidth = "100%";
+					text.inputEl.style.minHeight = "6em";
+					text.inputEl.style.resize = "vertical";
 					text.setPlaceholder("You are a helpful assistant.");
 					text.onChange(async (value) => {
 						editingAction.system = value;
@@ -237,6 +245,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				});
 
 			new Setting(containerEl).setName("Prompt").addTextArea((text) => {
+				editingAction?.prompt && text.setValue(editingAction.prompt);
+				text.inputEl.style.minWidth = "100%";
+				text.inputEl.style.minHeight = "6em";
+				text.inputEl.style.resize = "vertical";
 				text.setPlaceholder("");
 				text.onChange(async (value) => {
 					editingAction.prompt = value;
@@ -247,14 +259,16 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				new Setting(containerEl)
 					.setName("Model")
 					.setDesc("Optional")
-					.addDropdown((dropdown) =>
+					.addDropdown((dropdown) => {
 						dropdown
 							.addOption("", "Default model")
 							.addOptions(this.modelsOptions)
 							.onChange(async (value) => {
 								editingAction.model = value;
-							}),
-					);
+							});
+						editingAction?.model &&
+							dropdown.setValue(editingAction.model);
+					});
 			}
 
 			new Setting(containerEl)
@@ -263,17 +277,41 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					"If checked, the highlighted text will be replaced with a response from the model.",
 				)
 				.addToggle((component) => {
+					editingAction?.replace &&
+						component.setValue(editingAction.replace);
 					component.onChange(async (value) => {
 						editingAction.replace = value;
 					});
 				});
 
-			new Setting(containerEl)
-				.setName("Save action")
+			const actionButtonsRow = new Setting(containerEl).setName("");
+
+			if (this.editExistingAction) {
+				actionButtonsRow.addButton((button) => {
+					button.buttonEl.style.marginRight = "2em";
+					button.setButtonText("Remove").onClick(async () => {
+						if (!button.buttonEl.hasClass("mod-warning")) {
+							button.setClass("mod-warning");
+							return;
+						}
+
+						this.plugin.settings.actions =
+							this.plugin.settings.actions.filter(
+								(innerAction) => innerAction !== editingAction,
+							);
+						await this.plugin.saveSettings();
+						this.editExistingAction = undefined;
+						this.editEnabled = false;
+						this.display();
+					});
+				});
+			}
+
+			actionButtonsRow
 				.addButton((button) => {
 					button.setButtonText("Close").onClick(async () => {
 						this.editEnabled = false;
-						this.isNew = false;
+						this.editExistingAction = undefined;
 						this.display();
 					});
 				})
@@ -288,19 +326,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 								);
 								return;
 							}
-
-							if (
-								this.plugin.settings.actions.find(
-									(action) =>
-										action.name === editingAction.name,
-								)
-							) {
-								new Notice(
-									`An action with the name "${editingAction.name}" already exists.`,
-								);
-								return;
-							}
-
 							if (
 								!editingAction.prompt &&
 								!editingAction.system
@@ -311,9 +336,47 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 								return;
 							}
 
-							await this.addNewAction(editingAction);
+							if (!this.editExistingAction) {
+								if (
+									this.plugin.settings.actions.find(
+										(action) =>
+											action.name === editingAction.name,
+									)
+								) {
+									new Notice(
+										`An action with the name "${editingAction.name}" already exists.`,
+									);
+									return;
+								}
+
+								await this.addNewAction(editingAction);
+							} else {
+								if (
+									this.plugin.settings.actions.filter(
+										(action) =>
+											action.name === editingAction.name,
+									).length > 1
+								) {
+									new Notice(
+										`An action with the name "${editingAction.name}" already exists.`,
+									);
+									return;
+								}
+
+								const index =
+									this.plugin.settings.actions.findIndex(
+										(innerAction) =>
+											innerAction === editingAction,
+									);
+
+								this.plugin.settings.actions[index] =
+									editingAction;
+							}
+
+							await this.plugin.saveSettings();
+
 							this.editEnabled = false;
-							this.isNew = false;
+							this.editExistingAction = undefined;
 							this.display();
 						}),
 				);
@@ -326,7 +389,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			defaultModel = this.plugin.settings.providers.ollama.defaultModel;
 		}
 
-		this.plugin.settings.actions.forEach((action) => {
+		this.plugin.settings.actions.forEach((action, actionIndex) => {
 			const sharingString = [
 				action.name && `${sharingActionsMapping.name}${action.name}`,
 				action.system &&
@@ -344,43 +407,84 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.filter(Boolean)
 				.join(` ${SEPARATOR}\n`);
 
-			const actionLine = new Setting(containerEl)
-				.setName(action.name)
-				.setDesc("")
-				.addButton((button) =>
-					button.setIcon("copy").onClick(async () => {
-						navigator.clipboard.writeText(sharingString);
-						new Notice("Copied");
-					}),
-				)
-				.addButton((button) =>
-					button.setButtonText("Remove").onClick(async () => {
-						if (!button.buttonEl.hasClass("mod-warning")) {
-							button.setClass("mod-warning");
-							return;
-						}
+			if (!this.changingOrder) {
+				const actionRow = new Setting(containerEl)
+					.setName(action.name)
+					.setDesc("")
+					.addButton((button) =>
+						button.setIcon("copy").onClick(async () => {
+							navigator.clipboard.writeText(sharingString);
+							new Notice("Copied");
+						}),
+					)
+					.addButton((button) =>
+						button.setButtonText("Edit").onClick(async () => {
+							this.editEnabled = true;
+							this.editExistingAction =
+								this.plugin.settings.actions.find(
+									(innerAction) =>
+										innerAction.name == action.name,
+								);
+							this.display();
+						}),
+					);
+				actionRow.descEl.innerHTML = [
+					action.system &&
+						`<b>${sharingActionsMapping.system}</b>${action.system}`,
+					action.prompt &&
+						`<b>${sharingActionsMapping.prompt}</b>${action.prompt}`,
+					this.plugin.settings.selectedProvider ===
+						Providers.OLLAMA &&
+						action.model &&
+						`<b>${sharingActionsMapping.model}</b>${action.model}`,
+				]
+					.filter(Boolean)
+					.join("<br/>\n");
+			} else {
+				const actionRow = new Setting(containerEl)
+					.setName(action.name)
+					.setDesc("");
 
-						this.plugin.settings.actions =
-							this.plugin.settings.actions.filter(
-								(innerAction) =>
-									innerAction.name !== action.name,
-							);
-						await this.plugin.saveSettings();
-						this.display();
-					}),
-				);
-			actionLine.descEl.innerHTML = [
-				action.system &&
-					`<b>${sharingActionsMapping.system}</b>${action.system}`,
-				action.prompt &&
-					`<b>${sharingActionsMapping.prompt}</b>${action.prompt}`,
-				this.plugin.settings.selectedProvider === Providers.OLLAMA &&
-					action.model &&
-					`<b>${sharingActionsMapping.model}</b>${action.model}`,
-			]
-				.filter(Boolean)
-				.join("<br/>\n");
+				if (actionIndex > 0) {
+					actionRow.addButton((button) =>
+						button.setIcon("arrow-up").onClick(async () => {
+							const prev =
+								this.plugin.settings.actions[actionIndex - 1];
+							this.plugin.settings.actions[actionIndex - 1] =
+								action;
+							this.plugin.settings.actions[actionIndex] = prev;
+							await this.plugin.saveSettings();
+							this.display();
+						}),
+					);
+				}
+				if (actionIndex < this.plugin.settings.actions.length - 1) {
+					actionRow.addButton((button) =>
+						button.setIcon("arrow-down").onClick(async () => {
+							const next =
+								this.plugin.settings.actions[actionIndex + 1];
+							this.plugin.settings.actions[actionIndex + 1] =
+								action;
+							this.plugin.settings.actions[actionIndex] = next;
+							await this.plugin.saveSettings();
+							this.display();
+						}),
+					);
+				}
+			}
 		});
+
+		if (this.plugin.settings.actions.length) {
+			new Setting(containerEl).setName("").addButton((button) => {
+				this.changingOrder && button.setCta();
+				button
+					.setButtonText(this.changingOrder ? "Done" : "Change order")
+					.onClick(async () => {
+						this.changingOrder = !this.changingOrder;
+						this.display();
+					});
+			});
+		}
 
 		containerEl.createEl("h4", { text: "Danger zone" });
 		new Setting(containerEl)
