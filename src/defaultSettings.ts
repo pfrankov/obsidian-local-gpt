@@ -5,12 +5,26 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 		ollama: {
 			ollamaUrl: "http://localhost:11434",
 			defaultModel: "orca-mini",
+			type: "ollama",
+		},
+		ollama_fallback: {
+			ollamaUrl: "http://localhost:11434",
+			defaultModel: "orca-mini",
+			type: "ollama",
 		},
 		openaiCompatible: {
 			url: "http://localhost:8080",
+			apiKey: "",
+			type: "openaiCompatible",
+		},
+		openaiCompatible_fallback: {
+			url: "http://localhost:8080",
+			apiKey: "",
+			type: "openaiCompatible",
 		},
 	},
-	selectedProvider: "ollama",
+	defaultProvider: "ollama",
+	fallbackProvider: "",
 	actions: [
 		{
 			name: "🪄 General help",
@@ -39,5 +53,5 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 			system: "You are an AI assistant that follows instruction extremely well. Help as much as you can.",
 		},
 	],
-	_version: 1,
+	_version: 3,
 };

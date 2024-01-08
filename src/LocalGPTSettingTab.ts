@@ -11,6 +11,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	editExistingAction?: LocalGPTAction;
 	modelsOptions: any = {};
 	changingOrder = false;
+	useFallback = false;
+	selectedProvider = "";
 
 	constructor(app: App, plugin: LocalGPT) {
 		super(app, plugin);
@@ -22,50 +24,142 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		const aiProvider = new Setting(containerEl)
-			.setName("AI provider")
-			.setDesc("")
+		this.selectedProvider =
+			this.selectedProvider || this.plugin.settings.defaultProvider;
+		this.useFallback =
+			this.useFallback || Boolean(this.plugin.settings.fallbackProvider);
+
+		const mainProviders = {
+			[Providers.OLLAMA]: "Ollama",
+			[Providers.OPENAI_COMPATIBLE]: "OpenAI compatible server",
+		};
+
+		const fallbackProviders = {
+			...mainProviders,
+		};
+
+		if (this.plugin.settings.defaultProvider === Providers.OLLAMA) {
+			delete fallbackProviders[Providers.OLLAMA];
+			fallbackProviders[Providers.OLLAMA_FALLBACK] = "2️⃣ Ollama";
+		}
+		if (
+			this.plugin.settings.defaultProvider === Providers.OPENAI_COMPATIBLE
+		) {
+			delete fallbackProviders[Providers.OPENAI_COMPATIBLE];
+			fallbackProviders[Providers.OPENAI_COMPATIBLE_FALLBACK] =
+				"2️⃣ OpenAI compatible servers";
+		}
+
+		new Setting(containerEl)
+			.setHeading()
+			.setName("Selected AI provider")
 			.addDropdown((dropdown) =>
 				dropdown
-					.addOptions({
-						[Providers.OLLAMA]: "Ollama",
-						[Providers.OPENAI_COMPATIBLE]:
-							"OpenAI compatible server",
-					})
-					.setValue(String(this.plugin.settings.selectedProvider))
+					.addOptions(mainProviders)
+					.setValue(String(this.plugin.settings.defaultProvider))
 					.onChange(async (value) => {
-						this.plugin.settings.selectedProvider = value;
+						this.plugin.settings.defaultProvider = value;
+						this.selectedProvider = value;
+
+						if (this.useFallback) {
+							this.plugin.settings.fallbackProvider = Object.keys(
+								mainProviders,
+							).find((key) => key !== value);
+						}
+
 						await this.plugin.saveSettings();
 						this.display();
 					}),
 			);
 
-		aiProvider.descEl.innerHTML = `If you would like to use other providers, please let me know <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/1">in the discussions</a>`;
+		new Setting(containerEl)
+			.setName("Use fallback")
+			.addToggle((component) => {
+				component.setValue(this.useFallback).onChange(async (value) => {
+					this.useFallback = value;
+					if (value) {
+						const firstAvailableProvider =
+							Object.keys(fallbackProviders)[0];
+						this.plugin.settings.fallbackProvider =
+							firstAvailableProvider;
+						this.selectedProvider = firstAvailableProvider;
+					} else {
+						this.plugin.settings.fallbackProvider = "";
+						this.selectedProvider =
+							this.plugin.settings.defaultProvider;
+					}
+					await this.plugin.saveSettings();
+					this.display();
+				});
+			});
 
-		if (this.plugin.settings.selectedProvider === Providers.OLLAMA) {
+		if (this.useFallback) {
+			new Setting(containerEl)
+				.setName("Fallback AI provider")
+				.setDesc(
+					"If the Default provider is not accessible the plugin will try to reach the fallback one.",
+				)
+				.addDropdown((dropdown) =>
+					dropdown
+						.addOptions(fallbackProviders)
+						.setValue(String(this.plugin.settings.fallbackProvider))
+						.onChange(async (value) => {
+							this.plugin.settings.fallbackProvider = value;
+							this.selectedProvider = value;
+							await this.plugin.saveSettings();
+							this.display();
+						}),
+				);
+		}
+
+		containerEl.createEl("h3", { text: "Providers configuration" });
+		const selectedProviderConfig =
+			this.plugin.settings.providers[this.selectedProvider];
+
+		const aiProvider = new Setting(containerEl)
+			.setHeading()
+			.setName("Configure AI provider")
+			.setDesc("")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions({
+						...mainProviders,
+						...(this.useFallback && {
+							[Providers.OLLAMA_FALLBACK]: "2️⃣ Ollama",
+							[Providers.OPENAI_COMPATIBLE_FALLBACK]:
+								"2️⃣ OpenAI compatible servers",
+						}),
+					})
+					.setValue(String(this.selectedProvider))
+					.onChange(async (value) => {
+						this.selectedProvider = value;
+						this.display();
+					}),
+			);
+
+		aiProvider.descEl.innerHTML = `
+			If you would like to use other providers, please let me know <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/1">in the discussions</a>
+		`;
+
+		if (selectedProviderConfig.type === Providers.OLLAMA) {
 			new Setting(containerEl)
 				.setName("Ollama URL")
 				.setDesc("Default is http://localhost:11434")
 				.addText((text) =>
 					text
 						.setPlaceholder("http://localhost:11434")
-						.setValue(
-							this.plugin.settings.providers.ollama.ollamaUrl,
-						)
+						.setValue(selectedProviderConfig.ollamaUrl)
 						.onChange(async (value) => {
-							this.plugin.settings.providers.ollama.ollamaUrl =
-								value;
+							selectedProviderConfig.ollamaUrl = value;
 							await this.plugin.saveSettings();
 						}),
 				);
 
 			const ollamaDefaultModel = new Setting(containerEl)
 				.setName("Default model")
-				.setDesc("Name of the default Ollama model to use for prompts");
-			if (this.plugin.settings.providers.ollama.ollamaUrl) {
-				requestUrl(
-					`${this.plugin.settings.providers.ollama.ollamaUrl}/api/tags`,
-				)
+				.setDesc("Name of the default Ollama model to use in prompts");
+			if (selectedProviderConfig.ollamaUrl) {
+				requestUrl(`${selectedProviderConfig.ollamaUrl}/api/tags`)
 					.then(({ json }) => {
 						if (!json.models || json.models.length === 0) {
 							return Promise.reject();
@@ -85,12 +179,11 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 									.addOptions(this.modelsOptions)
 									.setValue(
 										String(
-											this.plugin.settings.providers
-												.ollama.defaultModel,
+											selectedProviderConfig.defaultModel,
 										),
 									)
 									.onChange(async (value) => {
-										this.plugin.settings.providers.ollama.defaultModel =
+										selectedProviderConfig.defaultModel =
 											value;
 										await this.plugin.saveSettings();
 									}),
@@ -113,22 +206,16 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					});
 			}
 		}
-		if (
-			this.plugin.settings.selectedProvider ===
-			Providers.OPENAI_COMPATIBLE
-		) {
+		if (selectedProviderConfig.type === Providers.OPENAI_COMPATIBLE) {
 			const openAICompatible = new Setting(containerEl)
 				.setName("OpenAI compatible server URL")
 				.setDesc("")
 				.addText((text) =>
 					text
 						.setPlaceholder("http://localhost:8080")
-						.setValue(
-							this.plugin.settings.providers.openaiCompatible.url,
-						)
+						.setValue(selectedProviderConfig.url)
 						.onChange(async (value) => {
-							this.plugin.settings.providers.openaiCompatible.url =
-								value;
+							selectedProviderConfig.url = value;
 							await this.plugin.saveSettings();
 						}),
 				);
@@ -142,6 +229,82 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				After all installation and configuration make sure that you're using compatible model.<br/>
 				For llama.cpp it is necessary to use models in ChatML format (e.g. <a href="https://huggingface.co/TheBloke/Orca-2-7B-GGUF/blob/main/orca-2-7b.Q4_K_M.gguf">Orca 2</a>)
 			`;
+
+			new Setting(containerEl)
+				.setName("API key")
+				.setDesc("Optional")
+				.addText((text) =>
+					text
+						.setPlaceholder("")
+						.setValue(selectedProviderConfig.apiKey)
+						.onChange(async (value) => {
+							selectedProviderConfig.apiKey = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+
+			const openaiDefaultModel = new Setting(containerEl)
+				.setName("Default model")
+				.setDesc(
+					"Optional. Name of the default model to use in prompts",
+				);
+
+			if (selectedProviderConfig.url) {
+				requestUrl({
+					url: `${selectedProviderConfig.url.replace(
+						/\/+$/i,
+						"",
+					)}/v1/models`,
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${selectedProviderConfig.apiKey}`,
+					},
+				})
+					.then(({ json }) => {
+						if (!json.data || json.data.length === 0) {
+							return Promise.reject();
+						}
+						const modelsOptions = json.data.reduce(
+							(acc: any, el: any) => {
+								const name = el.id;
+								acc[name] = name;
+								return acc;
+							},
+							{},
+						);
+
+						openaiDefaultModel
+							.addDropdown((dropdown) =>
+								dropdown
+									.addOption("", "Not specified")
+									.addOptions(modelsOptions)
+									.setValue(
+										String(
+											selectedProviderConfig.defaultModel,
+										),
+									)
+									.onChange(async (value) => {
+										selectedProviderConfig.defaultModel =
+											value;
+										await this.plugin.saveSettings();
+									}),
+							)
+							.addButton((button) =>
+								button
+									.setIcon("refresh-cw")
+									.onClick(async () => {
+										this.display();
+									}),
+							);
+					})
+					.catch(() => {
+						openaiDefaultModel.addButton((button) =>
+							button.setIcon("refresh-cw").onClick(async () => {
+								this.display();
+							}),
+						);
+					});
+			}
 		}
 
 		const editingAction: LocalGPTAction = this.editExistingAction || {
@@ -164,15 +327,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		containerEl.createEl("h3", { text: "Actions" });
 
 		if (!this.editEnabled) {
-			new Setting(containerEl)
-				.setName("Add new manually")
-				.addButton((button) =>
-					button.setIcon("plus").onClick(async () => {
-						this.editEnabled = true;
-						this.editExistingAction = undefined;
-						this.display();
-					}),
-				);
 			const quickAdd = new Setting(containerEl)
 				.setName("Quick add")
 				.setDesc("")
@@ -219,7 +373,49 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				});
 
 			quickAdd.descEl.innerHTML = `You can share the best sets prompts or get one <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/2">from the community</a>.<br/><strong>Important:</strong> if you already have an action with the same name it will be overwritten.`;
+
+			new Setting(containerEl)
+				.setName("Add new manually")
+				.addButton((button) =>
+					button.setIcon("plus").onClick(async () => {
+						this.editEnabled = true;
+						this.editExistingAction = undefined;
+						this.display();
+					}),
+				);
 		} else {
+			// new Setting(containerEl)
+			// 	.setName("AI provider")
+			// 	.setDesc("Optional")
+			// 	.addDropdown((dropdown) => {
+			// 		dropdown
+			// 			.addOption("", "Default AI provider")
+			// 			.addOptions(mainProviders)
+			// 			.onChange(async (value) => {
+			// 				editingAction.model = value;
+			// 			});
+			// 		editingAction?.model &&
+			// 			dropdown.setValue(editingAction.model);
+			// 	});
+			if (
+				this.plugin.settings.providers[
+					this.plugin.settings.defaultProvider
+				].type === Providers.OLLAMA
+			) {
+				new Setting(containerEl)
+					.setName("Model")
+					.setDesc("Optional")
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("", "Default model")
+							.addOptions(this.modelsOptions)
+							.onChange(async (value) => {
+								editingAction.model = value;
+							});
+						editingAction?.model &&
+							dropdown.setValue(editingAction.model);
+					});
+			}
 			new Setting(containerEl).setName("Action name").addText((text) => {
 				editingAction?.name && text.setValue(editingAction.name);
 				text.inputEl.style.minWidth = "100%";
@@ -254,22 +450,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					editingAction.prompt = value;
 				});
 			});
-
-			if (this.plugin.settings.selectedProvider === Providers.OLLAMA) {
-				new Setting(containerEl)
-					.setName("Model")
-					.setDesc("Optional")
-					.addDropdown((dropdown) => {
-						dropdown
-							.addOption("", "Default model")
-							.addOptions(this.modelsOptions)
-							.onChange(async (value) => {
-								editingAction.model = value;
-							});
-						editingAction?.model &&
-							dropdown.setValue(editingAction.model);
-					});
-			}
 
 			new Setting(containerEl)
 				.setName("Replace selected text")
@@ -385,8 +565,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		containerEl.createEl("h4", { text: "Actions list" });
 
 		let defaultModel = "";
-		if (this.plugin.settings.selectedProvider === Providers.OLLAMA) {
-			defaultModel = this.plugin.settings.providers.ollama.defaultModel;
+		if (selectedProviderConfig.type === Providers.OLLAMA) {
+			defaultModel = selectedProviderConfig.defaultModel;
 		}
 
 		this.plugin.settings.actions.forEach((action, actionIndex) => {
@@ -398,7 +578,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					`${sharingActionsMapping.prompt}${action.prompt}`,
 				action.replace &&
 					`${sharingActionsMapping.replace}${action.replace}`,
-				this.plugin.settings.selectedProvider === Providers.OLLAMA &&
+				this.plugin.settings.defaultProvider === Providers.OLLAMA &&
 					(action.model || defaultModel) &&
 					`${sharingActionsMapping.model}${
 						action.model || defaultModel
@@ -433,8 +613,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						`<b>${sharingActionsMapping.system}</b>${action.system}`,
 					action.prompt &&
 						`<b>${sharingActionsMapping.prompt}</b>${action.prompt}`,
-					this.plugin.settings.selectedProvider ===
-						Providers.OLLAMA &&
+					this.plugin.settings.defaultProvider === Providers.OLLAMA &&
 						action.model &&
 						`<b>${sharingActionsMapping.model}</b>${action.model}`,
 				]

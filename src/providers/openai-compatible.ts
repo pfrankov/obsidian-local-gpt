@@ -9,21 +9,27 @@ export interface OpenAICompatibleMessage {
 export interface OpenAICompatibleRequestBody {
 	messages: OpenAICompatibleMessage[];
 	stream: boolean;
+	model: string;
 }
 
 export class OpenAICompatibleAIProvider implements AIProvider {
-	constructor({ url, abortController, onUpdate }: any) {
+	constructor({ url, apiKey, defaultModel, abortController, onUpdate }: any) {
 		this.url = url;
+		this.apiKey = apiKey;
+		this.defaultModel = defaultModel;
 		this.abortController = abortController;
 		this.onUpdate = onUpdate;
 	}
 	url: string;
+	apiKey: string;
+	defaultModel: string;
 	onUpdate: (text: string) => void;
 	abortController: AbortController;
 
-	process(text: string, action: LocalGPTAction) {
+	process(text: string, action: LocalGPTAction): Promise<string> {
 		const requestBody: OpenAICompatibleRequestBody = {
 			stream: true,
+			model: action.model || this.defaultModel,
 			messages: [
 				(action.system && {
 					role: "system",
@@ -42,37 +48,51 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
+				...(this.apiKey && {
+					Authorization: `Bearer ${this.apiKey}`,
+				}),
 			},
 			body: JSON.stringify(requestBody),
 			signal: abortController.signal,
 		}).then((response) => {
 			let combined = "";
 
-			return streamer({
-				response,
-				abortController,
-				onNext: (data: string) => {
-					const lines = data
-						.split("\n")
-						.filter((line: string) => line.trim() !== "");
-					for (const line of lines) {
-						const message = line.replace(/^data: /, "");
-						try {
-							const parsed = JSON.parse(message);
-							combined += parsed.choices[0]?.delta?.content || "";
-						} catch (error) {
-							console.error(
-								"Could not JSON parse stream message",
-								message,
-								error,
-							);
+			return new Promise((resolve, reject) => {
+				streamer({
+					response,
+					abortController,
+					onNext: (data: string) => {
+						const lines = data
+							.split("\n")
+							.filter((line: string) => line.trim() !== "");
+						for (const line of lines) {
+							const message = line.replace(/^data: /, "");
+							try {
+								const parsed = JSON.parse(message);
+								combined +=
+									parsed.choices[0]?.delta?.content || "";
+							} catch (error) {
+								try {
+									reject(JSON.parse(data).error);
+								} catch (e) {
+									reject(
+										"Could not JSON parse stream message",
+									);
+									console.error(
+										"Could not JSON parse stream message",
+										message,
+										error,
+									);
+								}
+							}
 						}
-					}
-					this.onUpdate(combined);
-				},
-				onDone: () => {
-					return combined;
-				},
+						this.onUpdate(combined);
+					},
+					onDone: () => {
+						resolve(combined);
+						return combined;
+					},
+				});
 			});
 		});
 	}

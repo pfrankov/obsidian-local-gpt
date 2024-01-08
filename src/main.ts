@@ -2,7 +2,13 @@ import { Editor, Notice, Plugin, Menu } from "obsidian";
 import { LocalGPTSettingTab } from "LocalGPTSettingTab";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "spinnerPlugin";
-import { LocalGPTSettings, AIProvider, Providers } from "./interfaces";
+import {
+	LocalGPTSettings,
+	AIProvider,
+	Providers,
+	OpenAICompatibleProvider,
+	OllamaProvider,
+} from "./interfaces";
 import { OllamaAIProvider } from "./providers/ollama";
 import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
 
@@ -55,54 +61,68 @@ export default class LocalGPT extends Plugin {
 							);
 							this.app.workspace.updateOptions();
 
-							let aiProvider: AIProvider;
-							switch (this.settings.selectedProvider) {
-								case Providers.OPENAI_COMPATIBLE: {
-									aiProvider = new OpenAICompatibleAIProvider(
-										{
-											url: this.settings.providers
-												.openaiCompatible.url,
+							const onUpdate = (updatedString: string) => {
+								spinner.updateContent(
+									this.processText(
+										updatedString,
+										selectedText,
+									),
+								);
+								this.app.workspace.updateOptions();
+							};
+
+							const getAIProvider = (
+								providerName: string,
+							): AIProvider => {
+								switch (
+									this.settings.providers[providerName].type
+								) {
+									case Providers.OPENAI_COMPATIBLE: {
+										const { url, apiKey, defaultModel } =
+											this.settings.providers[
+												providerName
+											] as OpenAICompatibleProvider;
+										return new OpenAICompatibleAIProvider({
+											url,
+											apiKey,
+											defaultModel,
 											abortController,
-											onUpdate: (
-												updatedString: string,
-											) => {
-												spinner.updateContent(
-													this.processText(
-														updatedString,
-														selectedText,
-													),
-												);
-												this.app.workspace.updateOptions();
-											},
-										},
-									);
-									break;
+											onUpdate,
+										});
+									}
+									case Providers.OLLAMA:
+									default: {
+										const { ollamaUrl, defaultModel } = this
+											.settings.providers[
+											providerName
+										] as OllamaProvider;
+										return new OllamaAIProvider({
+											defaultModel,
+											ollamaUrl,
+											abortController,
+											onUpdate,
+										});
+									}
 								}
-								case Providers.OLLAMA:
-								default: {
-									aiProvider = new OllamaAIProvider({
-										defaultModel:
-											this.settings.providers.ollama
-												.defaultModel,
-										ollamaUrl:
-											this.settings.providers.ollama
-												.ollamaUrl,
-										abortController,
-										onUpdate: (updatedString: string) => {
-											spinner.updateContent(
-												this.processText(
-													updatedString,
-													selectedText,
-												),
-											);
-											this.app.workspace.updateOptions();
-										},
-									});
-								}
-							}
+							};
+
+							const aiProvider = getAIProvider(
+								this.settings.defaultProvider,
+							);
 
 							aiProvider
 								.process(selectedText, action)
+								.catch((error) => {
+									if (this.settings.fallbackProvider) {
+										new Notice(
+											`Action processed with a fallback`,
+										);
+										return getAIProvider(
+											this.settings.fallbackProvider,
+										).process(selectedText, action);
+									}
+									return Promise.reject(error);
+								})
 								.then((data) => {
 									hideSpinner && hideSpinner();
 									this.app.workspace.updateOptions();
@@ -161,7 +181,9 @@ export default class LocalGPT extends Plugin {
 		const loadedData: LocalGPTSettings = await this.loadData();
 		let needToSave = false;
 
+		// Migration
 		if (loadedData) {
+			// @ts-ignore
 			if (!loadedData._version || loadedData._version < 1) {
 				needToSave = true;
 
@@ -176,8 +198,29 @@ export default class LocalGPT extends Plugin {
 					loadedData.defaultModel;
 				// @ts-ignore
 				delete loadedData.defaultModel;
+				// @ts-ignore
 				loadedData.selectedProvider = DEFAULT_SETTINGS.selectedProvider;
 				loadedData._version = 2;
+			}
+			if (loadedData._version < 3) {
+				needToSave = true;
+				// @ts-ignore
+				loadedData.defaultProvider =
+					loadedData.selectedProvider ||
+					DEFAULT_SETTINGS.defaultProvider;
+				// @ts-ignore
+				delete loadedData.selectedProvider;
+
+				Object.keys(loadedData.providers).forEach((key) => {
+					// @ts-ignore
+					loadedData.providers[key].type = key;
+				});
+				// @ts-ignore
+				loadedData.providers.openaiCompatible &&
+					// @ts-ignore
+					(loadedData.providers.openaiCompatible.apiKey = "");
+
+				loadedData._version = 3;
 			}
 
 			Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {
