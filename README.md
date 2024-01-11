@@ -14,11 +14,12 @@ Default actions:
 - General help (just use selected text as a prompt for any purpose)
 
 You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2)  
-![Settings](https://github.com/pfrankov/obsidian-local-gpt/assets/584632/2384c4f7-3b5b-4f79-ba23-95addef2f4e0)
+<img width="790" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/3269a40a-a126-4efd-aec0-35223df8dceb">
+
 
 Supported AI Providers:
 - Ollama
-- OpenAI compatible server
+- OpenAI compatible server (also OpenAI)
 
 >**Limitations:**
 >- No mobile support.
@@ -56,6 +57,11 @@ Here is an example for llama.cpp:
 3. Filter "Local" and you should see "Local GPT: Show context menu"
 4. Click on `+` icon and press hotkey (e.g. `⌘ + M`)
 
+### "Use fallback" option
+It is also possible to specify a fallback to handle requests — this allows you to use larger models when you are online and smaller ones when offline.  
+<img width="570" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/97df59b0-1e51-40b8-b543-8825f66d23c2">
+
+
 ## Roadmap
 - [x] Ability to select models from the list instead of typing their names
 - [x] Ability to share and apply presets (system prompt + prompt + model)
@@ -63,8 +69,8 @@ Here is an example for llama.cpp:
 - [x] Streaming completions
 - [x] Changing order of the actions
 - [x] Editing actions
+- [x] Fallback for action if first URL is unavailable (remote GPU)
 - [ ] Optional settings for prompts (top_p, top_k, temperature, repeat_penalty)
-- [ ] Fallback for action if first URL is unavailable (remote GPU)
 - [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian
 
 ## Other AI providers
