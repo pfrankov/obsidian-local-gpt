@@ -39,13 +39,17 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		};
 
 		if (this.plugin.settings.defaultProvider === Providers.OLLAMA) {
+			// @ts-ignore
 			delete fallbackProviders[Providers.OLLAMA];
+			// @ts-ignore
 			fallbackProviders[Providers.OLLAMA_FALLBACK] = "2️⃣ Ollama";
 		}
 		if (
 			this.plugin.settings.defaultProvider === Providers.OPENAI_COMPATIBLE
 		) {
+			// @ts-ignore
 			delete fallbackProviders[Providers.OPENAI_COMPATIBLE];
+			// @ts-ignore
 			fallbackProviders[Providers.OPENAI_COMPATIBLE_FALLBACK] =
 				"2️⃣ OpenAI compatible servers";
 		}
@@ -62,6 +66,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						this.selectedProvider = value;
 
 						if (this.useFallback) {
+							// @ts-ignore
 							this.plugin.settings.fallbackProvider = Object.keys(
 								mainProviders,
 							).find((key) => key !== value);
@@ -236,6 +241,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.addText((text) =>
 					text
 						.setPlaceholder("")
+						// @ts-ignore
 						.setValue(selectedProviderConfig.apiKey)
 						.onChange(async (value) => {
 							selectedProviderConfig.apiKey = value;

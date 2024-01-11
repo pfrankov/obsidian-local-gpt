@@ -206,6 +206,7 @@ export default class LocalGPT extends Plugin {
 				needToSave = true;
 				// @ts-ignore
 				loadedData.defaultProvider =
+					// @ts-ignore
 					loadedData.selectedProvider ||
 					DEFAULT_SETTINGS.defaultProvider;
 				// @ts-ignore

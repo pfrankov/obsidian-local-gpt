@@ -5,8 +5,6 @@ export const enum Providers {
 	OPENAI_COMPATIBLE_FALLBACK = "openaiCompatible_fallback",
 }
 
-export type ProviderType = keyof typeof Providers;
-
 export type OllamaProvider = {
 	ollamaUrl: string;
 	defaultModel: string;
