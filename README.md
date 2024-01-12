@@ -14,7 +14,7 @@ Default actions:
 - General help (just use selected text as a prompt for any purpose)
 
 You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2)  
-<img width="790" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/3269a40a-a126-4efd-aec0-35223df8dceb">
+<img width="598" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/6ab2d802-13ed-42be-aab1-6a3f689b18a0">
 
 
 Supported AI Providers:
@@ -60,8 +60,15 @@ Here is an example for llama.cpp:
 ### "Use fallback" option
 It is also possible to specify a fallback to handle requests — this allows you to use larger models when you are online and smaller ones when offline.  
 <img width="570" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/97df59b0-1e51-40b8-b543-8825f66d23c2">
+<details>
+  <summary>Example video</summary>
+  <video src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/b851e9d2-52cb-4174-be42-add82c7af206">
+</details>
 
 ### Using with OpenAI
+Since you can provide any OpenAI-like server, it is possible to use OpenAI servers themselves.  
+_Despite the ease of configuration, I do not recommend this method, since the main purpose of the plugin is to work with private LLMs._ 
+
 1. Select `OpenAI compatible server` in `Selected AI provider`
 2. Set `OpenAI compatible server URL` to `https://api.openai.com`
 3. Retrieve and paste your `API key` from the [API keys page](https://platform.openai.com/api-keys)

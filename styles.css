@@ -1,3 +1,8 @@
+.local-gpt-settings-separator {
+	margin: 1em 0;
+	height: 1em;
+}
+
 .local-gpt-streaming-text {
 	color: var(--text-faint);
 }

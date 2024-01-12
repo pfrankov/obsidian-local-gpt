@@ -117,6 +117,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 		}
 
+		containerEl.createEl("div", { cls: "local-gpt-settings-separator" });
+
 		containerEl.createEl("h3", { text: "Providers configuration" });
 		const selectedProviderConfig =
 			this.plugin.settings.providers[this.selectedProvider];
@@ -235,9 +237,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				For llama.cpp it is necessary to use models in ChatML format (e.g. <a href="https://huggingface.co/TheBloke/Orca-2-7B-GGUF/blob/main/orca-2-7b.Q4_K_M.gguf">Orca 2</a>)
 			`;
 
-			new Setting(containerEl)
+			const apiKey = new Setting(containerEl)
 				.setName("API key")
-				.setDesc("Optional")
+				.setDesc("")
 				.addText((text) =>
 					text
 						.setPlaceholder("")
@@ -248,6 +250,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 						}),
 				);
+
+			apiKey.descEl.innerHTML = `
+				Optional. Check <a href="https://github.com/pfrankov/obsidian-local-gpt#using-with-openai">the docs</a> if you'd like to use OpenAI servers.
+			`;
 
 			const openaiDefaultModel = new Setting(containerEl)
 				.setName("Default model")
@@ -329,6 +335,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			replace: "Replace: ",
 			model: "Model: ",
 		};
+
+		containerEl.createEl("div", { cls: "local-gpt-settings-separator" });
 
 		containerEl.createEl("h3", { text: "Actions" });
 
