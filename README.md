@@ -61,6 +61,16 @@ Here is an example for llama.cpp:
 It is also possible to specify a fallback to handle requests — this allows you to use larger models when you are online and smaller ones when offline.  
 <img width="570" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/97df59b0-1e51-40b8-b543-8825f66d23c2">
 
+### Using with OpenAI
+1. Select `OpenAI compatible server` in `Selected AI provider`
+2. Set `OpenAI compatible server URL` to `https://api.openai.com`
+3. Retrieve and paste your `API key` from the [API keys page](https://platform.openai.com/api-keys)
+4. Click "refresh" button and select the model that suits your needs (e.g. `gpt-3.5-turbo`)
+<details>
+  <summary>Example screenshot</summary>
+  <img width="577" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/f267afd2-4d3e-4cf1-a3ab-4e2f3fd2db77">
+</details>
+
 
 ## Roadmap
 - [x] Ability to select models from the list instead of typing their names
