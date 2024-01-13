@@ -13,16 +13,13 @@ Default actions:
 - Find action items in text
 - General help (just use selected text as a prompt for any purpose)
 
-You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2)  
-<img width="598" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/6ab2d802-13ed-42be-aab1-6a3f689b18a0">
-
+You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2).
 
 Supported AI Providers:
 - Ollama
 - OpenAI compatible server (also OpenAI)
 
->**Limitations:**
->- No mobile support.
+<img width="598" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/6ab2d802-13ed-42be-aab1-6a3f689b18a0">
 
 ## Installation
 ### 1. Install Plugin
