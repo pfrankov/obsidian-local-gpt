@@ -41,6 +41,7 @@ There are several options to run local OpenAI-like server:
 - [llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python#openai-compatible-web-server)
 - [LocalAI](https://localai.io/model-compatibility/llama-cpp/#setup)
+- Obabooga [Text generation web UI](https://github.com/pfrankov/obsidian-local-gpt/discussions/8)
 - ...maybe more
 
 Here is an example for llama.cpp:  
