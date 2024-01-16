@@ -232,6 +232,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					<li><a href="https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md">llama.cpp</a></li>
 					<li><a href="https://github.com/abetlen/llama-cpp-python#openai-compatible-web-server">llama-cpp-python</a></li>
 					<li><a href="https://localai.io/model-compatibility/llama-cpp/#setup">LocalAI</a></li>
+					<li>Obabooga <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/8">Text generation web UI</a></li>
+					<li><a href="https://lmstudio.ai/">LM Studio</a></li>
 				</ul>
 				After all installation and configuration make sure that you're using compatible model.<br/>
 				For llama.cpp it is necessary to use models in ChatML format (e.g. <a href="https://huggingface.co/TheBloke/Orca-2-7B-GGUF/blob/main/orca-2-7b.Q4_K_M.gguf">Orca 2</a>)

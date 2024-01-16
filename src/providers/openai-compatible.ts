@@ -67,6 +67,9 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 							.filter((line: string) => line.trim() !== "");
 						for (const line of lines) {
 							const message = line.replace(/^data: /, "");
+							if (message === "[DONE]") {
+								break;
+							}
 							try {
 								const parsed = JSON.parse(message);
 								combined +=
