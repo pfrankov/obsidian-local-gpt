@@ -43,5 +43,9 @@ export interface LocalGPTAction {
 
 export interface AIProvider {
 	abortController?: AbortController;
-	process(text: string, action: LocalGPTAction): Promise<string>;
+	process(
+		text: string,
+		action: LocalGPTAction,
+		images: string[],
+	): Promise<string>;
 }

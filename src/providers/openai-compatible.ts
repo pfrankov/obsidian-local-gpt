@@ -1,10 +1,17 @@
-import { requestUrl } from "obsidian";
 import { LocalGPTAction, AIProvider } from "../interfaces";
 import { streamer } from "../streamer";
 
+export interface OpenAICompatibleMessageContent {
+	type: "text" | "image_url";
+	text?: string;
+	image_url?: {
+		url: string;
+	};
+}
+
 export interface OpenAICompatibleMessage {
 	role: "system" | "user";
-	content: string;
+	content: string | OpenAICompatibleMessageContent[];
 }
 export interface OpenAICompatibleRequestBody {
 	messages: OpenAICompatibleMessage[];
@@ -26,20 +33,43 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 	onUpdate: (text: string) => void;
 	abortController: AbortController;
 
-	process(text: string, action: LocalGPTAction): Promise<string> {
+	process(
+		text: string = "",
+		action: LocalGPTAction,
+		images: string[] = [],
+	): Promise<string> {
+		const messages = [
+			(action.system && {
+				role: "system",
+				content: action.system,
+			}) as OpenAICompatibleMessage,
+			!images.length && {
+				role: "user",
+				content: [action.prompt, text].filter(Boolean).join("\n\n"),
+			},
+			images.length && {
+				role: "user",
+				content: [
+					{
+						type: "text",
+						text: [action.prompt, text]
+							.filter(Boolean)
+							.join("\n\n"),
+					},
+					...images.map((image) => ({
+						type: "image_url",
+						image_url: {
+							url: `data:image/jpeg;base64,${image}`,
+						},
+					})),
+				],
+			},
+		].filter(Boolean) as OpenAICompatibleMessage[];
+
 		const requestBody: OpenAICompatibleRequestBody = {
 			stream: true,
 			model: action.model || this.defaultModel,
-			messages: [
-				(action.system && {
-					role: "system",
-					content: action.system,
-				}) as OpenAICompatibleMessage,
-				{
-					role: "user",
-					content: [action.prompt, text].filter(Boolean).join("\n\n"),
-				},
-			].filter(Boolean) as OpenAICompatibleMessage[],
+			messages,
 		};
 
 		const { abortController } = this;

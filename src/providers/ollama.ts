@@ -10,6 +10,7 @@ export interface OllamaRequestBody {
 	};
 	system?: string;
 	stream?: boolean;
+	images?: string[];
 }
 
 export class OllamaAIProvider implements AIProvider {
@@ -24,7 +25,7 @@ export class OllamaAIProvider implements AIProvider {
 	onUpdate: (text: string) => void;
 	abortController: AbortController;
 
-	process(text: string, action: LocalGPTAction) {
+	process(text: string = "", action: LocalGPTAction, images: string[] = []) {
 		const requestBody: OllamaRequestBody = {
 			prompt: [action.prompt, text].filter(Boolean).join("\n\n"),
 			model: action.model || this.defaultModel,
@@ -36,6 +37,9 @@ export class OllamaAIProvider implements AIProvider {
 
 		if (action.system) {
 			requestBody.system = action.system;
+		}
+		if (images.length) {
+			requestBody.images = images;
 		}
 
 		const { abortController } = this;

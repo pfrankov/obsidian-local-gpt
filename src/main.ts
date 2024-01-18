@@ -42,7 +42,7 @@ export default class LocalGPT extends Plugin {
 				const editorView = editor.cm;
 
 				const selection = editor.getSelection();
-				const selectedText = selection || editor.getValue();
+				let selectedText = selection || editor.getValue();
 				const cursorPositionFrom = editor.getCursor("from");
 				const cursorPositionTo = editor.getCursor("to");
 
@@ -50,7 +50,7 @@ export default class LocalGPT extends Plugin {
 
 				this.settings.actions.forEach((action) => {
 					contextMenu.addItem((item) => {
-						item.setTitle(action.name).onClick(() => {
+						item.setTitle(action.name).onClick(async () => {
 							const abortController = new AbortController();
 							this.abortControllers.push(abortController);
 
@@ -110,8 +110,56 @@ export default class LocalGPT extends Plugin {
 								this.settings.defaultProvider,
 							);
 
+							const regexp = /!\[\[(.+?\.(?:png|jpe?g))]]/gi;
+							const fileNames = Array.from(
+								selectedText.matchAll(regexp),
+								(match) => match[1],
+							);
+
+							selectedText = selectedText.replace(regexp, "");
+
+							const imagesInBase64 =
+								(
+									await Promise.all(
+										fileNames.map((fileName) => {
+											const filePath =
+												this.app.metadataCache.getFirstLinkpathDest(
+													fileName,
+													// @ts-ignore
+													this.app.workspace.getActiveFile()
+														.path,
+												);
+
+											if (!filePath) {
+												return Promise.resolve("");
+											}
+
+											return this.app.vault.adapter
+												.readBinary(filePath.path)
+												.then((buffer) => {
+													const bytes =
+														new Uint8Array(buffer);
+
+													const output = [];
+													for (const byte of bytes) {
+														output.push(
+															String.fromCharCode(
+																byte,
+															),
+														);
+													}
+
+													const binString =
+														output.join("");
+
+													return btoa(binString);
+												});
+										}),
+									)
+								).filter(Boolean) || [];
+
 							aiProvider
-								.process(selectedText, action)
+								.process(selectedText, action, imagesInBase64)
 								.catch((error) => {
 									if (this.settings.fallbackProvider) {
 										new Notice(
@@ -119,7 +167,11 @@ export default class LocalGPT extends Plugin {
 										);
 										return getAIProvider(
 											this.settings.fallbackProvider,
-										).process(selectedText, action);
+										).process(
+											selectedText,
+											action,
+											imagesInBase64,
+										);
 									}
 									return Promise.reject(error);
 								})

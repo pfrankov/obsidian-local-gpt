@@ -377,10 +377,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 								return acc;
 							}, {} as LocalGPTAction);
 
-						if (
-							quickAddAction.name &&
-							(quickAddAction.system || quickAddAction.prompt)
-						) {
+						if (quickAddAction.name) {
 							await this.addNewAction(quickAddAction);
 							text.setValue("");
 							this.display();
@@ -519,15 +516,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							if (!editingAction.name) {
 								new Notice(
 									"Please enter a name for the action.",
-								);
-								return;
-							}
-							if (
-								!editingAction.prompt &&
-								!editingAction.system
-							) {
-								new Notice(
-									"Please enter a prompt for the action.",
 								);
 								return;
 							}

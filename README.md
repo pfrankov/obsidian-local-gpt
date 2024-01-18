@@ -6,6 +6,10 @@ _No speedup. MacBook Pro 13, M1, 16GB, Ollama, orca-mini._
 Local GPT assistance for maximum privacy and offline access.  
 The plugin allows you to open a context menu on selected text to pick an AI-assistant's action.
 
+Also works with images  
+<img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">  
+_No speedup. MacBook Pro 13, M1, 16GB, Ollama, bakllava._
+
 Default actions:
 - Continue writing
 - Summarize text
@@ -86,6 +90,7 @@ _Despite the ease of configuration, I do not recommend this method, since the ma
 - [x] Changing order of the actions
 - [x] Editing actions
 - [x] Fallback for action if first URL is unavailable (remote GPU)
+- [x] Support multimodal models like Llava
 - [ ] Optional settings for prompts (top_p, top_k, temperature, repeat_penalty)
 - [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian
 
