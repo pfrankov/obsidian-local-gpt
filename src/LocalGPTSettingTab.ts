@@ -2,6 +2,8 @@ import { App, Notice, PluginSettingTab, requestUrl, Setting } from "obsidian";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction, Providers } from "./interfaces";
+import { OllamaAIProvider } from "./providers/ollama";
+import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
 
 const SEPARATOR = "✂️";
 
@@ -166,19 +168,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.setName("Default model")
 				.setDesc("Name of the default Ollama model to use in prompts");
 			if (selectedProviderConfig.ollamaUrl) {
-				requestUrl(`${selectedProviderConfig.ollamaUrl}/api/tags`)
-					.then(({ json }) => {
-						if (!json.models || json.models.length === 0) {
-							return Promise.reject();
-						}
-						this.modelsOptions = json.models.reduce(
-							(acc: any, el: any) => {
-								const name = el.name.replace(":latest", "");
-								acc[name] = name;
-								return acc;
-							},
-							{},
-						);
+				OllamaAIProvider.getModels(selectedProviderConfig)
+					.then((models) => {
+						this.modelsOptions = models;
 
 						ollamaDefaultModel
 							.addDropdown((dropdown) =>
@@ -264,38 +256,17 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 
 			if (selectedProviderConfig.url) {
-				requestUrl({
-					url: `${selectedProviderConfig.url.replace(
-						/\/+$/i,
-						"",
-					)}/v1/models`,
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${selectedProviderConfig.apiKey}`,
-					},
-				})
-					.then(({ json }) => {
-						if (!json.data || json.data.length === 0) {
-							return Promise.reject();
-						}
-						const modelsOptions = json.data.reduce(
-							(acc: any, el: any) => {
-								const name = el.id;
-								acc[name] = name;
-								return acc;
-							},
-							{},
-						);
-
+				OpenAICompatibleAIProvider.getModels(selectedProviderConfig)
+					.then((models) => {
 						openaiDefaultModel
 							.addDropdown((dropdown) =>
 								dropdown
 									.addOption("", "Not specified")
-									.addOptions(modelsOptions)
+									.addOptions(models)
 									.setValue(
 										String(
 											selectedProviderConfig.defaultModel,
-										),
+										) || "",
 									)
 									.onChange(async (value) => {
 										selectedProviderConfig.defaultModel =

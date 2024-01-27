@@ -1,5 +1,5 @@
 import { requestUrl } from "obsidian";
-import { LocalGPTAction, AIProvider } from "../interfaces";
+import { LocalGPTAction, AIProvider, OllamaProvider } from "../interfaces";
 import { streamer } from "../streamer";
 
 export interface OllamaRequestBody {
@@ -95,5 +95,20 @@ export class OllamaAIProvider implements AIProvider {
 					return json.response;
 				});
 			});
+	}
+
+	static async getModels(providerConfig: OllamaProvider) {
+		const { json } = await requestUrl({
+			url: `${providerConfig.ollamaUrl}/api/tags`,
+		});
+
+		if (!json.models || json.models.length === 0) {
+			return Promise.reject();
+		}
+		return json.models.reduce((acc: any, el: any) => {
+			const name = el.name.replace(":latest", "");
+			acc[name] = name;
+			return acc;
+		}, {});
 	}
 }

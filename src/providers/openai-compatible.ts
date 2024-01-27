@@ -1,5 +1,10 @@
-import { LocalGPTAction, AIProvider } from "../interfaces";
+import {
+	LocalGPTAction,
+	AIProvider,
+	OpenAICompatibleProvider,
+} from "../interfaces";
 import { streamer } from "../streamer";
+import { requestUrl } from "obsidian";
 
 export interface OpenAICompatibleMessageContent {
 	type: "text" | "image_url";
@@ -128,5 +133,24 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 				});
 			});
 		});
+	}
+
+	static async getModels(providerConfig: OpenAICompatibleProvider) {
+		const { json } = await requestUrl({
+			url: `${providerConfig.url.replace(/\/+$/i, "")}/v1/models`,
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${providerConfig.apiKey}`,
+			},
+		});
+
+		if (!json.data || json.data.length === 0) {
+			return Promise.reject();
+		}
+		return json.data.reduce((acc: any, el: any) => {
+			const name = el.id;
+			acc[name] = name;
+			return acc;
+		}, {});
 	}
 }
