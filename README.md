@@ -35,10 +35,12 @@ You can also install this plugin via [BRAT](https://obsidian.md/plugins?id=obsid
 
 ### 2. Install LLM
 #### Ollama (recommended)
-1. Install [Ollama](https://ollama.ai/). No Windows support yet.
+1. Install [Ollama](https://ollama.ai/).
 2. Install orca-mini (default) `ollama pull orca-mini` or any preferred model [from the library](https://ollama.ai/library).
 
-Additional: if you want to enable streaming completion with Ollama you should run it in API-mode: `OLLAMA_ORIGINS='*' ollama serve`. 
+Additional: if you want to enable streaming completion with Ollama you should set environment variable `OLLAMA_ORIGINS` to `*`:  
+- For MacOS run `launchctl setenv OLLAMA_ORIGINS "*"`.
+- For Linux and Widnows [check the docs](https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server).
 
 #### OpenAI compatible server
 There are several options to run local OpenAI-like server:  
