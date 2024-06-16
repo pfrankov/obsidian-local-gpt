@@ -1,6 +1,6 @@
 import { Editor, Notice, Plugin, Menu } from "obsidian";
 import { LocalGPTSettingTab } from "LocalGPTSettingTab";
-import { DEFAULT_SETTINGS } from "defaultSettings";
+import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "spinnerPlugin";
 import {
 	LocalGPTSettings,
@@ -15,6 +15,7 @@ import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
 	abortControllers: AbortController[] = [];
+	debugBar: HTMLElement;
 
 	async onload() {
 		await this.loadSettings();
@@ -107,7 +108,7 @@ export default class LocalGPT extends Plugin {
 							};
 
 							const aiProvider = getAIProvider(
-								this.settings.defaultProvider,
+								this.settings.defaults.provider,
 							);
 
 							const regexp = /!\[\[(.+?\.(?:png|jpe?g))]]/gi;
@@ -158,20 +159,31 @@ export default class LocalGPT extends Plugin {
 									)
 								).filter(Boolean) || [];
 
+							const aiRequest = {
+								text: selectedText,
+								action,
+								images: imagesInBase64,
+								options: {
+									temperature:
+										CREATIVITY[
+											this.settings.defaults.creativity
+										].temperature,
+								},
+							};
+
 							aiProvider
-								.process(selectedText, action, imagesInBase64)
+								.process(aiRequest)
 								.catch((error) => {
-									if (this.settings.fallbackProvider) {
+									if (
+										this.settings.defaults.fallbackProvider
+									) {
 										new Notice(
 											`Action processed with a fallback`,
 										);
 										return getAIProvider(
-											this.settings.fallbackProvider,
-										).process(
-											selectedText,
-											action,
-											imagesInBase64,
-										);
+											this.settings.defaults
+												.fallbackProvider,
+										).process(aiRequest);
 									}
 									return Promise.reject(error);
 								})
@@ -260,6 +272,7 @@ export default class LocalGPT extends Plugin {
 				loadedData.defaultProvider =
 					// @ts-ignore
 					loadedData.selectedProvider ||
+					// @ts-ignore
 					DEFAULT_SETTINGS.defaultProvider;
 				// @ts-ignore
 				delete loadedData.selectedProvider;
@@ -274,6 +287,26 @@ export default class LocalGPT extends Plugin {
 					(loadedData.providers.openaiCompatible.apiKey = "");
 
 				loadedData._version = 3;
+			}
+			if (loadedData._version < 4) {
+				needToSave = true;
+				loadedData.defaults = {
+					provider:
+						// @ts-ignore
+						loadedData.defaultProvider ||
+						DEFAULT_SETTINGS.defaults.provider,
+					fallbackProvider:
+						// @ts-ignore
+						loadedData.fallbackProvider ||
+						DEFAULT_SETTINGS.defaults.fallbackProvider,
+					creativity: DEFAULT_SETTINGS.defaults.creativity,
+				};
+				// @ts-ignore
+				delete loadedData.defaultProvider;
+				// @ts-ignore
+				delete loadedData.fallbackProvider;
+
+				loadedData._version = 4;
 			}
 
 			Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {

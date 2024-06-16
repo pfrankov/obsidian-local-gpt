@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, requestUrl, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction, Providers } from "./interfaces";
@@ -27,9 +27,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		this.selectedProvider =
-			this.selectedProvider || this.plugin.settings.defaultProvider;
+			this.selectedProvider || this.plugin.settings.defaults.provider;
 		this.useFallback =
-			this.useFallback || Boolean(this.plugin.settings.fallbackProvider);
+			this.useFallback ||
+			Boolean(this.plugin.settings.defaults.fallbackProvider);
 
 		const mainProviders = {
 			[Providers.OLLAMA]: "Ollama",
@@ -40,14 +41,15 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			...mainProviders,
 		};
 
-		if (this.plugin.settings.defaultProvider === Providers.OLLAMA) {
+		if (this.plugin.settings.defaults.provider === Providers.OLLAMA) {
 			// @ts-ignore
 			delete fallbackProviders[Providers.OLLAMA];
 			// @ts-ignore
 			fallbackProviders[Providers.OLLAMA_FALLBACK] = "2️⃣ Ollama";
 		}
 		if (
-			this.plugin.settings.defaultProvider === Providers.OPENAI_COMPATIBLE
+			this.plugin.settings.defaults.provider ===
+			Providers.OPENAI_COMPATIBLE
 		) {
 			// @ts-ignore
 			delete fallbackProviders[Providers.OPENAI_COMPATIBLE];
@@ -62,9 +64,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOptions(mainProviders)
-					.setValue(String(this.plugin.settings.defaultProvider))
+					.setValue(String(this.plugin.settings.defaults.provider))
 					.onChange(async (value) => {
-						this.plugin.settings.defaultProvider = value;
+						this.plugin.settings.defaults.provider = value;
 						this.selectedProvider = value;
 
 						if (this.useFallback) {
@@ -80,6 +82,26 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Creativity")
+			.setDesc("")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("", "⚪ None")
+					.addOptions({
+						low: "️💡 Low",
+						medium: "🎨 Medium",
+						high: "🚀 High",
+					})
+					.setValue(
+						String(this.plugin.settings.defaults.creativity) || "",
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.defaults.creativity = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
 			.setName("Use fallback")
 			.addToggle((component) => {
 				component.setValue(this.useFallback).onChange(async (value) => {
@@ -87,13 +109,13 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					if (value) {
 						const firstAvailableProvider =
 							Object.keys(fallbackProviders)[0];
-						this.plugin.settings.fallbackProvider =
+						this.plugin.settings.defaults.fallbackProvider =
 							firstAvailableProvider;
 						this.selectedProvider = firstAvailableProvider;
 					} else {
-						this.plugin.settings.fallbackProvider = "";
+						this.plugin.settings.defaults.fallbackProvider = "";
 						this.selectedProvider =
-							this.plugin.settings.defaultProvider;
+							this.plugin.settings.defaults.provider;
 					}
 					await this.plugin.saveSettings();
 					this.display();
@@ -109,9 +131,12 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(fallbackProviders)
-						.setValue(String(this.plugin.settings.fallbackProvider))
+						.setValue(
+							String(this.plugin.settings.defaults.provider),
+						)
 						.onChange(async (value) => {
-							this.plugin.settings.fallbackProvider = value;
+							this.plugin.settings.defaults.fallbackProvider =
+								value;
 							this.selectedProvider = value;
 							await this.plugin.saveSettings();
 							this.display();
@@ -383,7 +408,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			// 	});
 			if (
 				this.plugin.settings.providers[
-					this.plugin.settings.defaultProvider
+					this.plugin.settings.defaults.provider
 				].type === Providers.OLLAMA
 			) {
 				new Setting(containerEl)
@@ -553,7 +578,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					`${sharingActionsMapping.prompt}${action.prompt}`,
 				action.replace &&
 					`${sharingActionsMapping.replace}${action.replace}`,
-				this.plugin.settings.defaultProvider === Providers.OLLAMA &&
+				this.plugin.settings.defaults.provider === Providers.OLLAMA &&
 					(action.model || defaultModel) &&
 					`${sharingActionsMapping.model}${
 						action.model || defaultModel
@@ -588,7 +613,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						`<b>${sharingActionsMapping.system}</b>${action.system}`,
 					action.prompt &&
 						`<b>${sharingActionsMapping.prompt}</b>${action.prompt}`,
-					this.plugin.settings.defaultProvider === Providers.OLLAMA &&
+					this.plugin.settings.defaults.provider ===
+						Providers.OLLAMA &&
 						action.model &&
 						`<b>${sharingActionsMapping.model}</b>${action.model}`,
 				]

@@ -25,8 +25,11 @@ export type ProvidersConfig = {
 };
 
 export interface LocalGPTSettings {
-	defaultProvider: string;
-	fallbackProvider: string;
+	defaults: {
+		provider: string;
+		fallbackProvider: string;
+		creativity: string;
+	};
 	providers: ProvidersConfig;
 	actions: LocalGPTAction[];
 	_version: number;
@@ -41,11 +44,15 @@ export interface LocalGPTAction {
 	replace?: boolean;
 }
 
+export type AIProviderProcessingOptions = {
+	text: string;
+	action: LocalGPTAction;
+	images: string[];
+	options: {
+		temperature: number;
+	};
+};
 export interface AIProvider {
 	abortController?: AbortController;
-	process(
-		text: string,
-		action: LocalGPTAction,
-		images: string[],
-	): Promise<string>;
+	process(arg: AIProviderProcessingOptions): Promise<string>;
 }

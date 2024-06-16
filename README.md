@@ -36,11 +36,11 @@ You can also install this plugin via [BRAT](https://obsidian.md/plugins?id=obsid
 ### 2. Install LLM
 #### Ollama (recommended)
 1. Install [Ollama](https://ollama.ai/).
-2. Install orca-mini (default) `ollama pull orca-mini` or any preferred model [from the library](https://ollama.ai/library).
+2. Install Qwen2 (default) `ollama pull qwen2` or any preferred model [from the library](https://ollama.ai/library).
 
 Additional: if you want to enable streaming completion with Ollama you should set environment variable `OLLAMA_ORIGINS` to `*`:  
 - For MacOS run `launchctl setenv OLLAMA_ORIGINS "*"`.
-- For Linux and Widnows [check the docs](https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server).
+- For Linux and Windows [check the docs](https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server).
 
 #### OpenAI compatible server
 There are several options to run local OpenAI-like server:  
@@ -67,7 +67,7 @@ It is also possible to specify a fallback to handle requests — this allows you
 <img width="570" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/97df59b0-1e51-40b8-b543-8825f66d23c2">
 <details>
   <summary>Example video</summary>
-  <video src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/b851e9d2-52cb-4174-be42-add82c7af206">
+  <video src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/b851e9d2-52cb-4174-be42-add82c7af206"></video>
 </details>
 
 ### Using with OpenAI
@@ -93,7 +93,7 @@ _Despite the ease of configuration, I do not recommend this method, since the ma
 - [x] Editing actions
 - [x] Fallback for action if first URL is unavailable (remote GPU)
 - [x] Support multimodal models like Llava
-- [ ] Optional settings for prompts (top_p, top_k, temperature, repeat_penalty)
+- [x] Optional settings for prompts (top_p, top_k, temperature, repeat_penalty)
 - [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian
 
 ## Other AI providers

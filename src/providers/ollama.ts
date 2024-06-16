@@ -1,5 +1,9 @@
 import { requestUrl } from "obsidian";
-import { LocalGPTAction, AIProvider, OllamaProvider } from "../interfaces";
+import {
+	AIProvider,
+	OllamaProvider,
+	AIProviderProcessingOptions,
+} from "../interfaces";
 import { streamer } from "../streamer";
 
 export interface OllamaRequestBody {
@@ -25,12 +29,17 @@ export class OllamaAIProvider implements AIProvider {
 	onUpdate: (text: string) => void;
 	abortController: AbortController;
 
-	process(text: string = "", action: LocalGPTAction, images: string[] = []) {
+	process({
+		text = "",
+		action,
+		options,
+		images = [],
+	}: AIProviderProcessingOptions) {
 		const requestBody: OllamaRequestBody = {
 			prompt: [action.prompt, text].filter(Boolean).join("\n\n"),
 			model: action.model || this.defaultModel,
 			options: {
-				temperature: action.temperature || 0.2,
+				temperature: options.temperature,
 			},
 			stream: true,
 		};

@@ -1,7 +1,7 @@
 import {
-	LocalGPTAction,
 	AIProvider,
 	OpenAICompatibleProvider,
+	AIProviderProcessingOptions,
 } from "../interfaces";
 import { streamer } from "../streamer";
 import { requestUrl } from "obsidian";
@@ -22,6 +22,7 @@ export interface OpenAICompatibleRequestBody {
 	messages: OpenAICompatibleMessage[];
 	stream: boolean;
 	model: string;
+	temperature: number;
 }
 
 export class OpenAICompatibleAIProvider implements AIProvider {
@@ -38,11 +39,12 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 	onUpdate: (text: string) => void;
 	abortController: AbortController;
 
-	process(
-		text: string = "",
-		action: LocalGPTAction,
-		images: string[] = [],
-	): Promise<string> {
+	process({
+		text = "",
+		action,
+		options,
+		images = [],
+	}: AIProviderProcessingOptions): Promise<string> {
 		const messages = [
 			(action.system && {
 				role: "system",
@@ -74,6 +76,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 		const requestBody: OpenAICompatibleRequestBody = {
 			stream: true,
 			model: action.model || this.defaultModel,
+			temperature: options.temperature,
 			messages,
 		};
 
