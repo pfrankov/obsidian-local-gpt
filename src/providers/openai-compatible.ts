@@ -5,6 +5,7 @@ import {
 } from "../interfaces";
 import { streamer } from "../streamer";
 import { requestUrl } from "obsidian";
+import { preparePrompt } from "../utils";
 
 export interface OpenAICompatibleMessageContent {
 	type: "text" | "image_url";
@@ -45,6 +46,8 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 		options,
 		images = [],
 	}: AIProviderProcessingOptions): Promise<string> {
+		const prompt = preparePrompt(action.prompt, text);
+
 		const messages = [
 			(action.system && {
 				role: "system",
@@ -52,16 +55,14 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 			}) as OpenAICompatibleMessage,
 			!images.length && {
 				role: "user",
-				content: [action.prompt, text].filter(Boolean).join("\n\n"),
+				content: prompt,
 			},
 			images.length && {
 				role: "user",
 				content: [
 					{
 						type: "text",
-						text: [action.prompt, text]
-							.filter(Boolean)
-							.join("\n\n"),
+						text: prompt,
 					},
 					...images.map((image) => ({
 						type: "image_url",
@@ -130,6 +131,10 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 						this.onUpdate(combined);
 					},
 					onDone: () => {
+						if (abortController.signal.aborted) {
+							reject();
+							return "";
+						}
 						resolve(combined);
 						return combined;
 					},

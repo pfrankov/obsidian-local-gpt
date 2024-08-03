@@ -18,19 +18,21 @@ export async function streamer({
 		return "";
 	}
 
-	while (true) {
-		if (abortController.signal.aborted) {
-			break;
-		}
+	try {
+		while (true) {
+			if (abortController.signal.aborted) {
+				break;
+			}
 
-		const { done, value } = await reader.read();
-		const decodedValue = decoder.decode(value);
-		if (done) {
-			break;
-		}
+			const { done, value } = await reader.read();
+			const decodedValue = decoder.decode(value);
+			if (done) {
+				break;
+			}
 
-		onNext && onNext(decodedValue);
-	}
+			onNext && onNext(decodedValue);
+		}
+	} catch (e) {}
 
 	return onDone && onDone();
 }

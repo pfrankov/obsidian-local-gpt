@@ -73,3 +73,5 @@ export const CREATIVITY: { [index: string]: any } = {
 		temperature: 1,
 	},
 };
+
+export const SELECTION_KEYWORD = "{{=SELECTION=}}";

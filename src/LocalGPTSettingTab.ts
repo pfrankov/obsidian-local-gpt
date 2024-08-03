@@ -1,5 +1,5 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
-import { DEFAULT_SETTINGS } from "defaultSettings";
+import { DEFAULT_SETTINGS, SELECTION_KEYWORD } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction, Providers } from "./interfaces";
 import { OllamaAIProvider } from "./providers/ollama";
@@ -58,9 +58,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				"2️⃣ OpenAI compatible servers";
 		}
 
-		new Setting(containerEl)
+		const selectedAIProviderSetting = new Setting(containerEl)
 			.setHeading()
-			.setName("Selected AI provider")
+			.setName("")
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOptions(mainProviders)
@@ -80,6 +80,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						this.display();
 					}),
 			);
+
+		selectedAIProviderSetting.nameEl.innerHTML =
+			"<h3>Selected AI provider</h3>";
 
 		new Setting(containerEl)
 			.setName("Creativity")
@@ -132,7 +135,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					dropdown
 						.addOptions(fallbackProviders)
 						.setValue(
-							String(this.plugin.settings.defaults.provider),
+							String(
+								this.plugin.settings.defaults.fallbackProvider,
+							),
 						)
 						.onChange(async (value) => {
 							this.plugin.settings.defaults.fallbackProvider =
@@ -153,7 +158,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		const aiProvider = new Setting(containerEl)
 			.setHeading()
 			.setName("Configure AI provider")
-			.setDesc("")
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOptions({
@@ -170,10 +174,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						this.display();
 					}),
 			);
-
-		aiProvider.descEl.innerHTML = `
-			If you would like to use other providers, please let me know <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/1">in the discussions</a>
-		`;
 
 		if (selectedProviderConfig.type === Providers.OLLAMA) {
 			new Setting(containerEl)
@@ -393,19 +393,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					}),
 				);
 		} else {
-			// new Setting(containerEl)
-			// 	.setName("AI provider")
-			// 	.setDesc("Optional")
-			// 	.addDropdown((dropdown) => {
-			// 		dropdown
-			// 			.addOption("", "Default AI provider")
-			// 			.addOptions(mainProviders)
-			// 			.onChange(async (value) => {
-			// 				editingAction.model = value;
-			// 			});
-			// 		editingAction?.model &&
-			// 			dropdown.setValue(editingAction.model);
-			// 	});
 			if (
 				this.plugin.settings.providers[
 					this.plugin.settings.defaults.provider
@@ -449,16 +436,22 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					});
 				});
 
-			new Setting(containerEl).setName("Prompt").addTextArea((text) => {
-				editingAction?.prompt && text.setValue(editingAction.prompt);
-				text.inputEl.style.minWidth = "100%";
-				text.inputEl.style.minHeight = "6em";
-				text.inputEl.style.resize = "vertical";
-				text.setPlaceholder("");
-				text.onChange(async (value) => {
-					editingAction.prompt = value;
+			const promptSetting = new Setting(containerEl)
+				.setName("Prompt")
+				.setDesc("")
+				.addTextArea((text) => {
+					editingAction?.prompt &&
+						text.setValue(editingAction.prompt);
+					text.inputEl.style.minWidth = "100%";
+					text.inputEl.style.minHeight = "6em";
+					text.inputEl.style.resize = "vertical";
+					text.setPlaceholder("");
+					text.onChange(async (value) => {
+						editingAction.prompt = value;
+					});
 				});
-			});
+
+			promptSetting.descEl.innerHTML = `By default the selected text<br/>will be added to the end of the prompt.<br/><br/>Use keyword <code>${SELECTION_KEYWORD}</code><br/>to insert selected text in different place.`;
 
 			new Setting(containerEl)
 				.setName("Replace selected text")

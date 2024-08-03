@@ -51,11 +51,6 @@ There are several options to run local OpenAI-like server:
 - [LM Studio](https://lmstudio.ai/)
 - ...maybe more
 
-Here is an example for llama.cpp:  
-1. Install [llama.cpp](https://github.com/ggerganov/llama.cpp) and follow build instructions for your OS
-2. Download a model trained on the ChatML dialog format. For example, [Mixtral 8X7B](https://huggingface.co/TheBloke/dolphin-2.5-mixtral-8x7b-GGUF/blob/main/dolphin-2.5-mixtral-8x7b.Q4_K_M.gguf) (Dolphin 2.5 version)
-3. Run the server by calling `./server -c 4096 --host 0.0.0.0 -t 16 --mlock -m models/dolphin-2.5-mixtral-8x7b.Q4_K_M.gguf` or as described [in the documentation](https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md).
-
 ### Configure Obsidian hotkey (optional)
 1. Open Obsidian Settings
 2. Go to Hotkeys
@@ -82,22 +77,6 @@ _Despite the ease of configuration, I do not recommend this method, since the ma
   <summary>Example screenshot</summary>
   <img width="577" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/f267afd2-4d3e-4cf1-a3ab-4e2f3fd2db77">
 </details>
-
-
-## Roadmap
-- [x] Ability to select models from the list instead of typing their names
-- [x] Ability to share and apply presets (system prompt + prompt + model)
-- [x] Additional AI providers (OpenAI, etc...)
-- [x] Streaming completions
-- [x] Changing order of the actions
-- [x] Editing actions
-- [x] Fallback for action if first URL is unavailable (remote GPU)
-- [x] Support multimodal models like Llava
-- [x] Optional settings for prompts (top_p, top_k, temperature, repeat_penalty)
-- [ ] Accounting your local documents in results as described here https://ollama.ai/blog/llms-in-obsidian
-
-## Other AI providers
-If you would like to use other providers, please let me know [in the discussions](https://github.com/pfrankov/obsidian-local-gpt/discussions/1).
 
 ## My other Obsidian plugins
 - [Colored Tags](https://github.com/pfrankov/obsidian-colored-tags) that colorizes tags in distinguishable colors. 

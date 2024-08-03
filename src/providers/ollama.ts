@@ -5,6 +5,7 @@ import {
 	AIProviderProcessingOptions,
 } from "../interfaces";
 import { streamer } from "../streamer";
+import { preparePrompt } from "../utils";
 
 export interface OllamaRequestBody {
 	prompt: string;
@@ -35,8 +36,10 @@ export class OllamaAIProvider implements AIProvider {
 		options,
 		images = [],
 	}: AIProviderProcessingOptions) {
+		const prompt = preparePrompt(action.prompt, text);
+
 		const requestBody: OllamaRequestBody = {
-			prompt: [action.prompt, text].filter(Boolean).join("\n\n"),
+			prompt,
 			model: action.model || this.defaultModel,
 			options: {
 				temperature: options.temperature,
@@ -84,6 +87,9 @@ export class OllamaAIProvider implements AIProvider {
 						this.onUpdate(combined);
 					},
 					onDone: () => {
+						if (abortController.signal.aborted) {
+							return "";
+						}
 						return combined;
 					},
 				});
