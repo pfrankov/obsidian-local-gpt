@@ -16,6 +16,7 @@ Default actions:
 - Fix spelling and grammar
 - Find action items in text
 - General help (just use selected text as a prompt for any purpose)
+- New System Prompt to create actions for your needs 
 
 You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2).
 
@@ -36,7 +37,7 @@ You can also install this plugin via [BRAT](https://obsidian.md/plugins?id=obsid
 ### 2. Install LLM
 #### Ollama (recommended)
 1. Install [Ollama](https://ollama.ai/).
-2. Install Qwen2 (default) `ollama pull qwen2` or any preferred model [from the library](https://ollama.ai/library).
+2. Install Gemma 2 (default) `ollama pull gemma2` or any preferred model [from the library](https://ollama.ai/library).
 
 Additional: if you want to enable streaming completion with Ollama you should set environment variable `OLLAMA_ORIGINS` to `*`:  
 - For MacOS run `launchctl setenv OLLAMA_ORIGINS "*"`.

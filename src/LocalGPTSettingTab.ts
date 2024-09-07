@@ -601,11 +601,32 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							this.display();
 						}),
 					);
+
+				function escapeTitle(title?: string) {
+					if (!title) {
+						return "";
+					}
+
+					return title
+						.replace(/&/g, "&amp;")
+						.replace(/</g, "&lt;")
+						.replace(/>/g, "&gt;")
+						.replace(/"/g, "&quot;")
+						.replace(/'/g, "&#039;");
+				}
+
+				const systemTitle = escapeTitle(action.system);
+
+				const promptTitle = escapeTitle(action.prompt);
+
 				actionRow.descEl.innerHTML = [
 					action.system &&
-						`<b>${sharingActionsMapping.system}</b>${action.system}`,
+						`<div title="${systemTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+							<b>${sharingActionsMapping.system}</b>${action.system}</div>`,
 					action.prompt &&
-						`<b>${sharingActionsMapping.prompt}</b>${action.prompt}`,
+						`<div title="${promptTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+							<b>${sharingActionsMapping.prompt}</b>${action.prompt}
+						</div>`,
 					this.plugin.settings.defaults.provider ===
 						Providers.OLLAMA &&
 						action.model &&
