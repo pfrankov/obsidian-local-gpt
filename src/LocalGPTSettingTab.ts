@@ -192,6 +192,13 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			const ollamaDefaultModel = new Setting(containerEl)
 				.setName("Default model")
 				.setDesc("Name of the default Ollama model to use in prompts");
+
+			const ollamaEmbeddingModel = new Setting(containerEl)
+				.setName("Embedding model")
+				.setDesc(
+					"Optional. Name of the Ollama embedding model to use for Enhanced Actions",
+				);
+
 			if (selectedProviderConfig.ollamaUrl) {
 				OllamaAIProvider.getModels(selectedProviderConfig)
 					.then((models) => {
@@ -219,6 +226,21 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 										this.display();
 									}),
 							);
+						ollamaEmbeddingModel.addDropdown((dropdown) =>
+							dropdown
+								.addOption("", "No enhancement")
+								.addOptions(this.modelsOptions)
+								.setValue(
+									String(
+										selectedProviderConfig.embeddingModel,
+									),
+								)
+								.onChange(async (value) => {
+									selectedProviderConfig.embeddingModel =
+										value;
+									await this.plugin.saveSettings();
+								}),
+						);
 					})
 					.catch(() => {
 						ollamaDefaultModel.descEl.innerHTML = `Get the models from <a href="https://ollama.ai/library">Ollama library</a> or check that Ollama URL is correct.`;
@@ -280,6 +302,12 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					"Optional. Name of the default model to use in prompts",
 				);
 
+			const openaiEmbeddingModel = new Setting(containerEl)
+				.setName("Embedding model")
+				.setDesc(
+					"Optional. Name of the embedding model to use for Enhanced Actions",
+				);
+
 			if (selectedProviderConfig.url) {
 				OpenAICompatibleAIProvider.getModels(selectedProviderConfig)
 					.then((models) => {
@@ -306,6 +334,21 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 										this.display();
 									}),
 							);
+						openaiEmbeddingModel.addDropdown((dropdown) =>
+							dropdown
+								.addOption("", "No enhancement")
+								.addOptions(models)
+								.setValue(
+									String(
+										selectedProviderConfig.embeddingModel,
+									) || "",
+								)
+								.onChange(async (value) => {
+									selectedProviderConfig.embeddingModel =
+										value;
+									await this.plugin.saveSettings();
+								}),
+						);
 					})
 					.catch(() => {
 						openaiDefaultModel.addButton((button) =>

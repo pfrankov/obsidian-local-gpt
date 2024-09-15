@@ -12,6 +12,12 @@ import {
 } from "./interfaces";
 import { OllamaAIProvider } from "./providers/ollama";
 import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
+import {
+	startProcessing,
+	createVectorStore,
+	queryVectorStore,
+	getLinkedFiles,
+} from "./rag";
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
@@ -138,6 +144,7 @@ export default class LocalGPT extends Plugin {
 
 		const aiProvider = getAIProvider(this.settings.defaults.provider);
 
+		// Обрабатываем изображения (оставляем без изменений)
 		const regexp = /!\[\[(.+?\.(?:png|jpe?g))]]/gi;
 		const fileNames = Array.from(
 			selectedText.matchAll(regexp),
@@ -178,6 +185,9 @@ export default class LocalGPT extends Plugin {
 					}),
 				)
 			).filter(Boolean) || [];
+
+		// Обрабатываем выделенный текст
+		selectedText = await this.processActiveFile(selectedText);
 
 		const aiRequest = {
 			text: selectedText,
@@ -226,6 +236,62 @@ export default class LocalGPT extends Plugin {
 			});
 	}
 
+	async processActiveFile(selectedText: string): Promise<string> {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) {
+			return selectedText;
+		}
+		if (
+			!this.settings.providers[this.settings.defaults.provider]
+				.embeddingModel
+		) {
+			return selectedText;
+		}
+
+		const linkedFiles = getLinkedFiles(
+			selectedText,
+			this.app.vault,
+			this.app.metadataCache,
+			activeFile.path,
+		);
+
+		if (linkedFiles.length === 0) {
+			return selectedText;
+		}
+
+		try {
+			const processedDocs = await startProcessing(
+				activeFile,
+				this.app.vault,
+				this.app.metadataCache,
+			);
+			if (processedDocs.size === 0) {
+				return selectedText;
+			}
+
+			const vectorStore = await createVectorStore(
+				Array.from(processedDocs.values()),
+				this,
+				activeFile.path,
+			);
+			const relevantContext = await queryVectorStore(
+				selectedText,
+				vectorStore,
+			);
+
+			if (relevantContext.trim()) {
+				return `${selectedText}\n\nRelevant context:\n${relevantContext}`;
+			}
+		} catch (error) {
+			console.error("Error processing RAG:", error);
+			new Notice(
+				`Error processing related documents: ${error.message}. Continuing with original text.`,
+			);
+		}
+
+		return selectedText;
+	}
+
 	onunload() {
 		document.removeEventListener("keydown", this.escapeHandler);
 		window.clearInterval(this.updatingInterval);
@@ -253,7 +319,10 @@ export default class LocalGPT extends Plugin {
 				// @ts-ignore
 				delete loadedData.defaultModel;
 				// @ts-ignore
-				loadedData.selectedProvider = DEFAULT_SETTINGS.selectedProvider;
+				loadedData.providers.openaiCompatible &&
+					// @ts-ignore
+					(loadedData.providers.openaiCompatible.apiKey = "");
+
 				loadedData._version = 2;
 			}
 			if (loadedData._version < 3) {
@@ -271,10 +340,6 @@ export default class LocalGPT extends Plugin {
 					// @ts-ignore
 					loadedData.providers[key].type = key;
 				});
-				// @ts-ignore
-				loadedData.providers.openaiCompatible &&
-					// @ts-ignore
-					(loadedData.providers.openaiCompatible.apiKey = "");
 
 				loadedData._version = 3;
 			}
@@ -297,6 +362,25 @@ export default class LocalGPT extends Plugin {
 				delete loadedData.fallbackProvider;
 
 				loadedData._version = 4;
+			}
+
+			if (loadedData._version < 5) {
+				needToSave = true;
+
+				Object.keys(DEFAULT_SETTINGS.providers).forEach((provider) => {
+					if (loadedData.providers[provider]) {
+						loadedData.providers[provider].embeddingModel =
+							DEFAULT_SETTINGS.providers[provider].embeddingModel;
+					}
+				});
+
+				loadedData._version = 5;
+				setTimeout(() => {
+					new Notice(
+						`🎉 LocalGPT can finally use\ncontext from links!\nCheck the Settings!`,
+						0,
+					);
+				}, 10000);
 			}
 
 			Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {

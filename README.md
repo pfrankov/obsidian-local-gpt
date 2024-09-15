@@ -4,13 +4,30 @@
 _No speedup. MacBook Pro 13, M1, 16GB, Ollama, orca-mini._ 
 
 Local GPT assistance for maximum privacy and offline access.  
-The plugin allows you to open a context menu on selected text to pick an AI-assistant's action.
+The plugin allows you to open a context menu on selected text to pick an AI-assistant's action.  
+The most casual AI-assistant for Obsidian.
 
 Also works with images  
 <img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">  
 _No speedup. MacBook Pro 13, M1, 16GB, Ollama, bakllava._
 
-Default actions:
+Also it can use context from links and backlinks  
+<img width="450" alt="Enhanced Actions" src="https://github.com/user-attachments/assets/5fa2ed36-0ef5-43b0-8f16-07588f76d780">
+<details>
+  <summary>How to use (Ollama)</summary>
+  <p>
+    1. Install Embedding model:
+  </p>
+  <ul>
+    <li>For English: <code>ollama pull nomic-embed-text</code> (fastest)</li>
+    <li>For other languages: <code>ollama pull bge-m3</code> (slower, but more accurate)</li>
+  </ul>
+  <p>
+    2. Select Embedding model in plugin's settings and try to use the largest model with largest context window.
+  </p>
+</details>
+
+### Default actions
 - Continue writing
 - Summarize text
 - Fix spelling and grammar
@@ -20,11 +37,11 @@ Default actions:
 
 You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2).
 
-Supported AI Providers:
+### Supported AI Providers
 - Ollama
 - OpenAI compatible server (also OpenAI)
 
-<img width="598" alt="Settings" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/6ab2d802-13ed-42be-aab1-6a3f689b18a0">
+<img width="613" alt="Settings" src="https://github.com/user-attachments/assets/f849bb6e-6f99-4de3-9cc4-155bea199bc6">
 
 ## Installation
 ### 1. Install Plugin
@@ -43,6 +60,7 @@ Additional: if you want to enable streaming completion with Ollama you should se
 - For MacOS run `launchctl setenv OLLAMA_ORIGINS "*"`.
 - For Linux and Windows [check the docs](https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server).
 
+
 #### OpenAI compatible server
 There are several options to run local OpenAI-like server:  
 - [llama.cpp](https://github.com/ggerganov/llama.cpp)
@@ -60,7 +78,7 @@ There are several options to run local OpenAI-like server:
 
 ### "Use fallback" option
 It is also possible to specify a fallback to handle requests — this allows you to use larger models when you are online and smaller ones when offline.  
-<img width="570" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/97df59b0-1e51-40b8-b543-8825f66d23c2">
+<img width="626" alt="image" src="https://github.com/user-attachments/assets/5f6855c7-ed10-4d83-91e3-891b99b5a605">
 <details>
   <summary>Example video</summary>
   <video src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/b851e9d2-52cb-4174-be42-add82c7af206"></video>

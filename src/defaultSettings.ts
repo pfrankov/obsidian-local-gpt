@@ -5,21 +5,25 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 		ollama: {
 			ollamaUrl: "http://localhost:11434",
 			defaultModel: "gemma2",
+			embeddingModel: "",
 			type: "ollama",
 		},
 		ollama_fallback: {
 			ollamaUrl: "http://localhost:11434",
 			defaultModel: "gemma2",
+			embeddingModel: "",
 			type: "ollama",
 		},
 		openaiCompatible: {
 			url: "http://localhost:8080",
 			apiKey: "",
+			embeddingModel: "",
 			type: "openaiCompatible",
 		},
 		openaiCompatible_fallback: {
 			url: "http://localhost:8080",
 			apiKey: "",
+			embeddingModel: "",
 			type: "openaiCompatible",
 		},
 	},
@@ -61,7 +65,7 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 			system: `You are a highly skilled AI prompt engineer with expertise in creating tailored prompts for a wide range of professional roles. You have a deep knowledge of how to craft prompts that effectively guide the language model to produce high-quality, contextually appropriate responses.\n\nYour task is to generate a custom system prompt for different roles based on user input. This involves understanding the specific requirements of each role, the context in which the prompt will be used, and the desired output format. You are skilled in structuring prompts that ensure clarity, relevance, and utility.\n\nCreate a custom system prompt for an LLM to assist users in generating contextually appropriate and highly effective responses for various roles. The prompt should provide clear instructions to the LLM on how to handle specific scenarios related to the role, including the tone and format of the response.\n\nStart by providing a role "You are..." and context as a summary of the situation or background information relevant to the prompt. Define the main objective, outlining what the LLM needs to accomplish.\n\nInclude instructions on the appropriate style and tone (e.g., formal, casual, technical, empathetic) based on the role and audience. Identify the target audience to tailor the LLM's output effectively. Specify the format of the response, whether it should be a narrative, bullet points, step-by-step guide, code, or another format. Avoid using headings or examples; the prompt should read as a continuous, cohesive set of instructions.\nANSWER PROMPT AND NOTHING ELSE!`,
 		},
 	],
-	_version: 4,
+	_version: 5,
 };
 
 export const CREATIVITY: { [index: string]: any } = {

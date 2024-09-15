@@ -8,6 +8,7 @@ export const enum Providers {
 export type OllamaProvider = {
 	ollamaUrl: string;
 	defaultModel: string;
+	embeddingModel: string;
 	type: "ollama";
 };
 
@@ -15,6 +16,7 @@ export type OpenAICompatibleProvider = {
 	url: string;
 	apiKey?: string;
 	defaultModel?: string;
+	embeddingModel?: string;
 	type: "openaiCompatible";
 };
 
