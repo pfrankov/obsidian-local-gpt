@@ -221,7 +221,10 @@ export default class LocalGPT extends Plugin {
 						cursorPositionTo,
 					);
 				} else {
-					editor.replaceRange(this.processText(data, selectedText), {
+					const isLastLine =
+						editor.lastLine() === cursorPositionTo.line;
+					const text = this.processText(data, selectedText);
+					editor.replaceRange(isLastLine ? "\n" + text : text, {
 						ch: 0,
 						line: cursorPositionTo.line + 1,
 					});
@@ -261,9 +264,10 @@ export default class LocalGPT extends Plugin {
 
 		try {
 			const processedDocs = await startProcessing(
-				activeFile,
+				linkedFiles,
 				this.app.vault,
 				this.app.metadataCache,
+				activeFile,
 			);
 			if (processedDocs.size === 0) {
 				return selectedText;

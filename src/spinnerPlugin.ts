@@ -1,98 +1,147 @@
-import { RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder, EditorState } from "@codemirror/state";
 import {
 	Decoration,
 	DecorationSet,
 	EditorView,
-	PluginSpec,
 	PluginValue,
 	ViewPlugin,
 	ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
 
-class Spinner extends WidgetType {
-	constructor(readonly text: string) {
+class LoaderWidget extends WidgetType {
+	static readonly element: HTMLSpanElement = document.createElement("span");
+
+	static {
+		this.element.addClasses(["local-gpt-loading", "local-gpt-dots"]);
+	}
+
+	toDOM(view: EditorView): HTMLElement {
+		return LoaderWidget.element.cloneNode(true) as HTMLElement;
+	}
+}
+
+class ContentWidget extends WidgetType {
+	private dom: HTMLElement | null = null;
+
+	constructor(private text: string) {
 		super();
 	}
 
-	eq(other: Spinner) {
-		return other.text == this.text;
+	eq(other: ContentWidget) {
+		return other.text === this.text;
 	}
 
-	toDOM() {
-		let wrap = document.createElement("div");
-		wrap.innerText = this.text;
-		wrap.addClass("local-gpt-streaming-text");
+	updateText(newText: string) {
+		if (this.dom && this.text !== newText) {
+			const addedText = newText.slice(this.text.length);
 
-		const span = document.createElement("span");
-		span.addClasses(["local-gpt-loading", "local-gpt-dots"]);
+			this.dom.textContent = newText.slice(0, -addedText.length);
+			let lastSpan = this.dom.querySelector("span:last-child");
+			if (!lastSpan) {
+				lastSpan = document.createElement("span");
+				this.dom.appendChild(lastSpan);
+			}
+			lastSpan.textContent = addedText;
 
-		if (!this.text.trim()) {
-			return span;
+			this.text = newText;
 		}
-
-		return wrap;
 	}
 
-	ignoreEvent() {
-		return false;
+	toDOM(view: EditorView): HTMLElement {
+		if (!this.dom) {
+			this.dom = document.createElement("div");
+			this.dom.addClass("local-gpt-content");
+			this.updateText(this.text);
+		}
+		return this.dom;
 	}
 }
 
 export class SpinnerPlugin implements PluginValue {
 	decorations: DecorationSet;
-	listOfPositions: number[];
-	editorView: EditorView;
+	private positions: Map<
+		number,
+		{ isEndOfLine: boolean; widget: WidgetType }
+	>;
 
-	constructor(view: EditorView) {
-		this.editorView = view;
-		this.listOfPositions = [];
-		this.decorations = this.buildDecorations();
+	constructor(private editorView: EditorView) {
+		this.positions = new Map();
+		this.decorations = Decoration.none;
 	}
 
-	show(position: number): Function {
-		this.listOfPositions.push(position);
-		this.decorations = this.buildDecorations();
-
-		return () => {
-			this.hide(position);
-		};
+	show(position: number): () => void {
+		const isEndOfLine = this.isPositionAtEndOfLine(
+			this.editorView.state,
+			position,
+		);
+		this.positions.set(position, {
+			isEndOfLine,
+			widget: new LoaderWidget(),
+		});
+		this.updateDecorations();
+		return () => this.hide(position);
 	}
 
 	hide(position: number) {
-		this.listOfPositions = this.listOfPositions.filter(
-			(pos) => pos !== position,
-		);
-		this.decorations = this.buildDecorations();
+		this.positions.delete(position);
+		this.updateDecorations();
 	}
 
-	updateContent(text: string) {
-		this.decorations = this.buildDecorations(text);
-	}
-	update(update: ViewUpdate) {
-		if (update.docChanged || update.viewportChanged) {
-			this.decorations = this.buildDecorations();
+	updateContent(text: string, position?: number) {
+		let updated = false;
+		const updatePosition = (data: { widget: WidgetType }) => {
+			if (data.widget instanceof LoaderWidget) {
+				data.widget = new ContentWidget(text);
+				updated = true;
+			} else if (data.widget instanceof ContentWidget) {
+				data.widget.updateText(text);
+				updated = true;
+			}
+		};
+
+		if (position !== undefined) {
+			const data = this.positions.get(position);
+			if (data) updatePosition(data);
+		} else {
+			this.positions.forEach(updatePosition);
+		}
+
+		if (updated) {
+			this.updateDecorations();
 		}
 	}
 
-	destroy() {}
+	update(update: ViewUpdate) {
+		if (update.docChanged || update.viewportChanged) {
+			this.updateDecorations();
+		}
+	}
 
-	buildDecorations(text = ""): DecorationSet {
+	private updateDecorations() {
 		const builder = new RangeSetBuilder<Decoration>();
-		this.listOfPositions.forEach((pos) => {
-			const indentationWidget = Decoration.widget({
-				widget: new Spinner(text),
-				side: 1,
-			});
-
-			builder.add(pos, pos, indentationWidget);
+		this.positions.forEach((data, position) => {
+			builder.add(
+				position,
+				position,
+				Decoration.widget({
+					widget: data.widget,
+					side: data.isEndOfLine ? 1 : -1,
+				}),
+			);
 		});
-		return builder.finish();
+		this.decorations = builder.finish();
+		this.editorView.requestMeasure();
+	}
+
+	private isPositionAtEndOfLine(
+		state: EditorState,
+		position: number,
+	): boolean {
+		return position === state.doc.lineAt(position).to;
 	}
 }
 
-const pluginSpec: PluginSpec<SpinnerPlugin> = {
-	decorations: (value: SpinnerPlugin) => value.decorations,
-};
-
-export const spinnerPlugin = ViewPlugin.fromClass(SpinnerPlugin, pluginSpec);
+export const spinnerPlugin = ViewPlugin.fromClass(SpinnerPlugin, {
+	decorations: (v) => v.decorations,
+});

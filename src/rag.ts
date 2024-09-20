@@ -17,19 +17,30 @@ interface ProcessingContext {
 	vault: Vault;
 	metadataCache: MetadataCache;
 	currentDocumentPath: string;
+	activeFile: TFile;
 }
 
 export async function startProcessing(
-	file: TFile,
+	linkedFiles: TFile[],
 	vault: Vault,
 	metadataCache: MetadataCache,
+	activeFile: TFile,
 ): Promise<Map<string, Document>> {
-	const context: ProcessingContext = {
-		vault,
-		metadataCache,
-		currentDocumentPath: file.path,
-	};
-	return processDocumentForRAG(file, context, new Map(), 0, false);
+	const processedDocs = new Map<string, Document>();
+
+	await Promise.all(
+		linkedFiles.map(async (file) => {
+			const context: ProcessingContext = {
+				vault,
+				metadataCache,
+				currentDocumentPath: file.path,
+				activeFile,
+			};
+			await processDocumentForRAG(file, context, processedDocs, 0, false);
+		}),
+	);
+
+	return processedDocs;
 }
 
 async function processDocumentForRAG(
@@ -39,7 +50,11 @@ async function processDocumentForRAG(
 	depth: number,
 	isBacklink: boolean,
 ): Promise<Map<string, Document>> {
-	if (depth > MAX_DEPTH || processedDocs.has(file.path)) {
+	if (
+		depth > MAX_DEPTH ||
+		processedDocs.has(file.path) ||
+		file.path === context.activeFile.path
+	) {
 		return processedDocs;
 	}
 

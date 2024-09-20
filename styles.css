@@ -3,8 +3,23 @@
 	height: 1em;
 }
 
-.local-gpt-streaming-text {
+.local-gpt-content {
 	color: var(--text-faint);
+	display: block;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.local-gpt-content > span:last-child {
+	display: inline;
+	background-image: linear-gradient(
+		to right,
+		var(--text-faint) 0%,
+		var(--interactive-accent) 100%
+	);
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	box-decoration-break: slice;
 }
 
 .local-gpt-loading {
@@ -13,7 +28,7 @@
 	height: 1.3em;
 	line-height: 1.5em;
 	vertical-align: text-bottom;
-    margin: -0.3em 0.3em 0;
+	margin: -0.3em 0.3em 0;
 }
 
 .local-gpt-loading::after {
