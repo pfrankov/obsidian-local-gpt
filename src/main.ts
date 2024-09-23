@@ -18,6 +18,7 @@ import {
 	queryVectorStore,
 	getLinkedFiles,
 } from "./rag";
+import { logger } from "./logger";
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
@@ -117,24 +118,27 @@ export default class LocalGPT extends Plugin {
 		const getAIProvider = (providerName: string): AIProvider => {
 			switch (this.settings.providers[providerName].type) {
 				case Providers.OPENAI_COMPATIBLE: {
-					const { url, apiKey, defaultModel } = this.settings
-						.providers[providerName] as OpenAICompatibleProvider;
+					const { url, apiKey, defaultModel, embeddingModel } = this
+						.settings.providers[
+						providerName
+					] as OpenAICompatibleProvider;
 					return new OpenAICompatibleAIProvider({
 						url,
 						apiKey,
 						defaultModel,
+						embeddingModel,
 						abortController,
 						onUpdate,
 					});
 				}
 				case Providers.OLLAMA:
 				default: {
-					const { ollamaUrl, defaultModel } = this.settings.providers[
-						providerName
-					] as OllamaProvider;
+					const { ollamaUrl, defaultModel, embeddingModel } = this
+						.settings.providers[providerName] as OllamaProvider;
 					return new OllamaAIProvider({
 						defaultModel,
 						ollamaUrl,
+						embeddingModel,
 						abortController,
 						onUpdate,
 					});
@@ -187,7 +191,10 @@ export default class LocalGPT extends Plugin {
 			).filter(Boolean) || [];
 
 		// Обрабатываем выделенный текст
-		selectedText = await this.processActiveFile(selectedText);
+		logger.time("Processing Embeddings");
+		const context = await this.enhanceWithContext(selectedText, aiProvider);
+		logger.timeEnd("Processing Embeddings");
+		logger.debug("Selected text", { text: selectedText });
 
 		const aiRequest = {
 			text: selectedText,
@@ -197,6 +204,7 @@ export default class LocalGPT extends Plugin {
 				temperature:
 					CREATIVITY[this.settings.defaults.creativity].temperature,
 			},
+			context,
 		};
 
 		aiProvider
@@ -239,16 +247,19 @@ export default class LocalGPT extends Plugin {
 			});
 	}
 
-	async processActiveFile(selectedText: string): Promise<string> {
+	async enhanceWithContext(
+		selectedText: string,
+		aiProvider: AIProvider,
+	): Promise<string> {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile) {
-			return selectedText;
+			return "";
 		}
 		if (
 			!this.settings.providers[this.settings.defaults.provider]
 				.embeddingModel
 		) {
-			return selectedText;
+			return "";
 		}
 
 		const linkedFiles = getLinkedFiles(
@@ -259,10 +270,13 @@ export default class LocalGPT extends Plugin {
 		);
 
 		if (linkedFiles.length === 0) {
-			return selectedText;
+			return "";
 		}
 
 		try {
+			if (aiProvider.abortController?.signal.aborted) {
+				return "";
+			}
 			const processedDocs = await startProcessing(
 				linkedFiles,
 				this.app.vault,
@@ -270,30 +284,44 @@ export default class LocalGPT extends Plugin {
 				activeFile,
 			);
 			if (processedDocs.size === 0) {
-				return selectedText;
+				return "";
+			}
+
+			if (aiProvider.abortController?.signal.aborted) {
+				return "";
 			}
 
 			const vectorStore = await createVectorStore(
 				Array.from(processedDocs.values()),
 				this,
 				activeFile.path,
+				aiProvider,
 			);
+
+			if (aiProvider.abortController?.signal.aborted) {
+				return "";
+			}
+
 			const relevantContext = await queryVectorStore(
 				selectedText,
 				vectorStore,
 			);
 
 			if (relevantContext.trim()) {
-				return `${selectedText}\n\nRelevant context:\n${relevantContext}`;
+				return relevantContext;
 			}
 		} catch (error) {
+			if (aiProvider.abortController?.signal.aborted) {
+				return "";
+			}
+
 			console.error("Error processing RAG:", error);
 			new Notice(
 				`Error processing related documents: ${error.message}. Continuing with original text.`,
 			);
 		}
 
-		return selectedText;
+		return "";
 	}
 
 	onunload() {
@@ -426,7 +454,7 @@ export default class LocalGPT extends Plugin {
 				new Notice(`⬆️ Local GPT: a new version is available`);
 			}
 		} catch (error) {
-			console.error(error);
+			console.error("Error checking for updates:", error);
 		}
 	}
 

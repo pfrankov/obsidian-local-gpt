@@ -2,10 +2,10 @@ import { TFile, Vault, MetadataCache } from "obsidian";
 import { Document } from "langchain/document";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { preprocessContent, splitContent } from "./text-processing";
-import { OllamaEmbeddings } from "langchain/embeddings/ollama";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { Providers } from "interfaces";
+import { AIProvider } from "interfaces";
 import LocalGPT from "main";
+import { CustomEmbeddings } from "./embeddings/CustomEmbeddings";
+import { logger } from "./logger";
 
 const MAX_DEPTH = 10;
 const documentCache = new Map<
@@ -26,6 +26,9 @@ export async function startProcessing(
 	metadataCache: MetadataCache,
 	activeFile: TFile,
 ): Promise<Map<string, Document>> {
+	logger.debug("Starting RAG processing", {
+		linkedFilesCount: linkedFiles.length,
+	});
 	const processedDocs = new Map<string, Document>();
 
 	await Promise.all(
@@ -50,6 +53,11 @@ async function processDocumentForRAG(
 	depth: number,
 	isBacklink: boolean,
 ): Promise<Map<string, Document>> {
+	logger.debug("Processing document for RAG", {
+		filePath: file.path,
+		depth,
+		isBacklink,
+	});
 	if (
 		depth > MAX_DEPTH ||
 		processedDocs.has(file.path) ||
@@ -160,30 +168,17 @@ export async function createVectorStore(
 	documents: Document[],
 	plugin: LocalGPT,
 	currentDocumentPath: string,
+	aiProvider: AIProvider,
 ): Promise<MemoryVectorStore> {
-	const selectedProvider =
-		plugin.settings.providers[plugin.settings.defaults.provider];
-	let embeddings;
+	let embedder: CustomEmbeddings;
 
-	if (selectedProvider.type === Providers.OLLAMA) {
-		embeddings = new OllamaEmbeddings({
-			model: selectedProvider.embeddingModel,
-			baseUrl: selectedProvider.ollamaUrl,
-		});
-	} else if (selectedProvider.type === Providers.OPENAI_COMPATIBLE) {
-		embeddings = new OpenAIEmbeddings({
-			openAIApiKey: selectedProvider.apiKey,
-			modelName: selectedProvider.embeddingModel,
-			configuration: {
-				baseURL: `${selectedProvider.url.replace(/\/+$/i, "")}/v1`,
-			},
-		});
-	} else {
-		throw new Error("Unsupported provider type for embeddings");
-	}
+	embedder = new CustomEmbeddings({
+		aiProvider,
+	});
 
-	const vectorStore = new MemoryVectorStore(embeddings);
+	const vectorStore = new MemoryVectorStore(embedder);
 	const uniqueChunks = new Set<string>();
+	const chunksToEmbed: { chunk: string; doc: Document }[] = [];
 
 	for (const doc of documents) {
 		if (doc.metadata.source !== currentDocumentPath) {
@@ -197,35 +192,42 @@ export async function createVectorStore(
 						metadata: { ...doc.metadata },
 					});
 
-					try {
-						const cachedData = documentCache.get(
-							doc.metadata.source,
+					const cachedData = documentCache.get(doc.metadata.source);
+					if (cachedData?.embedding) {
+						logger.debug("Using cached embedding", {
+							embedding: cachedData.embedding,
+						});
+						await vectorStore.addVectors(
+							[cachedData.embedding],
+							[chunkDoc],
 						);
-						if (cachedData?.embedding) {
-							await vectorStore.addVectors(
-								[cachedData.embedding],
-								[chunkDoc],
-							);
-						} else {
-							const [embedding] = await embeddings.embedDocuments(
-								[chunk],
-							);
-							await vectorStore.addVectors(
-								[embedding],
-								[chunkDoc],
-							);
-							documentCache.set(doc.metadata.source, {
-								mtime: doc.metadata.stat.mtime,
-								embedding,
-							});
-						}
-					} catch (error) {
-						console.error(
-							`Error creating embedding for ${doc.metadata.source}:`,
-							error,
-						);
+					} else {
+						chunksToEmbed.push({ chunk, doc: chunkDoc });
 					}
 				}
+			}
+		}
+	}
+
+	if (chunksToEmbed.length > 0) {
+		try {
+			const embeddings = await embedder.embedDocuments(
+				chunksToEmbed.map((item) => item.chunk),
+			);
+
+			for (let i = 0; i < embeddings.length; i++) {
+				const { chunk, doc } = chunksToEmbed[i];
+				const embedding = embeddings[i];
+
+				await vectorStore.addVectors([embedding], [doc]);
+				documentCache.set(doc.metadata.source, {
+					mtime: doc.metadata.stat.mtime,
+					embedding,
+				});
+			}
+		} catch (error) {
+			if (!aiProvider.abortController?.signal.aborted) {
+				console.error(`Error creating embeddings:`, error);
 			}
 		}
 	}
@@ -237,6 +239,7 @@ export async function queryVectorStore(
 	query: string,
 	vectorStore: MemoryVectorStore,
 ): Promise<string> {
+	logger.debug("Querying vector store", { query });
 	const MAX_SEARCH_RESULTS = 10;
 	const HIGH_SCORE_THRESHOLD = 0.51;
 	const MAX_LOW_SCORE_RESULTS = 5;
@@ -291,6 +294,10 @@ export async function queryVectorStore(
 		});
 
 	return finalResults.join("\n\n").trim();
+}
+
+export async function clearEmbeddingsCache() {
+	documentCache.clear();
 }
 
 function getCreatedTime(doc: Document): number {

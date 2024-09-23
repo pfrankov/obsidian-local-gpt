@@ -1,9 +1,10 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
-import { DEFAULT_SETTINGS, SELECTION_KEYWORD } from "defaultSettings";
+import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction, Providers } from "./interfaces";
 import { OllamaAIProvider } from "./providers/ollama";
 import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
+import { clearEmbeddingsCache } from "rag";
 
 const SEPARATOR = "✂️";
 
@@ -236,6 +237,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 									),
 								)
 								.onChange(async (value) => {
+									clearEmbeddingsCache();
 									selectedProviderConfig.embeddingModel =
 										value;
 									await this.plugin.saveSettings();
@@ -494,7 +496,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					});
 				});
 
-			promptSetting.descEl.innerHTML = `By default the selected text<br/>will be added to the end of the prompt.<br/><br/>Use keyword <code>${SELECTION_KEYWORD}</code><br/>to insert selected text in different place.`;
+			promptSetting.descEl.innerHTML = `Please read about<br/><a href="https://github.com/pfrankov/obsidian-local-gpt/blob/master/docs/prompt-templating.md">Prompt templating</a><br/>if you want to customize<br/>your resulting prompts`;
 
 			new Setting(containerEl)
 				.setName("Replace selected text")

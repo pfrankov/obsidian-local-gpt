@@ -48,6 +48,7 @@ export interface LocalGPTAction {
 
 export type AIProviderProcessingOptions = {
 	text: string;
+	context: string;
 	action: LocalGPTAction;
 	images: string[];
 	options: {
@@ -56,5 +57,6 @@ export type AIProviderProcessingOptions = {
 };
 export interface AIProvider {
 	abortController?: AbortController;
+	getEmbeddings(texts: string[]): Promise<number[][]>;
 	process(arg: AIProviderProcessingOptions): Promise<string>;
 }

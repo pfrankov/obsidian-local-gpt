@@ -1,9 +1,56 @@
-import { SELECTION_KEYWORD } from "./defaultSettings";
+import {
+	SELECTION_KEYWORD,
+	CONTEXT_KEYWORD,
+	CONTEXT_CONDITION_START,
+	CONTEXT_CONDITION_END,
+} from "./defaultSettings";
+import { logger } from "./logger";
 
-export function preparePrompt(prompt: string = "", selectedText: string) {
+export function preparePrompt(
+	prompt: string = "",
+	selectedText: string,
+	context: string,
+) {
+	logger.debug("Preparing prompt", {
+		promptLength: prompt.length,
+		selectedTextLength: selectedText.length,
+	});
 	if (prompt.includes(SELECTION_KEYWORD)) {
-		return prompt.replace(SELECTION_KEYWORD, selectedText || "");
+		prompt = prompt.replace(SELECTION_KEYWORD, selectedText || "");
 	} else {
-		return [prompt, selectedText].filter(Boolean).join("\n\n");
+		prompt = [prompt, selectedText].filter(Boolean).join("\n\n");
 	}
+
+	if (prompt.includes(CONTEXT_KEYWORD)) {
+		prompt = prompt.replace(CONTEXT_KEYWORD, context || "");
+	} else {
+		if (context.trim()) {
+			prompt = [prompt, "Context:\n" + context]
+				.filter(Boolean)
+				.join("\n\n");
+		}
+	}
+
+	if (
+		prompt.includes(CONTEXT_CONDITION_START) &&
+		prompt.includes(CONTEXT_CONDITION_END)
+	) {
+		const start = prompt.indexOf(CONTEXT_CONDITION_START) - 1;
+		const end = prompt.indexOf(CONTEXT_CONDITION_END);
+		if (start !== -1 && end !== -1 && start < end) {
+			let contextBlock = prompt.substring(
+				start + CONTEXT_CONDITION_START.length + 1,
+				end,
+			);
+			if (!context.trim()) {
+				contextBlock = "";
+			}
+			prompt =
+				prompt.substring(0, start) +
+				contextBlock +
+				prompt.substring(end + CONTEXT_CONDITION_END.length + 1);
+		}
+	}
+
+	return prompt;
 }

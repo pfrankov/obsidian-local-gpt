@@ -3,9 +3,10 @@ import {
 	OpenAICompatibleProvider,
 	AIProviderProcessingOptions,
 } from "../interfaces";
-import { streamer } from "../streamer";
 import { requestUrl } from "obsidian";
 import { preparePrompt } from "../utils";
+import { RequestHandler } from "../request-handler";
+import { logger } from "../logger";
 
 export interface OpenAICompatibleMessageContent {
 	type: "text" | "image_url";
@@ -19,6 +20,7 @@ export interface OpenAICompatibleMessage {
 	role: "system" | "user";
 	content: string | OpenAICompatibleMessageContent[];
 }
+
 export interface OpenAICompatibleRequestBody {
 	messages: OpenAICompatibleMessage[];
 	stream: boolean;
@@ -27,26 +29,40 @@ export interface OpenAICompatibleRequestBody {
 }
 
 export class OpenAICompatibleAIProvider implements AIProvider {
-	constructor({ url, apiKey, defaultModel, abortController, onUpdate }: any) {
-		this.url = url;
-		this.apiKey = apiKey;
-		this.defaultModel = defaultModel;
-		this.abortController = abortController;
-		this.onUpdate = onUpdate;
+	constructor(config: {
+		url: string;
+		apiKey: string | undefined;
+		defaultModel: string | undefined;
+		abortController: AbortController;
+		embeddingModel: string | undefined;
+		onUpdate: (text: string) => void;
+	}) {
+		this.url = config.url;
+		this.apiKey = config.apiKey || "";
+		this.defaultModel = config.defaultModel || "";
+		this.abortController = config.abortController;
+		this.onUpdate = config.onUpdate;
+		this.embeddingModel = config.embeddingModel || "";
 	}
 	url: string;
 	apiKey: string;
 	defaultModel: string;
 	onUpdate: (text: string) => void;
 	abortController: AbortController;
+	embeddingModel: string;
 
-	process({
+	async process({
 		text = "",
 		action,
 		options,
 		images = [],
+		context = "",
 	}: AIProviderProcessingOptions): Promise<string> {
-		const prompt = preparePrompt(action.prompt, text);
+		logger.debug("Processing request with OpenAI Compatible provider", {
+			model: action.model || this.defaultModel,
+		});
+		const prompt = preparePrompt(action.prompt, text, context);
+		logger.debug("Prepared prompt", prompt);
 
 		const messages = [
 			(action.system && {
@@ -81,27 +97,38 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 			messages,
 		};
 
-		const { abortController } = this;
+		const url = `${this.url.replace(/\/+$/i, "")}/v1/chat/completions`;
 
-		return fetch(`${this.url.replace(/\/+$/i, "")}/v1/chat/completions`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...(this.apiKey && {
-					Authorization: `Bearer ${this.apiKey}`,
-				}),
-			},
-			body: JSON.stringify(requestBody),
-			signal: abortController.signal,
-		}).then((response) => {
+		return new Promise<string>((resolve, reject) => {
+			if (this.abortController.signal.aborted) {
+				return reject();
+			}
+
 			let combined = "";
+			const requestHandler = RequestHandler.getInstance();
 
-			return new Promise((resolve, reject) => {
-				streamer({
-					response,
-					abortController,
-					onNext: (data: string) => {
-						const lines = data
+			const headers: Record<string, string> = {
+				"Content-Type": "application/json",
+			};
+			if (this.apiKey) {
+				headers["Authorization"] = `Bearer ${this.apiKey}`;
+			}
+
+			requestHandler.makeRequest(
+				{
+					method: "POST",
+					url: url,
+					headers: headers,
+					body: JSON.stringify(requestBody),
+					abortController: this.abortController,
+				},
+				{
+					onData: (chunk: string) => {
+						if (this.abortController.signal.aborted) {
+							return reject();
+						}
+
+						const lines = chunk
 							.split("\n")
 							.filter((line: string) => line.trim() !== "");
 						for (const line of lines) {
@@ -113,37 +140,84 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 								const parsed = JSON.parse(message);
 								combined +=
 									parsed.choices[0]?.delta?.content || "";
+								this.onUpdate(combined);
 							} catch (error) {
-								try {
-									reject(JSON.parse(data).error);
-								} catch (e) {
-									reject(
-										"Could not JSON parse stream message",
-									);
-									console.error(
-										"Could not JSON parse stream message",
-										message,
-										error,
-									);
-								}
+								console.error(
+									"Could not JSON parse stream message",
+									message,
+									error,
+								);
 							}
 						}
-						this.onUpdate(combined);
 					},
-					onDone: () => {
-						if (abortController.signal.aborted) {
-							reject();
-							return "";
+					onError: (error: Error) => {
+						if (this.abortController.signal.aborted) {
+							return reject();
 						}
-						resolve(combined);
-						return combined;
+						// Fallback to default requestUrl without any CORS restrictions
+						requestUrl({
+							url,
+							method: "POST",
+							body: JSON.stringify({
+								...requestBody,
+								stream: false,
+							}),
+						})
+							.then(({ json }) =>
+								resolve(json.choices[0].message.content),
+							)
+							.catch(reject);
 					},
-				});
+					onEnd: () => {
+						this.abortController.signal.aborted
+							? reject()
+							: resolve(combined);
+					},
+				},
+			);
+
+			this.abortController.signal.addEventListener("abort", () => {
+				reject();
 			});
 		});
 	}
 
-	static async getModels(providerConfig: OpenAICompatibleProvider) {
+	async getEmbeddings(texts: string[]): Promise<number[][]> {
+		logger.debug("Getting embeddings for texts", { count: texts.length });
+		const results: number[][] = [];
+
+		for (const text of texts) {
+			if (this.abortController.signal.aborted) {
+				return results;
+			}
+
+			try {
+				const { json } = await requestUrl({
+					url: `${this.url.replace(/\/+$/i, "")}/v1/embeddings`,
+					method: "POST",
+					body: JSON.stringify({
+						input: [text],
+						model: this.embeddingModel,
+					}),
+				});
+				logger.debug("OpenAI compatible embeddings", {
+					embedding: json.data[0].embedding,
+				});
+				results.push(json.data[0].embedding);
+			} catch (error) {
+				console.error("Error getting embedding:", { error });
+				throw error;
+			}
+		}
+
+		logger.debug("OpenAI compatible embeddings results", results);
+		return results;
+	}
+
+	static async getModels(
+		providerConfig: OpenAICompatibleProvider,
+	): Promise<Record<string, string>> {
+		logger.debug("Fetching OpenAI Compatible models");
 		const { json } = await requestUrl({
 			url: `${providerConfig.url.replace(/\/+$/i, "")}/v1/models`,
 			headers: {
@@ -153,12 +227,16 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 		});
 
 		if (!json.data || json.data.length === 0) {
-			return Promise.reject();
+			logger.warn("No OpenAI Compatible models found");
+			return Promise.reject("No models found");
 		}
-		return json.data.reduce((acc: any, el: any) => {
-			const name = el.id;
-			acc[name] = name;
-			return acc;
-		}, {});
+		return json.data.reduce(
+			(acc: Record<string, string>, el: { id: string }) => {
+				const name = el.id;
+				acc[name] = name;
+				return acc;
+			},
+			{},
+		);
 	}
 }

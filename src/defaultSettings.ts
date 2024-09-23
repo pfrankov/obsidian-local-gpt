@@ -84,3 +84,6 @@ export const CREATIVITY: { [index: string]: any } = {
 };
 
 export const SELECTION_KEYWORD = "{{=SELECTION=}}";
+export const CONTEXT_KEYWORD = "{{=CONTEXT=}}";
+export const CONTEXT_CONDITION_START = "{{=CONTEXT_START=}}";
+export const CONTEXT_CONDITION_END = "{{=CONTEXT_END=}}";
