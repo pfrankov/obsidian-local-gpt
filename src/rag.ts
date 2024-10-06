@@ -6,12 +6,10 @@ import { AIProvider } from "interfaces";
 import LocalGPT from "main";
 import { CustomEmbeddings } from "./embeddings/CustomEmbeddings";
 import { logger } from "./logger";
+import { extractTextFromPDF } from "./processors/pdf";
+import { embeddingsCache } from "./indexedDB";
 
 const MAX_DEPTH = 10;
-const documentCache = new Map<
-	string,
-	{ mtime: number; embedding?: number[] }
->();
 
 interface ProcessingContext {
 	vault: Vault;
@@ -26,9 +24,7 @@ export async function startProcessing(
 	metadataCache: MetadataCache,
 	activeFile: TFile,
 ): Promise<Map<string, Document>> {
-	logger.debug("Starting RAG processing", {
-		linkedFilesCount: linkedFiles.length,
-	});
+	logger.info("Starting RAG processing");
 	const processedDocs = new Map<string, Document>();
 
 	await Promise.all(
@@ -46,6 +42,17 @@ export async function startProcessing(
 	return processedDocs;
 }
 
+async function getFileContent(file: TFile, vault: Vault): Promise<string> {
+	switch (file.extension) {
+		case "pdf":
+			const arrayBuffer = await vault.readBinary(file);
+			return await extractTextFromPDF(arrayBuffer);
+		case "md":
+		default:
+			return await vault.cachedRead(file);
+	}
+}
+
 async function processDocumentForRAG(
 	file: TFile,
 	context: ProcessingContext,
@@ -53,7 +60,7 @@ async function processDocumentForRAG(
 	depth: number,
 	isBacklink: boolean,
 ): Promise<Map<string, Document>> {
-	logger.debug("Processing document for RAG", {
+	logger.table("Processing document for RAG", {
 		filePath: file.path,
 		depth,
 		isBacklink,
@@ -67,7 +74,23 @@ async function processDocumentForRAG(
 	}
 
 	try {
-		const content = await context.vault.cachedRead(file);
+		let content = "";
+		const isMdFile = file.extension === "md";
+
+		if (isMdFile) {
+			content = await getFileContent(file, context.vault);
+		} else {
+			const cachedData = await embeddingsCache.get(file.path);
+			if (
+				!cachedData?.chunks?.length ||
+				cachedData.mtime !== file.stat.mtime
+			) {
+				content = await getFileContent(file, context.vault);
+			}
+		}
+
+		// If a document is from the cache, it doesn't matter what content we use
+		// It will not be embedded anyway during the `createVectorStore` function
 		const newDoc = new Document({
 			pageContent: content,
 			metadata: {
@@ -80,7 +103,7 @@ async function processDocumentForRAG(
 		});
 		processedDocs.set(file.path, newDoc);
 
-		if (!isBacklink) {
+		if (isMdFile && !isBacklink) {
 			const linkedFiles = getLinkedFiles(
 				content,
 				context.vault,
@@ -138,7 +161,8 @@ export function getLinkedFiles(
 		})
 		.filter(
 			(file): file is TFile =>
-				file instanceof TFile && file.extension === "md",
+				file instanceof TFile &&
+				(file.extension === "md" || file.extension === "pdf"),
 		);
 }
 
@@ -170,41 +194,53 @@ export async function createVectorStore(
 	currentDocumentPath: string,
 	aiProvider: AIProvider,
 ): Promise<MemoryVectorStore> {
-	let embedder: CustomEmbeddings;
-
-	embedder = new CustomEmbeddings({
+	const embedder: CustomEmbeddings = new CustomEmbeddings({
 		aiProvider,
 	});
 
 	const vectorStore = new MemoryVectorStore(embedder);
-	const uniqueChunks = new Set<string>();
 	const chunksToEmbed: { chunk: string; doc: Document }[] = [];
+	const embeddingsByDocument: {
+		[key: string]: { embedding: number[]; doc: Document }[];
+	} = {};
 
 	for (const doc of documents) {
 		if (doc.metadata.source !== currentDocumentPath) {
+			const cachedData = await embeddingsCache.get(doc.metadata.source);
+			embeddingsByDocument[doc.metadata.source] =
+				embeddingsByDocument[doc.metadata.source] || [];
+
+			if (cachedData?.chunks?.length) {
+				if (cachedData.mtime === doc.metadata.stat.mtime) {
+					logger.debug("Using cached embedding", doc.metadata.source);
+					cachedData?.chunks.forEach((chunk) => {
+						const chunkDoc = new Document({
+							pageContent: chunk.content,
+							metadata: { ...doc.metadata },
+						});
+						embeddingsByDocument[doc.metadata.source].push({
+							doc: chunkDoc,
+							embedding: chunk.embedding,
+						});
+					});
+					continue;
+				} else {
+					logger.warn(
+						"Cached embedding is outdated",
+						doc.metadata.source,
+					);
+				}
+			}
+
 			const content = preprocessContent(doc.pageContent);
 			const chunks = splitContent(content);
 			for (const chunk of chunks) {
-				if (!uniqueChunks.has(chunk)) {
-					uniqueChunks.add(chunk);
-					const chunkDoc = new Document({
-						pageContent: chunk,
-						metadata: { ...doc.metadata },
-					});
+				const chunkDoc = new Document({
+					pageContent: chunk,
+					metadata: { ...doc.metadata },
+				});
 
-					const cachedData = documentCache.get(doc.metadata.source);
-					if (cachedData?.embedding) {
-						logger.debug("Using cached embedding", {
-							embedding: cachedData.embedding,
-						});
-						await vectorStore.addVectors(
-							[cachedData.embedding],
-							[chunkDoc],
-						);
-					} else {
-						chunksToEmbed.push({ chunk, doc: chunkDoc });
-					}
-				}
+				chunksToEmbed.push({ chunk, doc: chunkDoc });
 			}
 		}
 	}
@@ -215,13 +251,13 @@ export async function createVectorStore(
 				chunksToEmbed.map((item) => item.chunk),
 			);
 
-			for (let i = 0; i < embeddings.length; i++) {
-				const { chunk, doc } = chunksToEmbed[i];
-				const embedding = embeddings[i];
-
-				await vectorStore.addVectors([embedding], [doc]);
-				documentCache.set(doc.metadata.source, {
-					mtime: doc.metadata.stat.mtime,
+			for (const embedding of embeddings) {
+				const i = embeddings.indexOf(embedding);
+				const { doc } = chunksToEmbed[i];
+				embeddingsByDocument[doc.metadata.source] =
+					embeddingsByDocument[doc.metadata.source] || [];
+				embeddingsByDocument[doc.metadata.source].push({
+					doc,
 					embedding,
 				});
 			}
@@ -232,6 +268,23 @@ export async function createVectorStore(
 		}
 	}
 
+	// Cache embeddings for each document
+	for (const [source, documentWithEmbeddings] of Object.entries(
+		embeddingsByDocument,
+	)) {
+		for (const { doc, embedding } of documentWithEmbeddings) {
+			await vectorStore.addVectors([embedding], [doc]);
+		}
+
+		await embeddingsCache.set(source, {
+			mtime: documentWithEmbeddings[0].doc.metadata.stat.mtime,
+			chunks: documentWithEmbeddings.map(({ doc, embedding }) => ({
+				content: doc.pageContent,
+				embedding,
+			})),
+		});
+	}
+
 	return vectorStore;
 }
 
@@ -239,7 +292,7 @@ export async function queryVectorStore(
 	query: string,
 	vectorStore: MemoryVectorStore,
 ): Promise<string> {
-	logger.debug("Querying vector store", { query });
+	logger.debug("Querying vector store", query);
 	const MAX_SEARCH_RESULTS = 10;
 	const HIGH_SCORE_THRESHOLD = 0.51;
 	const MAX_LOW_SCORE_RESULTS = 5;
@@ -290,14 +343,14 @@ export async function queryVectorStore(
 			const content = [highScoreContent, lowScoreContent]
 				.filter(Boolean)
 				.join("\n\n");
-			return `${basename}\n${content}`;
+			return `[[${basename}]]\n${content}`;
 		});
 
 	return finalResults.join("\n\n").trim();
 }
 
 export async function clearEmbeddingsCache() {
-	documentCache.clear();
+	await embeddingsCache.clear();
 }
 
 function getCreatedTime(doc: Document): number {

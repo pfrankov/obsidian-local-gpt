@@ -4,17 +4,12 @@ import {
 	CONTEXT_CONDITION_START,
 	CONTEXT_CONDITION_END,
 } from "./defaultSettings";
-import { logger } from "./logger";
 
 export function preparePrompt(
 	prompt: string = "",
 	selectedText: string,
 	context: string,
 ) {
-	logger.debug("Preparing prompt", {
-		promptLength: prompt.length,
-		selectedTextLength: selectedText.length,
-	});
 	if (prompt.includes(SELECTION_KEYWORD)) {
 		prompt = prompt.replace(SELECTION_KEYWORD, selectedText || "");
 	} else {

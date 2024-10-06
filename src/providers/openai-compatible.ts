@@ -58,11 +58,11 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 		images = [],
 		context = "",
 	}: AIProviderProcessingOptions): Promise<string> {
-		logger.debug("Processing request with OpenAI Compatible provider", {
+		logger.table("Processing request with OpenAI Compatible provider", {
 			model: action.model || this.defaultModel,
 		});
 		const prompt = preparePrompt(action.prompt, text, context);
-		logger.debug("Prepared prompt", prompt);
+		logger.debug("Querying prompt", prompt);
 
 		const messages = [
 			(action.system && {
@@ -183,7 +183,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 	}
 
 	async getEmbeddings(texts: string[]): Promise<number[][]> {
-		logger.debug("Getting embeddings for texts", { count: texts.length });
+		logger.info("Getting embeddings for texts");
 		const results: number[][] = [];
 
 		for (const text of texts) {
@@ -192,6 +192,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 			}
 
 			try {
+				logger.table("OpenAI-like embeddings request", text);
 				const { json } = await requestUrl({
 					url: `${this.url.replace(/\/+$/i, "")}/v1/embeddings`,
 					method: "POST",

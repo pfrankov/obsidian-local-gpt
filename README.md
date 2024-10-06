@@ -11,7 +11,7 @@ Also works with images
 <img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">  
 _No speedup. MacBook Pro 13, M1, 16GB, Ollama, bakllava._
 
-Also it can use context from links and backlinks  
+Also it can use context from links, backlinks and even PDF files  
 <img width="450" alt="Enhanced Actions" src="https://github.com/user-attachments/assets/5fa2ed36-0ef5-43b0-8f16-07588f76d780">
 <details>
   <summary>How to use (Ollama)</summary>
@@ -70,7 +70,7 @@ There are several options to run local OpenAI-like server:
 - [LM Studio](https://lmstudio.ai/)
 - ...maybe more
 
-### Configure Obsidian hotkey (optional)
+### Configure Obsidian hotkey
 1. Open Obsidian Settings
 2. Go to Hotkeys
 3. Filter "Local" and you should see "Local GPT: Show context menu"

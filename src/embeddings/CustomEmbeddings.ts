@@ -15,12 +15,12 @@ export class CustomEmbeddings extends Embeddings {
 	}
 
 	async embedDocuments(texts: string[]): Promise<number[][]> {
-		logger.debug("Embedding documents", { count: texts.length });
+		logger.debug("Embedding documents", texts);
 		return await this.config.aiProvider.getEmbeddings(texts);
 	}
 
 	async embedQuery(text: string): Promise<number[]> {
-		logger.debug("Embedding query", { textLength: text.length });
+		logger.debug("Embedding query", text);
 		const [embedding] = await this.embedDocuments([text]);
 		return embedding;
 	}

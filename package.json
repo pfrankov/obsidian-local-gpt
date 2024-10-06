@@ -7,7 +7,7 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"format": "prettier 'src/**/*' --write"
+		"format": "prettier 'src/**/*.ts' --write"
 	},
 	"keywords": [
 		"obsidian",
@@ -25,12 +25,15 @@
 		"@typescript-eslint/parser": "5.29.0",
 		"builtin-modules": "3.3.0",
 		"esbuild": "0.17.3",
+		"esbuild-plugin-inline-worker": "^0.1.1",
 		"obsidian": "latest",
 		"prettier": "3.1.1",
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
-		"langchain": "^0.0.200"
+		"idb": "^8.0.0",
+		"langchain": "^0.0.200",
+		"pdfjs-dist": "^4.6.82"
 	}
 }

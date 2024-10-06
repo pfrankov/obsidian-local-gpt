@@ -19,6 +19,7 @@ import {
 	getLinkedFiles,
 } from "./rag";
 import { logger } from "./logger";
+import { embeddingsCache } from "./indexedDB";
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
@@ -27,6 +28,8 @@ export default class LocalGPT extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		// @ts-ignore
+		await embeddingsCache.init(this.app.appId);
 		this.reload();
 		this.app.workspace.onLayoutReady(async () => {
 			window.setTimeout(() => {
@@ -148,7 +151,6 @@ export default class LocalGPT extends Plugin {
 
 		const aiProvider = getAIProvider(this.settings.defaults.provider);
 
-		// Обрабатываем изображения (оставляем без изменений)
 		const regexp = /!\[\[(.+?\.(?:png|jpe?g))]]/gi;
 		const fileNames = Array.from(
 			selectedText.matchAll(regexp),
@@ -190,11 +192,10 @@ export default class LocalGPT extends Plugin {
 				)
 			).filter(Boolean) || [];
 
-		// Обрабатываем выделенный текст
 		logger.time("Processing Embeddings");
 		const context = await this.enhanceWithContext(selectedText, aiProvider);
 		logger.timeEnd("Processing Embeddings");
-		logger.debug("Selected text", { text: selectedText });
+		logger.debug("Selected text", selectedText);
 
 		const aiRequest = {
 			text: selectedText,
@@ -244,6 +245,9 @@ export default class LocalGPT extends Plugin {
 				}
 				hideSpinner && hideSpinner();
 				this.app.workspace.updateOptions();
+			})
+			.finally(() => {
+				logger.separator();
 			});
 	}
 

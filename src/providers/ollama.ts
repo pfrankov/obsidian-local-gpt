@@ -52,7 +52,7 @@ export class OllamaAIProvider implements AIProvider {
 		context = "",
 	}: AIProviderProcessingOptions): Promise<string> {
 		const prompt = preparePrompt(action.prompt, text, context);
-		logger.debug("Prepared prompt", prompt);
+		logger.debug("Querying prompt", prompt);
 		const requestBody: OllamaRequestBody = {
 			prompt,
 			model: action.model || this.defaultModel,
@@ -71,7 +71,7 @@ export class OllamaAIProvider implements AIProvider {
 		const bodyLengthInTokens = Math.ceil(
 			JSON.stringify(requestBody).length / SYMBOLS_PER_TOKEN,
 		);
-		logger.debug("Context length", {
+		logger.table("Context length", {
 			model: requestBody.model,
 			contextLength,
 			lastContextLength,
@@ -172,12 +172,12 @@ export class OllamaAIProvider implements AIProvider {
 	}
 
 	async getEmbeddings(texts: string[]): Promise<number[][]> {
-		logger.debug("Getting embeddings for texts", { count: texts.length });
+		logger.info("Getting embeddings for texts");
 		const groupedTexts: string[][] = [];
 		let currentGroup: string[] = [];
 		let currentLength = 0;
 		// Reducing model reloads by using the last context length plus a 20% buffer
-		let { contextLength, lastContextLength } =
+		const { contextLength, lastContextLength } =
 			await this.getCachedModelInfo(this.embeddingModel);
 
 		let embeddingContextLength = Math.min(
@@ -212,11 +212,11 @@ export class OllamaAIProvider implements AIProvider {
 			const textLengthInTokens = Math.ceil(
 				text.length / SYMBOLS_PER_TOKEN,
 			);
-			logger.debug(
-				"Text length in tokens",
-				text.length,
+			logger.table("Text length in tokens", {
+				text,
+				textLength: text.length,
 				textLengthInTokens,
-			);
+			});
 
 			if (currentLength + textLengthInTokens > embeddingContextLength) {
 				groupedTexts.push(currentGroup);
@@ -247,6 +247,7 @@ export class OllamaAIProvider implements AIProvider {
 			if (embeddingContextLength > EMBEDDING_CONTEXT_LENGTH_LIMIT) {
 				(body.options as any).num_ctx = embeddingContextLength;
 			}
+			logger.table("Ollama embeddings request", group);
 			const { json } = await requestUrl({
 				url: `${this.ollamaUrl.replace(/\/+$/i, "")}/api/embed`,
 				method: "POST",

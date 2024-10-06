@@ -60,7 +60,7 @@ export class RequestHandler {
 			}
 
 			options.abortController.signal.addEventListener("abort", () => {
-				logger.debug("Request aborted");
+				logger.warn("Request aborted");
 				request.abort();
 				handlers.onError(new Error("Request aborted"));
 				reject();
@@ -73,11 +73,10 @@ export class RequestHandler {
 			}
 
 			request.on("response", (response: any) => {
-				logger.debug(
-					"Response headers:",
-					JSON.stringify(response.headers, null, 2),
-				);
-				logger.debug("Response status:", response.statusCode);
+				logger.table("Response headers:", {
+					statusCode: response.statusCode,
+					...response.headers,
+				});
 
 				response.on("data", (chunk: Buffer) => {
 					if (options.abortController.signal.aborted) {

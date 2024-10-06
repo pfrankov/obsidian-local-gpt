@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import inlineWorkerPlugin from "esbuild-plugin-inline-worker";
 
 const banner =
 `/*
@@ -41,6 +42,12 @@ const context = await esbuild.context({
 	define: {
 		"process.env.NODE_ENV": prod ? '"production"' : '"development"'
 	},
+	plugins: [
+		inlineWorkerPlugin({
+			target: 'es2018',
+			format: 'cjs',
+		}),
+	]
 });
 
 if (prod) {
