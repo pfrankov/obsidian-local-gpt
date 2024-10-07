@@ -7,7 +7,8 @@ export function preprocessContent(content: string): string {
 	return content
 		.replace(/^---\n[\s\S]*?\n---\n/, "")
 		.replace(/```[\s\S]*?```/g, "")
-		.replace(/^#+\s*[^\n]+\n(?=#+|\s*$)/gm, "")
+		.replace(/^(#+)\s*$\n/gm, "")
+		.replace(/^(#+)\s*(?!$)[^\n]+\n(?=\s*(?:\1#|\s*$)(?!\s*\S))/gm, "")
 		.replace(/\n{3,}/g, "\n\n");
 }
 

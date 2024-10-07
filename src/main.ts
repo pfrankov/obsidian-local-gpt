@@ -1,5 +1,5 @@
 import { Editor, Notice, Plugin, Menu, requestUrl } from "obsidian";
-import { LocalGPTSettingTab } from "LocalGPTSettingTab";
+import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "spinnerPlugin";
 import {

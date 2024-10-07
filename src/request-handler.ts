@@ -1,6 +1,7 @@
 // @ts-ignore
 import { remote } from "electron";
 import { logger } from "./logger";
+import { Platform } from "obsidian";
 
 type RequestOptions = {
 	method: string;
@@ -18,7 +19,11 @@ type ResponseHandler = {
 
 export class RequestHandler {
 	private static instance: RequestHandler;
-	private useRemoteRequest: boolean = true;
+	private useRemoteRequest: boolean;
+
+	private constructor() {
+		this.useRemoteRequest = !Platform.isMobileApp;
+	}
 
 	static getInstance(): RequestHandler {
 		if (!RequestHandler.instance) {
