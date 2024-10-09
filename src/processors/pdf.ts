@@ -1,6 +1,5 @@
 import { logger } from "../logger.js";
 import * as pdfjs from "pdfjs-dist";
-import { TextItem } from "pdfjs-dist/types/src/display/api.js";
 
 // @ts-ignore
 import WorkerMessageHandler from "./pdf.worker.js";
@@ -47,9 +46,18 @@ async function getPageText(
 	pageNum: number,
 ): Promise<string> {
 	const page = await pdf.getPage(pageNum);
-	const textContent = await page.getTextContent();
-	return textContent.items
-		.filter((item) => "str" in item)
-		.map((item: TextItem) => item.str)
-		.join(" ");
+	const content = await page.getTextContent();
+	let lastY;
+	const textItems = [];
+	for (const item of content.items) {
+		if ("str" in item) {
+			if (lastY === item.transform[5] || !lastY) {
+				textItems.push(item.str);
+			} else {
+				textItems.push(`\n${item.str}`);
+			}
+			lastY = item.transform[5];
+		}
+	}
+	return textItems.join("") + "\n\n";
 }

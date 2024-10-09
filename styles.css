@@ -42,8 +42,82 @@
 	animation: spin10 1s steps(10) infinite;
 }
 
+.local-gpt-status {
+	position: relative;
+}
+
+.local-gpt-status::before {
+	content: attr(data-text);
+	background-image: linear-gradient(
+		to right,
+		var(--status-bar-text-color) 30%,
+		var(--interactive-accent-hover) 50%,
+		var(--status-bar-text-color) 70%
+	);
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	box-decoration-break: slice;
+	
+	display: inline-block;
+	overflow: hidden;
+	white-space: nowrap;
+	animation: 
+		expandText 0.3s ease-out forwards,
+		gradientMove 1.7s linear infinite;
+	background-size: 200% 100%;
+	background-position: -50% 0;
+}
+
+.local-gpt-status::after {
+	content: attr(data-text);
+	position: absolute;
+	padding: 10px;
+	margin-left: -10px;
+	color: var(--interactive-accent-hover);
+	display: inline-block;
+	white-space: nowrap;
+	filter: blur(1px);
+	mask-image: linear-gradient(
+		to right,
+		transparent 30%,
+		black 50%,
+		transparent 70%
+	);
+	mask-size: 200% 100%;
+	mask-position: -50% 0;
+	animation: maskMove 1.7s linear infinite;
+	mix-blend-mode: color-dodge;
+}
+
 @keyframes spin10 {
 	to {
 		transform: translateY(-15em);
+	}
+}
+
+@keyframes expandText {
+	from {
+		max-width: 0;
+	}
+	to {
+		max-width: 100%;
+	}
+}
+
+@keyframes gradientMove {
+	0% {
+		background-position: -50% 0;
+	}
+	100% {
+		background-position: 150% 0;
+	}
+}
+
+@keyframes maskMove {
+	0% {
+		mask-position: -50% 0;
+	}
+	100% {
+		mask-position: 150% 0;
 	}
 }

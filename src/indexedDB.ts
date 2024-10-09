@@ -1,6 +1,6 @@
 import { openDB, IDBPDatabase } from "idb";
 
-interface CacheItem {
+interface EmbeddingsCacheItem {
 	mtime: number;
 	chunks: {
 		content: string;
@@ -8,7 +8,12 @@ interface CacheItem {
 	}[];
 }
 
-class EmbeddingsCache {
+interface ContentCacheItem {
+	mtime: number;
+	content: string;
+}
+
+class FileCache {
 	private db: IDBPDatabase | null = null;
 	private vaultId: string = "";
 
@@ -18,24 +23,49 @@ class EmbeddingsCache {
 		this.db = await openDB(dbName, 1, {
 			upgrade(db) {
 				db.createObjectStore("embeddings");
+				db.createObjectStore("content");
 			},
 		});
 	}
 
-	async get(key: string): Promise<CacheItem | undefined> {
+	async getEmbeddings(key: string): Promise<EmbeddingsCacheItem | undefined> {
 		if (!this.db) throw new Error("Database not initialized");
 		return this.db.get("embeddings", key);
 	}
 
-	async set(key: string, value: CacheItem): Promise<void> {
+	async setEmbeddings(
+		key: string,
+		value: EmbeddingsCacheItem,
+	): Promise<void> {
 		if (!this.db) throw new Error("Database not initialized");
 		await this.db.put("embeddings", value, key);
 	}
 
-	async clear(): Promise<void> {
+	async getContent(key: string): Promise<ContentCacheItem | undefined> {
+		if (!this.db) throw new Error("Database not initialized");
+		return this.db.get("content", key);
+	}
+
+	async setContent(key: string, value: ContentCacheItem): Promise<void> {
+		if (!this.db) throw new Error("Database not initialized");
+		await this.db.put("content", value, key);
+	}
+
+	async clearEmbeddings(): Promise<void> {
 		if (!this.db) throw new Error("Database not initialized");
 		await this.db.clear("embeddings");
 	}
+
+	async clearContent(): Promise<void> {
+		if (!this.db) throw new Error("Database not initialized");
+		await this.db.clear("content");
+	}
+
+	async clearAll(): Promise<void> {
+		if (!this.db) throw new Error("Database not initialized");
+		await this.db.clear("embeddings");
+		await this.db.clear("content");
+	}
 }
 
-export const embeddingsCache = new EmbeddingsCache();
+export const fileCache = new FileCache();

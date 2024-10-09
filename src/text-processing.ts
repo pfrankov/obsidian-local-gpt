@@ -4,12 +4,19 @@ const MAX_CHUNK_SIZE = 1000;
 
 export function preprocessContent(content: string): string {
 	logger.debug("Preprocessing content", { contentLength: content.length });
-	return content
-		.replace(/^---\n[\s\S]*?\n---\n/, "")
-		.replace(/```[\s\S]*?```/g, "")
-		.replace(/^(#+)\s*$\n/gm, "")
-		.replace(/^(#+)\s*(?!$)[^\n]+\n(?=\s*(?:\1#|\s*$)(?!\s*\S))/gm, "")
-		.replace(/\n{3,}/g, "\n\n");
+	return (
+		content
+			// Remove frontmatter (content between --- delimiters at the start of the file)
+			.replace(/^---\n[\s\S]*?\n---\n/, "")
+			// Remove code blocks (content between ``` delimiters)
+			.replace(/```[\s\S]*?```/g, "")
+			// Remove empty headers (lines with only # characters followed by whitespace)
+			.replace(/^(#+)\s*$\n/gm, "")
+			// Remove headers that are not followed by content
+			.replace(/^(#+)\s*(?!$)[^\n]+\n(?=\s*(?:\1#|\s*$)(?!\s*\S))/gm, "")
+			// Replace three or more consecutive newlines with two newlines
+			.replace(/\n{3,}/g, "\n\n")
+	);
 }
 
 export function splitContent(content: string): string[] {
@@ -47,73 +54,135 @@ function splitByHeaders(text: string): string[] {
 }
 
 function splitSectionWithLists(section: string): string[] {
-	const chunks: string[] = [];
 	const lines = section.split("\n");
-	let currentChunk = "";
-	let inList = false;
-	let lastNonListText = "";
+	const result = lines.reduce(processLine, {
+		chunks: [],
+		currentChunk: "",
+		inList: false,
+		lastNonListText: "",
+	});
 
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		const isListItem = /^(\s*[-*+]|\s*\d+\.)/.test(line);
-		const isHeader = /^(#{1,6}\s|[*_]{2}).+/.test(line);
+	return result.currentChunk
+		? [...result.chunks, result.currentChunk.trim()]
+		: result.chunks;
+}
 
-		if (isHeader) {
-			if (currentChunk.length > 0) {
-				chunks.push(currentChunk.trim());
-			}
-			currentChunk = line;
-			inList = false;
-			lastNonListText = line;
-		} else if (isListItem) {
-			if (
-				!inList &&
-				currentChunk.length + line.length <= MAX_CHUNK_SIZE
-			) {
-				// If the list item can fit in the current chunk, add it
-				currentChunk += "\n" + line;
-				inList = true;
-			} else if (!inList) {
-				// Start of a new list that doesn't fit in the current chunk
-				if (currentChunk.length > 0) {
-					chunks.push(currentChunk.trim());
-				}
-				currentChunk = lastNonListText + "\n" + line;
-				inList = true;
-			} else {
-				// Continue the list
-				currentChunk += "\n" + line;
-			}
-		} else {
-			if (inList && line.trim() === "") {
-				// Empty line within a list, keep it as part of the list
-				currentChunk += "\n" + line;
-			} else {
-				if (inList) {
-					// End of the list
-					inList = false;
-				}
+interface ProcessState {
+	// Array of processed text chunks ready for further processing
+	chunks: string[];
 
-				if (
-					currentChunk.length + line.length > MAX_CHUNK_SIZE &&
-					!inList
-				) {
-					chunks.push(currentChunk.trim());
-					currentChunk = "";
-				}
+	// The current chunk being built
+	currentChunk: string;
 
-				currentChunk += (currentChunk ? "\n" : "") + line;
+	// Flag indicating whether we're currently processing a list item
+	inList: boolean;
 
-				if (line.trim() !== "") {
-					lastNonListText = line;
-				}
-			}
+	// Stores the last processed non-list text to maintain context
+	lastNonListText: string;
+}
+
+function processLine(state: ProcessState, line: string): ProcessState {
+	const isListItem = /^(\s*[-*+]|\s*\d+\.)/.test(line);
+	const isHeader = /^(#{1,6}\s|[*_]{2}).+/.test(line);
+
+	if (isHeader) {
+		return handleHeader(state, line);
+	}
+
+	if (isListItem) {
+		return handleListItem(state, line);
+	}
+
+	if (state.inList && !line.trim()) {
+		return { ...state, currentChunk: state.currentChunk + "\n" + line };
+	}
+
+	return handleRegularLine(state, line);
+}
+
+function handleHeader(state: ProcessState, line: string): ProcessState {
+	const { chunks, currentChunk } = state;
+	return {
+		chunks: currentChunk ? [...chunks, currentChunk.trim()] : chunks,
+		currentChunk: line,
+		inList: false,
+		lastNonListText: line,
+	};
+}
+
+function handleListItem(state: ProcessState, line: string): ProcessState {
+	const { chunks, currentChunk, inList, lastNonListText } = state;
+
+	if (!inList && currentChunk.length + line.length <= MAX_CHUNK_SIZE) {
+		return {
+			...state,
+			currentChunk: currentChunk + "\n" + line,
+			inList: true,
+		};
+	}
+
+	if (!inList) {
+		return {
+			chunks: currentChunk ? [...chunks, currentChunk.trim()] : chunks,
+			currentChunk: lastNonListText + "\n" + line,
+			inList: true,
+			lastNonListText,
+		};
+	}
+
+	return { ...state, currentChunk: currentChunk + "\n" + line };
+}
+
+function handleRegularLine(state: ProcessState, line: string): ProcessState {
+	const { chunks, currentChunk, lastNonListText } = state;
+
+	if (line.length > MAX_CHUNK_SIZE) {
+		let remainingLine = line;
+		let newChunks = [...chunks];
+
+		if (currentChunk) {
+			newChunks.push(currentChunk.trim());
 		}
+
+		while (remainingLine.length > 0) {
+			const chunkEnd = findChunkEnd(remainingLine, MAX_CHUNK_SIZE);
+			newChunks.push(remainingLine.slice(0, chunkEnd).trim());
+			remainingLine = remainingLine.slice(chunkEnd).trim();
+		}
+
+		return {
+			chunks: newChunks,
+			currentChunk: "",
+			inList: false,
+			lastNonListText: line,
+		};
 	}
 
-	if (currentChunk.length > 0) {
-		chunks.push(currentChunk.trim());
+	const newChunk = currentChunk + (currentChunk ? "\n" : "") + line;
+	if (newChunk.length > MAX_CHUNK_SIZE) {
+		return {
+			chunks: [...chunks, currentChunk.trim()],
+			currentChunk: line,
+			inList: false,
+			lastNonListText: line.trim() ? line : lastNonListText,
+		};
 	}
 
-	return chunks;
+	return {
+		...state,
+		currentChunk: newChunk,
+		inList: false,
+		lastNonListText: line.trim() ? line : lastNonListText,
+	};
+}
+
+function findChunkEnd(text: string, maxLength: number): number {
+	if (text.length <= maxLength) return text.length;
+
+	let end = maxLength;
+	while (end > 0 && !/\s/.test(text[end])) {
+		end--;
+	}
+
+	return end > 0 ? end : maxLength;
 }

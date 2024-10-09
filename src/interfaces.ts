@@ -55,8 +55,12 @@ export type AIProviderProcessingOptions = {
 		temperature: number;
 	};
 };
+
 export interface AIProvider {
 	abortController?: AbortController;
-	getEmbeddings(texts: string[]): Promise<number[][]>;
+	getEmbeddings(
+		texts: string[],
+		updateProgress: (progress: number) => void,
+	): Promise<number[][]>;
 	process(arg: AIProviderProcessingOptions): Promise<string>;
 }

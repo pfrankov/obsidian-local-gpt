@@ -171,7 +171,10 @@ export class OllamaAIProvider implements AIProvider {
 		return modelInfo;
 	}
 
-	async getEmbeddings(texts: string[]): Promise<number[][]> {
+	async getEmbeddings(
+		texts: string[],
+		updateProgress: (progress: number) => void,
+	): Promise<number[][]> {
 		logger.info("Getting embeddings for texts");
 		const groupedTexts: string[][] = [];
 		let currentGroup: string[] = [];
@@ -257,6 +260,7 @@ export class OllamaAIProvider implements AIProvider {
 				embeddings: json.embeddings,
 			});
 			allEmbeddings.push(...json.embeddings);
+			updateProgress(json.embeddings.length);
 		}
 
 		return allEmbeddings;

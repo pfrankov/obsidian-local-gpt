@@ -346,6 +346,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 									) || "",
 								)
 								.onChange(async (value) => {
+									clearEmbeddingsCache();
 									selectedProviderConfig.embeddingModel =
 										value;
 									await this.plugin.saveSettings();

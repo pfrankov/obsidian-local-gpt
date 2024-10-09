@@ -19,17 +19,23 @@ import {
 	getLinkedFiles,
 } from "./rag";
 import { logger } from "./logger";
-import { embeddingsCache } from "./indexedDB";
+import { fileCache } from "./indexedDB";
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
 	abortControllers: AbortController[] = [];
 	updatingInterval: number;
+	private statusBarItem: HTMLElement;
+	private currentPercentage: number = 0;
+	private targetPercentage: number = 0;
+	private animationFrameId: number | null = null;
+	private totalProgressSteps: number = 0;
+	private completedProgressSteps: number = 0;
 
 	async onload() {
 		await this.loadSettings();
 		// @ts-ignore
-		await embeddingsCache.init(this.app.appId);
+		await fileCache.init(this.app.appId);
 		this.reload();
 		this.app.workspace.onLayoutReady(async () => {
 			window.setTimeout(() => {
@@ -39,6 +45,13 @@ export default class LocalGPT extends Plugin {
 
 		this.registerEditorExtension(spinnerPlugin);
 		this.addSettingTab(new LocalGPTSettingTab(this.app, this));
+		this.initializeStatusBar();
+	}
+
+	private initializeStatusBar() {
+		this.statusBarItem = this.addStatusBarItem();
+		this.statusBarItem.addClass("local-gpt-status");
+		this.statusBarItem.hide();
 	}
 
 	processText(text: string, selectedText: string) {
@@ -281,17 +294,23 @@ export default class LocalGPT extends Plugin {
 			if (aiProvider.abortController?.signal.aborted) {
 				return "";
 			}
+
+			this.initializeProgress();
+
 			const processedDocs = await startProcessing(
 				linkedFiles,
 				this.app.vault,
 				this.app.metadataCache,
 				activeFile,
 			);
+
 			if (processedDocs.size === 0) {
+				this.hideStatusBar();
 				return "";
 			}
 
 			if (aiProvider.abortController?.signal.aborted) {
+				this.hideStatusBar();
 				return "";
 			}
 
@@ -300,9 +319,12 @@ export default class LocalGPT extends Plugin {
 				this,
 				activeFile.path,
 				aiProvider,
+				this.addTotalProgressSteps.bind(this),
+				this.updateCompletedSteps.bind(this),
 			);
 
 			if (aiProvider.abortController?.signal.aborted) {
+				this.hideStatusBar();
 				return "";
 			}
 
@@ -311,10 +333,13 @@ export default class LocalGPT extends Plugin {
 				vectorStore,
 			);
 
+			this.hideStatusBar();
+
 			if (relevantContext.trim()) {
 				return relevantContext;
 			}
 		} catch (error) {
+			this.hideStatusBar();
 			if (aiProvider.abortController?.signal.aborted) {
 				return "";
 			}
@@ -331,6 +356,9 @@ export default class LocalGPT extends Plugin {
 	onunload() {
 		document.removeEventListener("keydown", this.escapeHandler);
 		window.clearInterval(this.updatingInterval);
+		if (this.animationFrameId !== null) {
+			cancelAnimationFrame(this.animationFrameId);
+		}
 	}
 
 	async loadSettings() {
@@ -487,5 +515,85 @@ export default class LocalGPT extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 		this.reload();
+	}
+
+	private initializeProgress() {
+		this.totalProgressSteps = 0;
+		this.completedProgressSteps = 0;
+		this.currentPercentage = 0;
+		this.targetPercentage = 0;
+		this.statusBarItem.show();
+		this.updateStatusBar();
+	}
+
+	private addTotalProgressSteps(steps: number) {
+		this.totalProgressSteps += steps;
+		this.updateProgressBar();
+	}
+
+	private updateCompletedSteps(steps: number) {
+		this.completedProgressSteps += steps;
+		this.updateProgressBar();
+	}
+
+	private updateProgressBar() {
+		const newTargetPercentage =
+			this.totalProgressSteps > 0
+				? Math.round(
+						(this.completedProgressSteps /
+							this.totalProgressSteps) *
+							100,
+					)
+				: 0;
+
+		if (this.targetPercentage !== newTargetPercentage) {
+			this.targetPercentage = newTargetPercentage;
+			if (this.animationFrameId === null) {
+				this.animatePercentage();
+			}
+		}
+	}
+
+	private updateStatusBar() {
+		this.statusBarItem.setAttr(
+			"data-text",
+			this.currentPercentage
+				? `✨ Enhancing ${this.currentPercentage}%`
+				: "✨ Enhancing",
+		);
+		this.statusBarItem.setText(` `);
+	}
+
+	private animatePercentage() {
+		const startTime = performance.now();
+		const duration = 300;
+
+		const animate = (currentTime: number) => {
+			const elapsedTime = currentTime - startTime;
+			const progress = Math.min(elapsedTime / duration, 1);
+
+			this.currentPercentage = Math.round(
+				this.currentPercentage +
+					(this.targetPercentage - this.currentPercentage) * progress,
+			);
+
+			this.updateStatusBar();
+
+			if (progress < 1) {
+				this.animationFrameId = requestAnimationFrame(animate);
+			} else {
+				this.animationFrameId = null;
+			}
+		};
+
+		this.animationFrameId = requestAnimationFrame(animate);
+	}
+
+	private hideStatusBar() {
+		this.statusBarItem.hide();
+		this.totalProgressSteps = 0;
+		this.completedProgressSteps = 0;
+		this.currentPercentage = 0;
+		this.targetPercentage = 0;
 	}
 }

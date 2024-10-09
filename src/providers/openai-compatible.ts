@@ -182,7 +182,10 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 		});
 	}
 
-	async getEmbeddings(texts: string[]): Promise<number[][]> {
+	async getEmbeddings(
+		texts: string[],
+		updateProgress: (progress: number) => void,
+	): Promise<number[][]> {
 		logger.info("Getting embeddings for texts");
 		const results: number[][] = [];
 
@@ -205,6 +208,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 					embedding: json.data[0].embedding,
 				});
 				results.push(json.data[0].embedding);
+				updateProgress(1);
 			} catch (error) {
 				console.error("Error getting embedding:", { error });
 				throw error;

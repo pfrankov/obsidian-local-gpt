@@ -12,6 +12,10 @@ module.exports = {
   moduleNameMapper: {
     '^obsidian$': '<rootDir>/tests/__mocks__/obsidian.ts',
     '^electron$': '<rootDir>/tests/__mocks__/electron.ts',
-    '^../logger.js$': '<rootDir>/tests/__mocks__/logger.ts'
+    '^../logger.js$': '<rootDir>/tests/__mocks__/logger.ts',
+    '^./pdf.worker.js$': '<rootDir>/tests/__mocks__/pdf.worker.js'
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!pdfjs-dist).+\\.js$'
+  ],
 };

@@ -8,6 +8,7 @@ export class CustomEmbeddings extends Embeddings {
 	constructor(
 		private config: {
 			aiProvider: AIProvider;
+			updateCompletedSteps: (steps: number) => void;
 		},
 	) {
 		super({});
@@ -16,7 +17,10 @@ export class CustomEmbeddings extends Embeddings {
 
 	async embedDocuments(texts: string[]): Promise<number[][]> {
 		logger.debug("Embedding documents", texts);
-		return await this.config.aiProvider.getEmbeddings(texts);
+		return await this.config.aiProvider.getEmbeddings(
+			texts,
+			this.config.updateCompletedSteps,
+		);
 	}
 
 	async embedQuery(text: string): Promise<number[]> {

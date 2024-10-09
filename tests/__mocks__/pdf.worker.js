@@ -1,3 +1,3 @@
 module.exports = {
-  WorkerMessageHandler: jest.fn()
+  WorkerMessageHandler: {}
 };
