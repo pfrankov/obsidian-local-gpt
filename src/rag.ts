@@ -315,7 +315,7 @@ export async function queryVectorStore(
 	const MAX_SEARCH_RESULTS = 10;
 	const HIGH_SCORE_THRESHOLD = 0.51;
 	const MAX_LOW_SCORE_RESULTS = 5;
-	const MAX_CONTEXT_LENGTH = 7000;
+	const MAX_CONTEXT_LENGTH = 10000;
 
 	logger.time("Querying vector store timer");
 	const results = await vectorStore.similaritySearchWithScore(

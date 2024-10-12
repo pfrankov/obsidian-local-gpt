@@ -16,14 +16,17 @@ interface ContentCacheItem {
 class FileCache {
 	private db: IDBPDatabase | null = null;
 	private vaultId: string = "";
-
 	async init(vaultId: string) {
 		this.vaultId = vaultId;
 		const dbName = `LocalGPTCache/${this.vaultId}`;
-		this.db = await openDB(dbName, 1, {
-			upgrade(db) {
-				db.createObjectStore("embeddings");
-				db.createObjectStore("content");
+		this.db = await openDB(dbName, 2, {
+			upgrade(db, oldVersion, newVersion) {
+				if (oldVersion < 1) {
+					db.createObjectStore("embeddings");
+				}
+				if (oldVersion < 2) {
+					db.createObjectStore("content");
+				}
 			},
 		});
 	}
