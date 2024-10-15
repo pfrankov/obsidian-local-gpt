@@ -80,13 +80,25 @@ export class OllamaAIProvider implements AIProvider {
 
 		if (
 			contextLength > 0 &&
-			requestBody.options &&
-			bodyLengthInTokens > lastContextLength
+			requestBody.options
 		) {
-			requestBody.options.num_ctx = Math.min(
-				contextLength,
-				bodyLengthInTokens * 1.2,
-			); // 20% buffer
+			if (bodyLengthInTokens > lastContextLength) {
+				requestBody.options.num_ctx = Math.min(
+					contextLength,
+					Math.round(bodyLengthInTokens * 1.2),
+				); // 20% buffer
+			} else if (bodyLengthInTokens < lastContextLength * 0.5) {
+				requestBody.options.num_ctx = Math.min(
+					contextLength,
+					Math.round(bodyLengthInTokens * 1.2),
+				); // 20% buffer for smaller requests
+			} else {
+				requestBody.options.num_ctx = Math.min(
+					contextLength,
+					lastContextLength
+				);
+			}
+
 			this.setModelInfoLastContextLength(
 				requestBody.model,
 				requestBody.options.num_ctx,
