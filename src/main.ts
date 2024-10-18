@@ -34,10 +34,11 @@ export default class LocalGPT extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-		// @ts-ignore
-		await fileCache.init(this.app.appId);
 		this.reload();
 		this.app.workspace.onLayoutReady(async () => {
+			// @ts-ignore
+			await fileCache.init(this.app.appId);
+
 			window.setTimeout(() => {
 				this.checkUpdates();
 			}, 5000);

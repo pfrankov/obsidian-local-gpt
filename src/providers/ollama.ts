@@ -78,10 +78,7 @@ export class OllamaAIProvider implements AIProvider {
 			bodyLengthInTokens,
 		});
 
-		if (
-			contextLength > 0 &&
-			requestBody.options
-		) {
+		if (contextLength > 0 && requestBody.options) {
 			if (bodyLengthInTokens > lastContextLength) {
 				requestBody.options.num_ctx = Math.min(
 					contextLength,
@@ -95,7 +92,7 @@ export class OllamaAIProvider implements AIProvider {
 			} else {
 				requestBody.options.num_ctx = Math.min(
 					contextLength,
-					lastContextLength
+					lastContextLength,
 				);
 			}
 

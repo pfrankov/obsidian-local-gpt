@@ -8,7 +8,8 @@
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"format": "prettier 'src/**/*.ts' --write",
-		"test": "jest"
+		"test": "jest",
+		"full-check": "npm run format && npm run build && npm run test"
 	},
 	"keywords": [
 		"obsidian",
