@@ -199,6 +199,9 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 				const { json } = await requestUrl({
 					url: `${this.url.replace(/\/+$/i, "")}/v1/embeddings`,
 					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
 					body: JSON.stringify({
 						input: [text],
 						model: this.embeddingModel,
