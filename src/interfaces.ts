@@ -6,7 +6,7 @@ export const enum Providers {
 }
 
 export type OllamaProvider = {
-	ollamaUrl: string;
+	url: string;
 	defaultModel: string;
 	embeddingModel: string;
 	type: "ollama";

@@ -9,7 +9,7 @@ describe('AIProviders', () => {
   test('OllamaAIProvider initialization', () => {
     const ollamaProvider = new OllamaAIProvider({
       defaultModel: 'test-model',
-      ollamaUrl: 'http://test-ollama-url',
+      url: 'http://test-ollama-url',
       embeddingModel: 'test-embedding-model',
       onUpdate: jest.fn(),
       abortController: new AbortController(),

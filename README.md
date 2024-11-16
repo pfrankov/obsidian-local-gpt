@@ -53,8 +53,8 @@ You can also install this plugin via [BRAT](https://obsidian.md/plugins?id=obsid
 
 ### 2. Install LLM
 #### Ollama (recommended)
-1. Install [Ollama](https://ollama.ai/).
-2. Install Gemma 2 (default) `ollama pull gemma2` or any preferred model [from the library](https://ollama.ai/library).
+1. Install [Ollama](https://ollama.com/).
+2. Install Gemma 2 (default) `ollama pull gemma2` or any preferred model [from the library](https://ollama.com/library).
 
 Additional: if you want to enable streaming completion with Ollama you should set environment variable `OLLAMA_ORIGINS` to `*`:  
 - For MacOS run `launchctl setenv OLLAMA_ORIGINS "*"`.
@@ -63,6 +63,7 @@ Additional: if you want to enable streaming completion with Ollama you should se
 
 #### OpenAI compatible server
 There are several options to run local OpenAI-like server:  
+- [Open WebUI](https://docs.openwebui.com/tutorials/integrations/continue-dev/)
 - [llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python#openai-compatible-web-server)
 - [LocalAI](https://localai.io/model-compatibility/llama-cpp/#setup)
@@ -89,12 +90,12 @@ Since you can provide any OpenAI-like server, it is possible to use OpenAI serve
 _Despite the ease of configuration, I do not recommend this method, since the main purpose of the plugin is to work with private LLMs._ 
 
 1. Select `OpenAI compatible server` in `Selected AI provider`
-2. Set `OpenAI compatible server URL` to `https://api.openai.com`
+2. Set `OpenAI compatible server URL` to `https://api.openai.com/v1`
 3. Retrieve and paste your `API key` from the [API keys page](https://platform.openai.com/api-keys)
-4. Click "refresh" button and select the model that suits your needs (e.g. `gpt-3.5-turbo`)
+4. Click "refresh" button and select the model that suits your needs (e.g. `gpt-4o`)
 <details>
   <summary>Example screenshot</summary>
-  <img width="577" alt="image" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/f267afd2-4d3e-4cf1-a3ab-4e2f3fd2db77">
+  <img width="578" alt="image" src="https://github.com/user-attachments/assets/3dcfac3d-814f-413c-b393-06bf4d8ccb87">
 </details>
 
 ## My other Obsidian plugins

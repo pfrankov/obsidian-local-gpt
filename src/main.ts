@@ -150,11 +150,11 @@ export default class LocalGPT extends Plugin {
 				}
 				case Providers.OLLAMA:
 				default: {
-					const { ollamaUrl, defaultModel, embeddingModel } = this
-						.settings.providers[providerName] as OllamaProvider;
+					const { url, defaultModel, embeddingModel } = this.settings
+						.providers[providerName] as OllamaProvider;
 					return new OllamaAIProvider({
 						defaultModel,
-						ollamaUrl,
+						url,
 						embeddingModel,
 						abortController,
 						onUpdate,
@@ -446,6 +446,36 @@ export default class LocalGPT extends Plugin {
 						0,
 					);
 				}, 10000);
+			}
+
+			if (loadedData._version < 6) {
+				needToSave = true;
+				Object.keys(DEFAULT_SETTINGS.providers).forEach((provider) => {
+					if (
+						loadedData.providers[provider] &&
+						loadedData.providers[provider].type === Providers.OLLAMA
+					) {
+						loadedData.providers[provider].url =
+							// @ts-ignore
+							loadedData.providers[provider].ollamaUrl;
+						// @ts-ignore
+						delete loadedData.providers[provider].ollamaUrl;
+					}
+					if (
+						loadedData.providers[provider] &&
+						loadedData.providers[provider].type ===
+							Providers.OPENAI_COMPATIBLE
+					) {
+						// @ts-ignore
+						loadedData.providers[provider].url =
+							loadedData.providers[provider].url.replace(
+								/\/+$/i,
+								"",
+							) + "/v1";
+					}
+				});
+
+				loadedData._version = 6;
 			}
 
 			Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {

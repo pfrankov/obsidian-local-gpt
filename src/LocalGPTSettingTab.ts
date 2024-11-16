@@ -177,18 +177,20 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			);
 
 		if (selectedProviderConfig.type === Providers.OLLAMA) {
-			new Setting(containerEl)
+			const ollamaUrl = new Setting(containerEl)
 				.setName("Ollama URL")
-				.setDesc("Default is http://localhost:11434")
+				.setDesc("")
 				.addText((text) =>
 					text
 						.setPlaceholder("http://localhost:11434")
-						.setValue(selectedProviderConfig.ollamaUrl)
+						.setValue(selectedProviderConfig.url)
 						.onChange(async (value) => {
-							selectedProviderConfig.ollamaUrl = value;
+							selectedProviderConfig.url = value;
 							await this.plugin.saveSettings();
 						}),
 				);
+
+			ollamaUrl.descEl.innerHTML = `Default is <code title="Click to copy" onclick="navigator.clipboard.writeText('http://localhost:11434')">http://localhost:11434</code>`;
 
 			const ollamaDefaultModel = new Setting(containerEl)
 				.setName("Default model")
@@ -200,7 +202,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					"Optional. Name of the Ollama embedding model to use for Enhanced Actions",
 				);
 
-			if (selectedProviderConfig.ollamaUrl) {
+			if (selectedProviderConfig.type === Providers.OLLAMA) {
 				OllamaAIProvider.getModels(selectedProviderConfig)
 					.then((models) => {
 						this.modelsOptions = models;
@@ -245,7 +247,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						);
 					})
 					.catch(() => {
-						ollamaDefaultModel.descEl.innerHTML = `Get the models from <a href="https://ollama.ai/library">Ollama library</a> or check that Ollama URL is correct.`;
+						ollamaDefaultModel.descEl.innerHTML = `Get the models from <a href="https://ollama.com/library">Ollama library</a> or check that Ollama URL is correct.`;
 						ollamaDefaultModel.addButton((button) =>
 							button.setIcon("refresh-cw").onClick(async () => {
 								this.display();
@@ -260,7 +262,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.setDesc("")
 				.addText((text) =>
 					text
-						.setPlaceholder("http://localhost:8080")
+						.setPlaceholder("http://localhost:8080/v1")
 						.setValue(selectedProviderConfig.url)
 						.onChange(async (value) => {
 							selectedProviderConfig.url = value;
@@ -268,16 +270,16 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						}),
 				);
 			openAICompatible.descEl.innerHTML = `
+				Put the URL in the format <code>http://localhost:8080/v1</code><br/>
+				<br/>
 				There are several options to run local OpenAI-like server:
 				<ul>
-					<li><a href="https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md">llama.cpp</a></li>
-					<li><a href="https://github.com/abetlen/llama-cpp-python#openai-compatible-web-server">llama-cpp-python</a></li>
-					<li><a href="https://localai.io/model-compatibility/llama-cpp/#setup">LocalAI</a></li>
+					<li><a href="https://docs.openwebui.com/tutorials/integrations/continue-dev/">Open WebUI</a></li>
 					<li>Obabooga <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/8">Text generation web UI</a></li>
 					<li><a href="https://lmstudio.ai/">LM Studio</a></li>
 				</ul>
 				After all installation and configuration make sure that you're using compatible model.<br/>
-				For llama.cpp it is necessary to use models in ChatML format (e.g. <a href="https://huggingface.co/TheBloke/Orca-2-7B-GGUF/blob/main/orca-2-7b.Q4_K_M.gguf">Orca 2</a>)
+				It is necessary to use models in ChatML format.
 			`;
 
 			const apiKey = new Setting(containerEl)

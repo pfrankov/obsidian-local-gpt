@@ -27,19 +27,19 @@ export interface OllamaRequestBody {
 export class OllamaAIProvider implements AIProvider {
 	constructor(config: {
 		defaultModel: string;
-		ollamaUrl: string;
+		url: string;
 		embeddingModel: string;
 		onUpdate: (text: string) => void;
 		abortController: AbortController;
 	}) {
 		this.defaultModel = config.defaultModel;
-		this.ollamaUrl = config.ollamaUrl;
+		this.url = config.url;
 		this.embeddingModel = config.embeddingModel;
 		this.onUpdate = config.onUpdate;
 		this.abortController = config.abortController;
 	}
 	defaultModel: string;
-	ollamaUrl: string;
+	url: string;
 	embeddingModel: string;
 	onUpdate: (text: string) => void;
 	abortController: AbortController;
@@ -101,7 +101,7 @@ export class OllamaAIProvider implements AIProvider {
 				requestBody.options.num_ctx,
 			);
 		}
-		const url = `${this.ollamaUrl.replace(/\/+$/i, "")}/api/generate`;
+		const url = `${this.url.replace(/\/+$/i, "")}/api/generate`;
 
 		return new Promise<string>((resolve, reject) => {
 			if (this.abortController.signal.aborted) {
@@ -261,7 +261,7 @@ export class OllamaAIProvider implements AIProvider {
 			}
 			logger.table("Ollama embeddings request", group);
 			const { json } = await requestUrl({
-				url: `${this.ollamaUrl.replace(/\/+$/i, "")}/api/embed`,
+				url: `${this.url.replace(/\/+$/i, "")}/api/embed`,
 				method: "POST",
 				body: JSON.stringify(body),
 			});
@@ -280,7 +280,7 @@ export class OllamaAIProvider implements AIProvider {
 			return MODEL_INFO_CACHE.get(modelName);
 		}
 		const { json } = await requestUrl({
-			url: `${this.ollamaUrl.replace(/\/+$/i, "")}/api/show`,
+			url: `${this.url.replace(/\/+$/i, "")}/api/show`,
 			method: "POST",
 			body: JSON.stringify({ model: modelName }),
 		});
@@ -307,7 +307,7 @@ export class OllamaAIProvider implements AIProvider {
 	): Promise<Record<string, string>> {
 		logger.debug("Fetching Ollama models");
 		const { json } = await requestUrl({
-			url: `${providerConfig.ollamaUrl.replace(/\/+$/i, "")}/api/tags`,
+			url: `${providerConfig.url.replace(/\/+$/i, "")}/api/tags`,
 		});
 
 		if (!json.models || json.models.length === 0) {

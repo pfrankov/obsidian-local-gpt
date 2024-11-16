@@ -97,7 +97,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 			messages,
 		};
 
-		const url = `${this.url.replace(/\/+$/i, "")}/v1/chat/completions`;
+		const url = `${this.url.replace(/\/+$/i, "")}/chat/completions`;
 
 		return new Promise<string>((resolve, reject) => {
 			if (this.abortController.signal.aborted) {
@@ -204,7 +204,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 				}
 
 				const { json } = await requestUrl({
-					url: `${this.url.replace(/\/+$/i, "")}/v1/embeddings`,
+					url: `${this.url.replace(/\/+$/i, "")}/embeddings`,
 					method: "POST",
 					headers,
 					body: JSON.stringify({
@@ -232,7 +232,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 	): Promise<Record<string, string>> {
 		logger.debug("Fetching OpenAI Compatible models");
 		const { json } = await requestUrl({
-			url: `${providerConfig.url.replace(/\/+$/i, "")}/v1/models`,
+			url: `${providerConfig.url.replace(/\/+$/i, "")}/models`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${providerConfig.apiKey}`,
