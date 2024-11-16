@@ -196,9 +196,17 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 
 			try {
 				logger.table("OpenAI-like embeddings request", text);
+				const headers: Record<string, string> = {
+					"Content-Type": "application/json",
+				};
+				if (this.apiKey) {
+					headers["Authorization"] = `Bearer ${this.apiKey}`;
+				}
+
 				const { json } = await requestUrl({
 					url: `${this.url.replace(/\/+$/i, "")}/v1/embeddings`,
 					method: "POST",
+					headers,
 					body: JSON.stringify({
 						input: [text],
 						model: this.embeddingModel,
