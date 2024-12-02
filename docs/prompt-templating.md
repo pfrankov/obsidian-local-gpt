@@ -23,7 +23,7 @@ You are an assistant helping a user write more content in a document based on a 
 ```
 
 
-## Enhanced Actions (Context)
+## Enhanced Actions (Context, RAG)
 By default, the context will be added to the end of the prompt after the default selection position:
 ```
 Selected text with [[Some meaningful document]].

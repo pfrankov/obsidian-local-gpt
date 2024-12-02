@@ -9,6 +9,7 @@ import { preparePrompt } from "../utils";
 import { logger } from "../logger";
 
 const SYMBOLS_PER_TOKEN = 2.5;
+const CONTEXT_LENGTH_LIMIT = 4096;
 const EMBEDDING_CONTEXT_LENGTH_LIMIT = 2048;
 const MODEL_INFO_CACHE = new Map<string, any>();
 
@@ -78,13 +79,18 @@ export class OllamaAIProvider implements AIProvider {
 			bodyLengthInTokens,
 		});
 
-		if (contextLength > 0 && requestBody.options) {
+		if (
+			contextLength > 0 &&
+			requestBody.options &&
+			bodyLengthInTokens > CONTEXT_LENGTH_LIMIT
+		) {
 			if (bodyLengthInTokens > lastContextLength) {
 				requestBody.options.num_ctx = Math.min(
 					contextLength,
 					Math.round(bodyLengthInTokens * 1.2),
 				); // 20% buffer
-			} else if (bodyLengthInTokens < lastContextLength * 0.5) {
+			} else if (bodyLengthInTokens < lastContextLength * 0.25) {
+				// Deoptimize for smaller requests
 				requestBody.options.num_ctx = Math.min(
 					contextLength,
 					Math.round(bodyLengthInTokens * 1.2),
