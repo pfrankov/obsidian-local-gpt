@@ -175,7 +175,7 @@ export default class LocalGPT extends Plugin {
 
 		const imagesInBase64 =
 			(
-				await Promise.all(
+				await Promise.all<string>(
 					fileNames.map((fileName) => {
 						const filePath =
 							this.app.metadataCache.getFirstLinkpathDest(
@@ -191,16 +191,19 @@ export default class LocalGPT extends Plugin {
 						return this.app.vault.adapter
 							.readBinary(filePath.path)
 							.then((buffer) => {
-								const bytes = new Uint8Array(buffer);
-
-								const output = [];
-								for (const byte of bytes) {
-									output.push(String.fromCharCode(byte));
-								}
-
-								const binString = output.join("");
-
-								return btoa(binString);
+								const extension =
+									filePath.extension.toLowerCase();
+								const mimeType =
+									extension === "jpg" ? "jpeg" : extension;
+								const blob = new Blob([buffer], {
+									type: `image/${mimeType}`,
+								});
+								return new Promise((resolve) => {
+									const reader = new FileReader();
+									reader.onloadend = () =>
+										resolve(reader.result as string);
+									reader.readAsDataURL(blob);
+								});
 							});
 					}),
 				)

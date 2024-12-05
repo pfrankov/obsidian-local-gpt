@@ -83,7 +83,7 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 					...images.map((image) => ({
 						type: "image_url",
 						image_url: {
-							url: `data:image/jpeg;base64,${image}`,
+							url: image,
 						},
 					})),
 				],

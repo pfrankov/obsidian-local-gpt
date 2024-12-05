@@ -62,7 +62,10 @@ export class OllamaAIProvider implements AIProvider {
 		};
 
 		if (action.system) requestBody.system = action.system;
-		if (images.length) requestBody.images = images;
+		if (images.length)
+			requestBody.images = images.map((image) =>
+				image.replace(/^data:image\/(.*?);base64,/, ""),
+			);
 
 		// Reducing model reloads by using the last context length plus a 20% buffer
 		const { contextLength, lastContextLength } =
@@ -80,6 +83,7 @@ export class OllamaAIProvider implements AIProvider {
 		});
 
 		if (
+			images.length === 0 && // Only optimize when there are no images
 			contextLength > 0 &&
 			requestBody.options &&
 			bodyLengthInTokens > CONTEXT_LENGTH_LIMIT
