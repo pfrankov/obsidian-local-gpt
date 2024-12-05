@@ -136,6 +136,9 @@ export class OpenAICompatibleAIProvider implements AIProvider {
 							if (message === "[DONE]") {
 								break;
 							}
+							if (line.startsWith(":")) {
+								continue;
+							}
 							try {
 								const parsed = JSON.parse(message);
 								combined +=
