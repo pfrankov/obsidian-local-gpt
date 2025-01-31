@@ -217,7 +217,7 @@ export default class LocalGPT extends Plugin {
 		logger.debug("Selected text", selectedText);
 
 		const aiRequest = {
-			text: selection 
+			text: !selection 
             	? `${noteTitle}\n\n${selectedText}` 
             	: selectedText,
 			action,
