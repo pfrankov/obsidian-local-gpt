@@ -217,7 +217,9 @@ export default class LocalGPT extends Plugin {
 		logger.debug("Selected text", selectedText);
 
 		const aiRequest = {
-			text: `${noteTitle}\n\n${selectedText}`,
+			text: selection 
+            	? `${noteTitle}\n\n${selectedText}` 
+            	: selectedText,
 			action,
 			images: imagesInBase64,
 			options: {
