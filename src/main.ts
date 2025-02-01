@@ -115,6 +115,8 @@ export default class LocalGPT extends Plugin {
 
 		const selection = editor.getSelection();
 		let selectedText = selection || editor.getValue();
+		const activeFile = this.app.workspace.getActiveFile();
+		const noteTitle = activeFile ? activeFile.name : '';
 		const cursorPositionFrom = editor.getCursor("from");
 		const cursorPositionTo = editor.getCursor("to");
 
@@ -215,7 +217,9 @@ export default class LocalGPT extends Plugin {
 		logger.debug("Selected text", selectedText);
 
 		const aiRequest = {
-			text: selectedText,
+			text: !selection 
+            	? `${noteTitle}\n\n${selectedText}` 
+            	: selectedText,
 			action,
 			images: imagesInBase64,
 			options: {
