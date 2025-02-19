@@ -27,12 +27,14 @@ export type ProvidersConfig = {
 };
 
 export interface LocalGPTSettings {
+	aiProviders: {
+		main: string | null;
+		embedding: string | null;
+		vision: string | null;
+	};
 	defaults: {
-		provider: string;
-		fallbackProvider: string;
 		creativity: string;
 	};
-	providers: ProvidersConfig;
 	actions: LocalGPTAction[];
 	_version: number;
 }
@@ -40,7 +42,6 @@ export interface LocalGPTSettings {
 export interface LocalGPTAction {
 	name: string;
 	prompt: string;
-	model?: string;
 	temperature?: number;
 	system?: string;
 	replace?: boolean;

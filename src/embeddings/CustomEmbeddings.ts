@@ -1,4 +1,4 @@
-import { Embeddings } from "langchain/embeddings/base";
+import { Embeddings } from "@langchain/core/embeddings";
 import { AIProvider } from "interfaces";
 import { logger } from "../logger";
 
@@ -8,6 +8,8 @@ export class CustomEmbeddings extends Embeddings {
 	constructor(
 		private config: {
 			aiProvider: AIProvider;
+			aiProviders: any;
+			abortController: AbortController;
 			updateCompletedSteps: (steps: number) => void;
 		},
 	) {
@@ -17,15 +19,21 @@ export class CustomEmbeddings extends Embeddings {
 
 	async embedDocuments(texts: string[]): Promise<number[][]> {
 		logger.debug("Embedding documents", texts);
-		return await this.config.aiProvider.getEmbeddings(
-			texts,
-			this.config.updateCompletedSteps,
-		);
+		const embeddings = await this.config.aiProviders.embed({
+			input: texts,
+			provider: this.config.aiProvider,
+		});
+		console.log("embeddings", embeddings);
+
+		this.config.updateCompletedSteps(texts.length);
+
+		return embeddings;
 	}
 
 	async embedQuery(text: string): Promise<number[]> {
 		logger.debug("Embedding query", text);
 		const [embedding] = await this.embedDocuments([text]);
+
 		return embedding;
 	}
 }

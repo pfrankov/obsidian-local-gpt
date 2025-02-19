@@ -2,6 +2,7 @@ import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
 import inlineWorkerPlugin from "esbuild-plugin-inline-worker";
+import { copyFilesPlugin } from './copy-files-plugin.mjs';
 
 const banner =
 `/*
@@ -16,7 +17,11 @@ const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
-	entryPoints: ["src/main.ts"],
+	entryPoints: {
+		'main': 'src/main.ts',
+		'styles': 'styles.css'
+	},
+	outdir: "dist",
 	bundle: true,
 	external: [
 		"obsidian",
@@ -32,21 +37,28 @@ const context = await esbuild.context({
 		"@lezer/common",
 		"@lezer/highlight",
 		"@lezer/lr",
-		...builtins],
+		...builtins
+	],
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
-	outfile: "main.js",
 	define: {
 		"process.env.NODE_ENV": prod ? '"production"' : '"development"'
+	},
+	loader: {
+		".ts": "ts",
+		".css": "css"
 	},
 	plugins: [
 		inlineWorkerPlugin({
 			target: 'es2018',
 			format: 'cjs',
 		}),
+		copyFilesPlugin([
+			{ from: './manifest.json', to: './dist/manifest.json' }
+		])
 	]
 });
 

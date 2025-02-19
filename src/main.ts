@@ -1,25 +1,24 @@
-import { Editor, Notice, Plugin, Menu, requestUrl } from "obsidian";
+import { Editor, Menu, Notice, Plugin, requestUrl } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "spinnerPlugin";
+import { LocalGPTAction, LocalGPTSettings } from "./interfaces";
+
 import {
-	LocalGPTSettings,
-	AIProvider,
-	Providers,
-	OpenAICompatibleProvider,
-	OllamaProvider,
-	LocalGPTAction,
-} from "./interfaces";
-import { OllamaAIProvider } from "./providers/ollama";
-import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
-import {
-	startProcessing,
 	createVectorStore,
-	queryVectorStore,
 	getLinkedFiles,
+	queryVectorStore,
+	startProcessing,
 } from "./rag";
 import { logger } from "./logger";
 import { fileCache } from "./indexedDB";
+import {
+	initAI,
+	waitForAI,
+	IAIProvider,
+	IAIProvidersService,
+} from "@obsidian-ai-providers/sdk";
+import { preparePrompt } from "./utils";
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
@@ -33,20 +32,21 @@ export default class LocalGPT extends Plugin {
 	private completedProgressSteps: number = 0;
 
 	async onload() {
-		await this.loadSettings();
-		this.reload();
-		this.app.workspace.onLayoutReady(async () => {
-			// @ts-ignore
-			await fileCache.init(this.app.appId);
+		initAI(this.app, this, async () => {
+			await this.loadSettings();
+			this.addSettingTab(new LocalGPTSettingTab(this.app, this));
+			this.reload();
+			this.app.workspace.onLayoutReady(async () => {
+				// @ts-ignore
+				await fileCache.init(this.app.appId);
 
-			window.setTimeout(() => {
-				this.checkUpdates();
-			}, 5000);
+				window.setTimeout(() => {
+					this.checkUpdates();
+				}, 5000);
+			});
+			this.registerEditorExtension(spinnerPlugin);
+			this.initializeStatusBar();
 		});
-
-		this.registerEditorExtension(spinnerPlugin);
-		this.addSettingTab(new LocalGPTSettingTab(this.app, this));
-		this.initializeStatusBar();
 	}
 
 	private initializeStatusBar() {
@@ -132,39 +132,6 @@ export default class LocalGPT extends Plugin {
 			this.app.workspace.updateOptions();
 		};
 
-		const getAIProvider = (providerName: string): AIProvider => {
-			switch (this.settings.providers[providerName].type) {
-				case Providers.OPENAI_COMPATIBLE: {
-					const { url, apiKey, defaultModel, embeddingModel } = this
-						.settings.providers[
-						providerName
-					] as OpenAICompatibleProvider;
-					return new OpenAICompatibleAIProvider({
-						url,
-						apiKey,
-						defaultModel,
-						embeddingModel,
-						abortController,
-						onUpdate,
-					});
-				}
-				case Providers.OLLAMA:
-				default: {
-					const { url, defaultModel, embeddingModel } = this.settings
-						.providers[providerName] as OllamaProvider;
-					return new OllamaAIProvider({
-						defaultModel,
-						url,
-						embeddingModel,
-						abortController,
-						onUpdate,
-					});
-				}
-			}
-		};
-
-		const aiProvider = getAIProvider(this.settings.defaults.provider);
-
 		const regexp = /!\[\[(.+?\.(?:png|jpe?g))]]/gi;
 		const fileNames = Array.from(
 			selectedText.matchAll(regexp),
@@ -210,76 +177,104 @@ export default class LocalGPT extends Plugin {
 			).filter(Boolean) || [];
 
 		logger.time("Processing Embeddings");
-		const context = await this.enhanceWithContext(selectedText, aiProvider);
+
 		logger.timeEnd("Processing Embeddings");
 		logger.debug("Selected text", selectedText);
 
-		const aiRequest = {
-			text: selectedText,
-			action,
+		const aiRequestWaiter = await waitForAI();
+
+		const aiProviders: IAIProvidersService = await aiRequestWaiter.promise;
+
+		const context = await this.enhanceWithContext(
+			selectedText,
+			aiProviders,
+			aiProviders.providers.find(
+				(provider: IAIProvider) =>
+					provider.id === this.settings.aiProviders.embedding,
+			),
+			abortController,
+		);
+
+		let provider = aiProviders.providers.find(
+			(p: IAIProvider) => p.id === this.settings.aiProviders.main,
+		);
+		if (imagesInBase64.length) {
+			provider =
+				aiProviders.providers.find(
+					(p: IAIProvider) =>
+						p.id === this.settings.aiProviders.vision,
+				) || provider;
+		}
+
+		if (!provider) {
+			throw new Error("No AI provider found");
+		}
+
+		const chunkHandler = await aiProviders.execute({
+			provider,
+			prompt: preparePrompt(action.prompt, selectedText, context),
 			images: imagesInBase64,
+			systemPrompt: action.system,
 			options: {
 				temperature:
+					action.temperature ||
 					CREATIVITY[this.settings.defaults.creativity].temperature,
 			},
-			context,
-		};
+		});
 
-		aiProvider
-			.process(aiRequest)
-			.catch((error) => {
-				if (this.settings.defaults.fallbackProvider) {
-					new Notice(`Action processed with a fallback`);
-					return getAIProvider(
-						this.settings.defaults.fallbackProvider,
-					).process(aiRequest);
-				}
-				return Promise.reject(error);
-			})
-			.then((data) => {
-				hideSpinner && hideSpinner();
-				this.app.workspace.updateOptions();
+		chunkHandler.onData((chunk: string, accumulatedText: string) => {
+			onUpdate(accumulatedText);
+		});
 
-				if (action.replace) {
-					editor.replaceRange(
-						data.trim(),
-						cursorPositionFrom,
-						cursorPositionTo,
-					);
-				} else {
-					const isLastLine =
-						editor.lastLine() === cursorPositionTo.line;
-					const text = this.processText(data, selectedText);
-					editor.replaceRange(isLastLine ? "\n" + text : text, {
-						ch: 0,
-						line: cursorPositionTo.line + 1,
-					});
-				}
-			})
-			.catch((error) => {
-				if (!abortController.signal.aborted) {
-					new Notice(`Error while generating text: ${error.message}`);
-				}
-				hideSpinner && hideSpinner();
-				this.app.workspace.updateOptions();
-			})
-			.finally(() => {
-				logger.separator();
-			});
+		chunkHandler.onEnd((fullText: string) => {
+			hideSpinner && hideSpinner();
+			this.app.workspace.updateOptions();
+
+			if (action.replace) {
+				editor.replaceRange(
+					fullText.trim(),
+					cursorPositionFrom,
+					cursorPositionTo,
+				);
+			} else {
+				const isLastLine = editor.lastLine() === cursorPositionTo.line;
+				const text = this.processText(fullText, selectedText);
+				editor.replaceRange(isLastLine ? "\n" + text : text, {
+					ch: 0,
+					line: cursorPositionTo.line + 1,
+				});
+			}
+		});
+
+		chunkHandler.onError((error: Error) => {
+			console.log("abort handled");
+			if (!abortController.signal.aborted) {
+				new Notice(`Error while generating text: ${error.message}`);
+			}
+			hideSpinner && hideSpinner();
+			this.app.workspace.updateOptions();
+			logger.separator();
+		});
+
+		abortController.signal.addEventListener("abort", () => {
+			console.log("make abort");
+			chunkHandler.abort();
+			hideSpinner && hideSpinner();
+			this.app.workspace.updateOptions();
+		});
 	}
 
 	async enhanceWithContext(
 		selectedText: string,
-		aiProvider: AIProvider,
+		aiProviders: IAIProvidersService,
+		aiProvider: IAIProvider | undefined,
+		abortController: AbortController,
 	): Promise<string> {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile) {
 			return "";
 		}
-		if (
-			!this.settings.providers[this.settings.defaults.provider]
-				.embeddingModel
-		) {
+		if (!aiProvider) {
 			return "";
 		}
 
@@ -295,7 +290,7 @@ export default class LocalGPT extends Plugin {
 		}
 
 		try {
-			if (aiProvider.abortController?.signal.aborted) {
+			if (abortController?.signal.aborted) {
 				return "";
 			}
 
@@ -313,7 +308,7 @@ export default class LocalGPT extends Plugin {
 				return "";
 			}
 
-			if (aiProvider.abortController?.signal.aborted) {
+			if (abortController?.signal.aborted) {
 				this.hideStatusBar();
 				return "";
 			}
@@ -322,12 +317,14 @@ export default class LocalGPT extends Plugin {
 				Array.from(processedDocs.values()),
 				this,
 				activeFile.path,
-				aiProvider,
+				aiProvider as any,
+				aiProviders,
+				abortController,
 				this.addTotalProgressSteps.bind(this),
 				this.updateCompletedSteps.bind(this),
 			);
 
-			if (aiProvider.abortController?.signal.aborted) {
+			if (abortController?.signal.aborted) {
 				this.hideStatusBar();
 				return "";
 			}
@@ -344,7 +341,7 @@ export default class LocalGPT extends Plugin {
 			}
 		} catch (error) {
 			this.hideStatusBar();
-			if (aiProvider.abortController?.signal.aborted) {
+			if (abortController?.signal.aborted) {
 				return "";
 			}
 
@@ -371,63 +368,78 @@ export default class LocalGPT extends Plugin {
 
 		// Migration
 		if (loadedData) {
-			// @ts-ignore
+			const oldDefaultProviders = {
+				ollama: {
+					url: "http://localhost:11434",
+					defaultModel: "gemma2",
+					embeddingModel: "",
+					type: "ollama",
+				},
+				ollama_fallback: {
+					url: "http://localhost:11434",
+					defaultModel: "gemma2",
+					embeddingModel: "",
+					type: "ollama",
+				},
+				openaiCompatible: {
+					url: "http://localhost:8080/v1",
+					apiKey: "",
+					embeddingModel: "",
+					type: "openaiCompatible",
+				},
+				openaiCompatible_fallback: {
+					url: "http://localhost:8080/v1",
+					apiKey: "",
+					embeddingModel: "",
+					type: "openaiCompatible",
+				},
+			};
+
 			if (!loadedData._version || loadedData._version < 1) {
 				needToSave = true;
 
-				loadedData.providers = DEFAULT_SETTINGS.providers;
-				// @ts-ignore
-				loadedData.providers.ollama.ollamaUrl = loadedData.ollamaUrl;
-				// @ts-ignore
-				delete loadedData.ollamaUrl;
-				// @ts-ignore
-				loadedData.providers.ollama.defaultModel =
-					// @ts-ignore
-					loadedData.defaultModel;
-				// @ts-ignore
-				delete loadedData.defaultModel;
-				// @ts-ignore
-				loadedData.providers.openaiCompatible &&
-					// @ts-ignore
-					(loadedData.providers.openaiCompatible.apiKey = "");
+				(loadedData as any).providers = oldDefaultProviders;
+				(loadedData as any).providers.ollama.ollamaUrl = (
+					loadedData as any
+				).ollamaUrl;
+				delete (loadedData as any).ollamaUrl;
+				(loadedData as any).providers.ollama.defaultModel = (
+					loadedData as any
+				).defaultModel;
+				delete (loadedData as any).defaultModel;
+				(loadedData as any).providers.openaiCompatible &&
+					((loadedData as any).providers.openaiCompatible.apiKey =
+						"");
 
 				loadedData._version = 2;
 			}
+
 			if (loadedData._version < 3) {
 				needToSave = true;
-				// @ts-ignore
-				loadedData.defaultProvider =
-					// @ts-ignore
-					loadedData.selectedProvider ||
-					// @ts-ignore
-					DEFAULT_SETTINGS.defaultProvider;
-				// @ts-ignore
-				delete loadedData.selectedProvider;
+				(loadedData as any).defaultProvider =
+					(loadedData as any).selectedProvider || "ollama";
+				delete (loadedData as any).selectedProvider;
 
-				Object.keys(loadedData.providers).forEach((key) => {
-					// @ts-ignore
-					loadedData.providers[key].type = key;
-				});
+				const providers = (loadedData as any).providers;
+				if (providers) {
+					Object.keys(providers).forEach((key) => {
+						providers[key].type = key;
+					});
+				}
 
 				loadedData._version = 3;
 			}
+
 			if (loadedData._version < 4) {
 				needToSave = true;
-				loadedData.defaults = {
-					provider:
-						// @ts-ignore
-						loadedData.defaultProvider ||
-						DEFAULT_SETTINGS.defaults.provider,
+				(loadedData as any).defaults = {
+					provider: (loadedData as any).defaultProvider || "ollama",
 					fallbackProvider:
-						// @ts-ignore
-						loadedData.fallbackProvider ||
-						DEFAULT_SETTINGS.defaults.fallbackProvider,
-					creativity: DEFAULT_SETTINGS.defaults.creativity,
+						(loadedData as any).fallbackProvider || "",
+					creativity: "low",
 				};
-				// @ts-ignore
-				delete loadedData.defaultProvider;
-				// @ts-ignore
-				delete loadedData.fallbackProvider;
+				delete (loadedData as any).defaultProvider;
+				delete (loadedData as any).fallbackProvider;
 
 				loadedData._version = 4;
 			}
@@ -435,12 +447,16 @@ export default class LocalGPT extends Plugin {
 			if (loadedData._version < 5) {
 				needToSave = true;
 
-				Object.keys(DEFAULT_SETTINGS.providers).forEach((provider) => {
-					if (loadedData.providers[provider]) {
-						loadedData.providers[provider].embeddingModel =
-							DEFAULT_SETTINGS.providers[provider].embeddingModel;
-					}
-				});
+				const providers = (loadedData as any).providers;
+				if (providers) {
+					Object.keys(oldDefaultProviders).forEach((provider) => {
+						if (providers[provider]) {
+							providers[provider].embeddingModel = (
+								oldDefaultProviders as any
+							)[provider].embeddingModel;
+						}
+					});
+				}
 
 				loadedData._version = 5;
 				setTimeout(() => {
@@ -453,49 +469,113 @@ export default class LocalGPT extends Plugin {
 
 			if (loadedData._version < 6) {
 				needToSave = true;
-				Object.keys(DEFAULT_SETTINGS.providers).forEach((provider) => {
-					if (
-						loadedData.providers[provider] &&
-						loadedData.providers[provider].type === Providers.OLLAMA
-					) {
-						loadedData.providers[provider].url =
-							// @ts-ignore
-							loadedData.providers[provider].ollamaUrl;
-						// @ts-ignore
-						delete loadedData.providers[provider].ollamaUrl;
-					}
-					if (
-						loadedData.providers[provider] &&
-						loadedData.providers[provider].type ===
-							Providers.OPENAI_COMPATIBLE
-					) {
-						// @ts-ignore
-						loadedData.providers[provider].url =
-							loadedData.providers[provider].url.replace(
-								/\/+$/i,
-								"",
-							) + "/v1";
-					}
-				});
+				const providers = (loadedData as any).providers;
+				if (providers) {
+					Object.keys(oldDefaultProviders).forEach((provider) => {
+						if (providers[provider]?.type === "ollama") {
+							providers[provider].url =
+								providers[provider].ollamaUrl;
+							delete providers[provider].ollamaUrl;
+						}
+						if (providers[provider]?.type === "openaiCompatible") {
+							providers[provider].url =
+								providers[provider].url.replace(/\/+$/i, "") +
+								"/v1";
+						}
+					});
+				}
 
 				loadedData._version = 6;
 			}
 
-			Object.keys(DEFAULT_SETTINGS.providers).forEach((key) => {
-				if (
-					loadedData.providers[
-						key as keyof typeof DEFAULT_SETTINGS.providers
-					]
-				) {
-					return;
-				}
-				// @ts-ignore
-				loadedData.providers[key] =
-					DEFAULT_SETTINGS.providers[
-						key as keyof typeof DEFAULT_SETTINGS.providers
-					];
+			if (loadedData._version < 7) {
 				needToSave = true;
-			});
+
+				new Notice("️🚨 IMPORTANT! Update Local GPT settings!", 0);
+
+				const aiRequestWaiter = await waitForAI();
+				const aiProviders = await aiRequestWaiter.promise;
+
+				loadedData.aiProviders = {
+					main: null,
+					embedding: null,
+					vision: null,
+				};
+
+				const oldProviders = (loadedData as any).providers;
+				const oldDefaults = (loadedData as any).defaults;
+
+				if (oldProviders && oldDefaults?.provider) {
+					const provider = oldDefaults.provider;
+					const typesMap: { [key: string]: string } = {
+						ollama: "ollama",
+						openaiCompatible: "openai",
+					};
+
+					const providerConfig = oldProviders[provider];
+					if (providerConfig) {
+						const type = typesMap[providerConfig.type];
+
+						if (providerConfig.defaultModel) {
+							let model = providerConfig.defaultModel;
+							if (
+								type === "ollama" &&
+								!model.endsWith(":latest")
+							) {
+								model = model + ":latest";
+							}
+
+							const id = `id-${Date.now().toString()}`;
+							const newProvider = await (
+								aiProviders as any
+							).migrateProvider({
+								id,
+								name: `Local GPT ${provider}`,
+								apiKey: providerConfig.apiKey,
+								url: providerConfig.url,
+								type,
+								model,
+							});
+
+							if (newProvider) {
+								loadedData.aiProviders.main = newProvider.id;
+							}
+						}
+
+						if (providerConfig.embeddingModel) {
+							let model = providerConfig.embeddingModel;
+							if (
+								type === "ollama" &&
+								!model.endsWith(":latest")
+							) {
+								model = model + ":latest";
+							}
+
+							const id = `id-${Date.now().toString()}`;
+							const newProvider = await (
+								aiProviders as any
+							).migrateProvider({
+								id,
+								name: `Local GPT ${provider} embeddings`,
+								apiKey: providerConfig.apiKey,
+								url: providerConfig.url,
+								type,
+								model,
+							});
+
+							if (newProvider) {
+								loadedData.aiProviders.embedding =
+									newProvider.id;
+							}
+						}
+					}
+				}
+
+				delete (loadedData as any).defaults;
+				delete (loadedData as any).providers;
+
+				loadedData._version = 7;
+			}
 		}
 
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);

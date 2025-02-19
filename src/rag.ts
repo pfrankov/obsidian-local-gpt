@@ -1,5 +1,5 @@
 import { TFile, Vault, MetadataCache } from "obsidian";
-import { Document } from "langchain/document";
+import { Document } from "@langchain/core/documents";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { preprocessContent, splitContent } from "./text-processing";
 import { AIProvider } from "interfaces";
@@ -47,7 +47,7 @@ export async function getFileContent(
 	vault: Vault,
 ): Promise<string> {
 	switch (file.extension) {
-		case "pdf":
+		case "pdf": {
 			const cachedContent = await fileCache.getContent(file.path);
 			if (cachedContent && cachedContent.mtime === file.stat.mtime) {
 				return cachedContent.content;
@@ -59,6 +59,7 @@ export async function getFileContent(
 				content: pdfContent,
 			});
 			return pdfContent;
+		}
 		case "md":
 		default:
 			return await vault.cachedRead(file);
@@ -205,11 +206,15 @@ export async function createVectorStore(
 	plugin: LocalGPT,
 	currentDocumentPath: string,
 	aiProvider: AIProvider,
+	aiProviders: any,
+	abortController: AbortController,
 	addTotalProgressSteps: (steps: number) => void,
 	updateCompletedSteps: (steps: number) => void,
 ): Promise<MemoryVectorStore> {
 	const embedder: CustomEmbeddings = new CustomEmbeddings({
+		abortController,
 		aiProvider,
+		aiProviders,
 		updateCompletedSteps,
 	});
 
@@ -270,8 +275,24 @@ export async function createVectorStore(
 				chunksToEmbed.map((item) => item.chunk),
 			);
 
-			for (const embedding of embeddings) {
-				const i = embeddings.indexOf(embedding);
+			logger.debug(
+				`Chunks to embed: ${chunksToEmbed.length}, Embeddings received: ${embeddings.length}`,
+			);
+
+			if (embeddings.length !== chunksToEmbed.length) {
+				logger.error("Mismatch between chunks and embeddings length");
+				throw new Error(
+					"Embedding process returned incorrect number of results",
+				);
+			}
+
+			for (let i = 0; i < embeddings.length; i++) {
+				if (!chunksToEmbed[i]) {
+					logger.error(`Missing chunk at index ${i}`);
+					continue;
+				}
+
+				const embedding = embeddings[i];
 				const { doc } = chunksToEmbed[i];
 				embeddingsByDocument[doc.metadata.source] =
 					embeddingsByDocument[doc.metadata.source] || [];
@@ -281,9 +302,10 @@ export async function createVectorStore(
 				});
 			}
 		} catch (error) {
-			if (!aiProvider.abortController?.signal.aborted) {
+			if (!abortController?.signal.aborted) {
 				console.error(`Error creating embeddings:`, error);
 			}
+			throw error; // Пробрасываем ошибку дальше для обработки
 		}
 	}
 

@@ -1,374 +1,135 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
-import { LocalGPTAction, Providers } from "./interfaces";
-import { OllamaAIProvider } from "./providers/ollama";
-import { OpenAICompatibleAIProvider } from "./providers/openai-compatible";
-import { clearEmbeddingsCache } from "rag";
+import { LocalGPTAction } from "./interfaces";
+import { waitForAI } from "@obsidian-ai-providers/sdk";
 
 const SEPARATOR = "✂️";
 
+function escapeTitle(title?: string) {
+	if (!title) {
+		return "";
+	}
+
+	return title
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
+}
+
 export class LocalGPTSettingTab extends PluginSettingTab {
 	plugin: LocalGPT;
-	editEnabled: boolean = false;
+	editEnabled = false;
 	editExistingAction?: LocalGPTAction;
-	modelsOptions: any = {};
+	modelsOptions: Record<string, string> = {};
 	changingOrder = false;
-	useFallback = false;
-	selectedProvider = "";
 
 	constructor(app: App, plugin: LocalGPT) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
-	display(): void {
+	async display(): Promise<void> {
 		const { containerEl } = this;
 
 		containerEl.empty();
 
-		this.selectedProvider =
-			this.selectedProvider || this.plugin.settings.defaults.provider;
-		this.useFallback =
-			this.useFallback ||
-			Boolean(this.plugin.settings.defaults.fallbackProvider);
+		try {
+			const aiProvidersWaiter = await waitForAI();
+			const aiProvidersResponse = await aiProvidersWaiter.promise;
 
-		const mainProviders = {
-			[Providers.OLLAMA]: "Ollama",
-			[Providers.OPENAI_COMPATIBLE]: "OpenAI compatible server",
-		};
-
-		const fallbackProviders = {
-			...mainProviders,
-		};
-
-		if (this.plugin.settings.defaults.provider === Providers.OLLAMA) {
-			// @ts-ignore
-			delete fallbackProviders[Providers.OLLAMA];
-			// @ts-ignore
-			fallbackProviders[Providers.OLLAMA_FALLBACK] = "2️⃣ Ollama";
-		}
-		if (
-			this.plugin.settings.defaults.provider ===
-			Providers.OPENAI_COMPATIBLE
-		) {
-			// @ts-ignore
-			delete fallbackProviders[Providers.OPENAI_COMPATIBLE];
-			// @ts-ignore
-			fallbackProviders[Providers.OPENAI_COMPATIBLE_FALLBACK] =
-				"2️⃣ OpenAI compatible servers";
-		}
-
-		const selectedAIProviderSetting = new Setting(containerEl)
-			.setHeading()
-			.setName("")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOptions(mainProviders)
-					.setValue(String(this.plugin.settings.defaults.provider))
-					.onChange(async (value) => {
-						this.plugin.settings.defaults.provider = value;
-						this.selectedProvider = value;
-
-						if (this.useFallback) {
-							// @ts-ignore
-							this.plugin.settings.fallbackProvider = Object.keys(
-								mainProviders,
-							).find((key) => key !== value);
-						}
-
-						await this.plugin.saveSettings();
-						this.display();
-					}),
+			const providers = aiProvidersResponse.providers.reduce(
+				(
+					acc: Record<string, string>,
+					provider: { id: string; name: string; model?: string },
+				) => ({
+					...acc,
+					[provider.id]: provider.model
+						? [provider.name, provider.model].join(" ~ ")
+						: provider.name,
+				}),
+				{
+					"": "",
+				},
 			);
 
-		selectedAIProviderSetting.nameEl.innerHTML =
-			"<h3>Selected AI provider</h3>";
-
-		new Setting(containerEl)
-			.setName("Creativity")
-			.setDesc("")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("", "⚪ None")
-					.addOptions({
-						low: "️💡 Low",
-						medium: "🎨 Medium",
-						high: "🚀 High",
-					})
-					.setValue(
-						String(this.plugin.settings.defaults.creativity) || "",
-					)
-					.onChange(async (value) => {
-						this.plugin.settings.defaults.creativity = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName("Use fallback")
-			.addToggle((component) => {
-				component.setValue(this.useFallback).onChange(async (value) => {
-					this.useFallback = value;
-					if (value) {
-						const firstAvailableProvider =
-							Object.keys(fallbackProviders)[0];
-						this.plugin.settings.defaults.fallbackProvider =
-							firstAvailableProvider;
-						this.selectedProvider = firstAvailableProvider;
-					} else {
-						this.plugin.settings.defaults.fallbackProvider = "";
-						this.selectedProvider =
-							this.plugin.settings.defaults.provider;
-					}
-					await this.plugin.saveSettings();
-					this.display();
-				});
-			});
-
-		if (this.useFallback) {
 			new Setting(containerEl)
-				.setName("Fallback AI provider")
-				.setDesc(
-					"If the Default provider is not accessible the plugin will try to reach the fallback one.",
-				)
+				.setHeading()
+				.setName("Main AI Provider")
+				.setClass("local-gpt-ai-provider-heading")
 				.addDropdown((dropdown) =>
 					dropdown
-						.addOptions(fallbackProviders)
+						.addOptions(providers)
+						.setValue(String(this.plugin.settings.aiProviders.main))
+						.onChange(async (value) => {
+							this.plugin.settings.aiProviders.main = value;
+							await this.plugin.saveSettings();
+							await this.display();
+						}),
+				);
+
+			new Setting(containerEl)
+				.setName("Embedding AI Provider")
+				.setClass("local-gpt-ai-provider-heading")
+				.addDropdown((dropdown) =>
+					dropdown
+						.addOptions(providers)
 						.setValue(
-							String(
-								this.plugin.settings.defaults.fallbackProvider,
-							),
+							String(this.plugin.settings.aiProviders.embedding),
 						)
 						.onChange(async (value) => {
-							this.plugin.settings.defaults.fallbackProvider =
-								value;
-							this.selectedProvider = value;
+							this.plugin.settings.aiProviders.embedding = value;
 							await this.plugin.saveSettings();
-							this.display();
+							await this.display();
 						}),
 				);
-		}
 
-		containerEl.createEl("div", { cls: "local-gpt-settings-separator" });
-
-		containerEl.createEl("h3", { text: "Providers configuration" });
-		const selectedProviderConfig =
-			this.plugin.settings.providers[this.selectedProvider];
-
-		const aiProvider = new Setting(containerEl)
-			.setHeading()
-			.setName("Configure AI provider")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOptions({
-						...mainProviders,
-						...(this.useFallback && {
-							[Providers.OLLAMA_FALLBACK]: "2️⃣ Ollama",
-							[Providers.OPENAI_COMPATIBLE_FALLBACK]:
-								"2️⃣ OpenAI compatible servers",
-						}),
-					})
-					.setValue(String(this.selectedProvider))
-					.onChange(async (value) => {
-						this.selectedProvider = value;
-						this.display();
-					}),
-			);
-
-		if (selectedProviderConfig.type === Providers.OLLAMA) {
-			const ollamaUrl = new Setting(containerEl)
-				.setName("Ollama URL")
-				.setDesc("")
-				.addText((text) =>
-					text
-						.setPlaceholder("http://localhost:11434")
-						.setValue(selectedProviderConfig.url)
+			new Setting(containerEl)
+				.setName("Vision AI Provider")
+				.setClass("local-gpt-ai-provider-heading")
+				.addDropdown((dropdown) =>
+					dropdown
+						.addOptions(providers)
+						.setValue(
+							String(this.plugin.settings.aiProviders.vision),
+						)
 						.onChange(async (value) => {
-							selectedProviderConfig.url = value;
+							this.plugin.settings.aiProviders.vision = value;
 							await this.plugin.saveSettings();
+							await this.display();
 						}),
 				);
 
-			ollamaUrl.descEl.innerHTML = `Default is <code title="Click to copy" onclick="navigator.clipboard.writeText('http://localhost:11434')">http://localhost:11434</code>`;
-
-			const ollamaDefaultModel = new Setting(containerEl)
-				.setName("Default model")
-				.setDesc("Name of the default Ollama model to use in prompts");
-
-			const ollamaEmbeddingModel = new Setting(containerEl)
-				.setName("Embedding model")
-				.setDesc(
-					"Optional. Name of the Ollama embedding model to use for Enhanced Actions",
-				);
-
-			if (selectedProviderConfig.type === Providers.OLLAMA) {
-				OllamaAIProvider.getModels(selectedProviderConfig)
-					.then((models) => {
-						this.modelsOptions = models;
-
-						ollamaDefaultModel
-							.addDropdown((dropdown) =>
-								dropdown
-									.addOptions(this.modelsOptions)
-									.setValue(
-										String(
-											selectedProviderConfig.defaultModel,
-										),
-									)
-									.onChange(async (value) => {
-										selectedProviderConfig.defaultModel =
-											value;
-										await this.plugin.saveSettings();
-									}),
-							)
-							.addButton((button) =>
-								button
-									.setIcon("refresh-cw")
-									.onClick(async () => {
-										this.display();
-									}),
-							);
-						ollamaEmbeddingModel.addDropdown((dropdown) =>
-							dropdown
-								.addOption("", "No enhancement")
-								.addOptions(this.modelsOptions)
-								.setValue(
-									String(
-										selectedProviderConfig.embeddingModel,
-									),
-								)
-								.onChange(async (value) => {
-									clearEmbeddingsCache();
-									selectedProviderConfig.embeddingModel =
-										value;
-									await this.plugin.saveSettings();
-								}),
-						);
-					})
-					.catch(() => {
-						ollamaDefaultModel.descEl.innerHTML = `Get the models from <a href="https://ollama.com/library">Ollama library</a> or check that Ollama URL is correct.`;
-						ollamaDefaultModel.addButton((button) =>
-							button.setIcon("refresh-cw").onClick(async () => {
-								this.display();
-							}),
-						);
-					});
-			}
-		}
-		if (selectedProviderConfig.type === Providers.OPENAI_COMPATIBLE) {
-			const openAICompatible = new Setting(containerEl)
-				.setName("OpenAI compatible server URL")
+			new Setting(containerEl)
+				.setName("Creativity")
 				.setDesc("")
-				.addText((text) =>
-					text
-						.setPlaceholder("http://localhost:8080/v1")
-						.setValue(selectedProviderConfig.url)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("", "⚪ None")
+						.addOptions({
+							low: "️💡 Low",
+							medium: "🎨 Medium",
+							high: "🚀 High",
+						})
+						.setValue(
+							String(this.plugin.settings.defaults.creativity) ||
+								"",
+						)
 						.onChange(async (value) => {
-							selectedProviderConfig.url = value;
+							this.plugin.settings.defaults.creativity = value;
 							await this.plugin.saveSettings();
-						}),
-				);
-			openAICompatible.descEl.innerHTML = `
-				Put the URL in the format <code>http://localhost:8080/v1</code><br/>
-				<br/>
-				There are several options to run local OpenAI-like server:
-				<ul>
-					<li><a href="https://docs.openwebui.com/tutorials/integrations/continue-dev/">Open WebUI</a></li>
-					<li>Obabooga <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/8">Text generation web UI</a></li>
-					<li><a href="https://lmstudio.ai/">LM Studio</a></li>
-				</ul>
-				After all installation and configuration make sure that you're using compatible model.<br/>
-				It is necessary to use models in ChatML format.
-			`;
-
-			const apiKey = new Setting(containerEl)
-				.setName("API key")
-				.setDesc("")
-				.addText((text) =>
-					text
-						.setPlaceholder("")
-						// @ts-ignore
-						.setValue(selectedProviderConfig.apiKey)
-						.onChange(async (value) => {
-							selectedProviderConfig.apiKey = value;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			apiKey.descEl.innerHTML = `
-				Optional. Check <a href="https://github.com/pfrankov/obsidian-local-gpt#using-with-openai">the docs</a> if you'd like to use OpenAI servers.
-			`;
-
-			const openaiDefaultModel = new Setting(containerEl)
-				.setName("Default model")
-				.setDesc(
-					"Optional. Name of the default model to use in prompts",
-				);
-
-			const openaiEmbeddingModel = new Setting(containerEl)
-				.setName("Embedding model")
-				.setDesc(
-					"Optional. Name of the embedding model to use for Enhanced Actions",
-				);
-
-			if (selectedProviderConfig.url) {
-				OpenAICompatibleAIProvider.getModels(selectedProviderConfig)
-					.then((models) => {
-						openaiDefaultModel
-							.addDropdown((dropdown) =>
-								dropdown
-									.addOption("", "Not specified")
-									.addOptions(models)
-									.setValue(
-										String(
-											selectedProviderConfig.defaultModel,
-										) || "",
-									)
-									.onChange(async (value) => {
-										selectedProviderConfig.defaultModel =
-											value;
-										await this.plugin.saveSettings();
-									}),
-							)
-							.addButton((button) =>
-								button
-									.setIcon("refresh-cw")
-									.onClick(async () => {
-										this.display();
-									}),
-							);
-						openaiEmbeddingModel.addDropdown((dropdown) =>
-							dropdown
-								.addOption("", "No enhancement")
-								.addOptions(models)
-								.setValue(
-									String(
-										selectedProviderConfig.embeddingModel,
-									) || "",
-								)
-								.onChange(async (value) => {
-									clearEmbeddingsCache();
-									selectedProviderConfig.embeddingModel =
-										value;
-									await this.plugin.saveSettings();
-								}),
-						);
-					})
-					.catch(() => {
-						openaiDefaultModel.addButton((button) =>
-							button.setIcon("refresh-cw").onClick(async () => {
-								this.display();
-							}),
-						);
-					});
-			}
+							await this.display();
+						});
+				});
+		} catch (error) {
+			console.error(error);
 		}
 
 		const editingAction: LocalGPTAction = this.editExistingAction || {
 			name: "",
 			prompt: "",
-			model: "",
 			temperature: undefined,
 			system: "",
 			replace: false,
@@ -441,25 +202,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					}),
 				);
 		} else {
-			if (
-				this.plugin.settings.providers[
-					this.plugin.settings.defaults.provider
-				].type === Providers.OLLAMA
-			) {
-				new Setting(containerEl)
-					.setName("Model")
-					.setDesc("Optional")
-					.addDropdown((dropdown) => {
-						dropdown
-							.addOption("", "Default model")
-							.addOptions(this.modelsOptions)
-							.onChange(async (value) => {
-								editingAction.model = value;
-							});
-						editingAction?.model &&
-							dropdown.setValue(editingAction.model);
-					});
-			}
 			new Setting(containerEl).setName("Action name").addText((text) => {
 				editingAction?.name && text.setValue(editingAction.name);
 				text.inputEl.style.minWidth = "100%";
@@ -605,11 +347,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h4", { text: "Actions list" });
 
-		let defaultModel = "";
-		if (selectedProviderConfig.type === Providers.OLLAMA) {
-			defaultModel = selectedProviderConfig.defaultModel;
-		}
-
 		this.plugin.settings.actions.forEach((action, actionIndex) => {
 			const sharingString = [
 				action.name && `${sharingActionsMapping.name}${action.name}`,
@@ -619,11 +356,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					`${sharingActionsMapping.prompt}${action.prompt}`,
 				action.replace &&
 					`${sharingActionsMapping.replace}${action.replace}`,
-				this.plugin.settings.defaults.provider === Providers.OLLAMA &&
-					(action.model || defaultModel) &&
-					`${sharingActionsMapping.model}${
-						action.model || defaultModel
-					}`,
 			]
 				.filter(Boolean)
 				.join(` ${SEPARATOR}\n`);
@@ -650,19 +382,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						}),
 					);
 
-				function escapeTitle(title?: string) {
-					if (!title) {
-						return "";
-					}
-
-					return title
-						.replace(/&/g, "&amp;")
-						.replace(/</g, "&lt;")
-						.replace(/>/g, "&gt;")
-						.replace(/"/g, "&quot;")
-						.replace(/'/g, "&#039;");
-				}
-
 				const systemTitle = escapeTitle(action.system);
 
 				const promptTitle = escapeTitle(action.prompt);
@@ -675,10 +394,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						`<div title="${promptTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
 							<b>${sharingActionsMapping.prompt}</b>${action.prompt}
 						</div>`,
-					this.plugin.settings.defaults.provider ===
-						Providers.OLLAMA &&
-						action.model &&
-						`<b>${sharingActionsMapping.model}</b>${action.model}`,
 				]
 					.filter(Boolean)
 					.join("<br/>\n");

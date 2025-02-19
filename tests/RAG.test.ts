@@ -83,6 +83,8 @@ describe('RAG Functions', () => {
       ];
       const mockPlugin = {} as LocalGPT;
       const mockAIProvider = { abortController: { signal: { aborted: false } } } as AIProvider;
+      const mockAIProviders = { providers: [] };
+      const mockAbortController = new AbortController();
 
       const mockEmbedder = {
         embedDocuments: jest.fn().mockImplementation(async (texts) => {
@@ -105,6 +107,8 @@ describe('RAG Functions', () => {
         mockPlugin, 
         'current.md', 
         mockAIProvider,
+        mockAIProviders,
+        mockAbortController,
         mockAddTotalProgressSteps,
         mockUpdateCompletedSteps
       );
