@@ -50,7 +50,7 @@ You can also install this plugin via [BRAT](https://obsidian.md/plugins?id=obsid
 You also need to install AI Providers plugin to configure AI providers from plugin store https://obsidian.md/plugins?id=ai-providers
 
 ### 3. Configure AI Providers
-Follow the instructions in [AI Providers](https://github.com/pfrankov/obsidian-ai-providers) plugin.
+Follow the instructions in [AI Providers](https://github.com/pfrankov/obsidian-ai-providers#create-ai-provider) plugin.
 
 ### Configure Obsidian hotkey
 1. Open Obsidian Settings

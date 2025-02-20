@@ -90,7 +90,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName("Vision AI Provider")
 				.setClass("ai-providers-select")
-				.setDesc("Optional. This is used for images. If not set, the main AI provider will be used.")
+				.setDesc(
+					"Optional. This is used for images. If not set, the main AI provider will be used.",
+				)
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(providers)
