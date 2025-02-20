@@ -58,7 +58,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setHeading()
 				.setName("Main AI Provider")
-				.setClass("local-gpt-ai-provider-heading")
+				.setClass("ai-providers-select")
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(providers)
@@ -72,7 +72,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName("Embedding AI Provider")
-				.setClass("local-gpt-ai-provider-heading")
+				.setDesc("Optional. Used for ✨ Enhanced Actions.")
+				.setClass("ai-providers-select")
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(providers)
@@ -88,7 +89,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName("Vision AI Provider")
-				.setClass("local-gpt-ai-provider-heading")
+				.setClass("ai-providers-select")
+				.setDesc("Optional. This is used for images. If not set, the main AI provider will be used.")
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(providers)
