@@ -32,6 +32,96 @@
 	margin: -0.3em 0.3em 0;
 }
 
+.local-gpt-thinking-container {
+	display: block;
+	opacity: 0;
+	animation: local-gpt-fadeIn 0.1s ease-out forwards;
+}
+
+@keyframes local-gpt-fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.local-gpt-thinking {
+	position: relative;
+	display: inline-block;
+	color: var(--interactive-accent);
+	font-style: italic;
+	animation: local-gpt-pulse 1.7s ease-in-out infinite;
+}
+
+.local-gpt-thinking::before{
+	content: attr(data-text);
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	color: var(--interactive-accent-hover);
+	display: inline-block;
+	white-space: nowrap;
+	filter: blur(2px);
+	mask-image: linear-gradient(
+		to right,
+		transparent 30%,
+		black 50%,
+		transparent 70%
+	);
+	mask-size: 200% 100%;
+	mask-position: -50% 0;
+	animation: local-gpt-maskMove 1.7s linear infinite reverse;
+	mix-blend-mode: color-dodge;
+}
+
+.local-gpt-thinking::after {
+	content: "";
+	display: inline-block;
+	width: 1em;
+	text-align: left;
+	animation: local-gpt-dots 1.7s infinite;
+	opacity: 1;
+}
+
+@keyframes local-gpt-dots {
+	0% {
+		content: "";
+		opacity: 1;
+	}
+	59% {
+		content: "";
+		opacity: 1;
+	}
+	60% {
+		content: ".";
+		opacity: 1;
+	}
+	70% {
+		content: "..";
+		opacity: 1;
+	}
+	80% {
+		content: "...";
+		opacity: 1;
+	}
+	100% {
+		opacity: 0.5;
+		content: "...";
+	}
+}
+
+@keyframes local-gpt-pulse {
+	0% {
+		opacity: 0.8;
+	}
+	50% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0.8;
+	}
+}
+
 .local-gpt-loading::after {
 	display: inline-table;
 	white-space: pre;
@@ -40,7 +130,7 @@
 
 .local-gpt-loading.local-gpt-dots::after {
 	content: "⠋\A⠙\A⠹\A⠸\A⠼\A⠴\A⠦\A⠧\A⠇\A⠏";
-	animation: spin10 1s steps(10) infinite;
+	animation: local-gpt-spin10 1s steps(10) infinite;
 }
 
 .local-gpt-status {
@@ -63,8 +153,8 @@
 	overflow: hidden;
 	white-space: nowrap;
 	animation: 
-		expandText 0.3s ease-out forwards,
-		gradientMove 1.7s linear infinite;
+		local-gpt-expandText 0.3s ease-out forwards,
+		local-gpt-gradientMove 1.7s linear infinite;
 	background-size: 200% 100%;
 	background-position: -50% 0;
 }
@@ -86,17 +176,17 @@
 	);
 	mask-size: 200% 100%;
 	mask-position: -50% 0;
-	animation: maskMove 1.7s linear infinite;
+	animation: local-gpt-maskMove 1.7s linear infinite;
 	mix-blend-mode: color-dodge;
 }
 
-@keyframes spin10 {
+@keyframes local-gpt-spin10 {
 	to {
 		transform: translateY(-15em);
 	}
 }
 
-@keyframes expandText {
+@keyframes local-gpt-expandText {
 	from {
 		max-width: 0;
 	}
@@ -105,7 +195,7 @@
 	}
 }
 
-@keyframes gradientMove {
+@keyframes local-gpt-gradientMove {
 	0% {
 		background-position: -50% 0;
 	}
@@ -114,7 +204,7 @@
 	}
 }
 
-@keyframes maskMove {
+@keyframes local-gpt-maskMove {
 	0% {
 		mask-position: -50% 0;
 	}

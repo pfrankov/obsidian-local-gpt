@@ -138,7 +138,7 @@ function handleRegularLine(state: ProcessState, line: string): ProcessState {
 
 	if (line.length > MAX_CHUNK_SIZE) {
 		let remainingLine = line;
-		let newChunks = [...chunks];
+		const newChunks = [...chunks];
 
 		if (currentChunk) {
 			newChunks.push(currentChunk.trim());
@@ -185,4 +185,15 @@ function findChunkEnd(text: string, maxLength: number): number {
 	}
 
 	return end > 0 ? end : maxLength;
+}
+
+/**
+ * Remove all thinking tags and their content from text
+ * Used by the main.ts file for final output
+ *
+ * @param text Text that may contain thinking tags
+ * @returns Clean text without thinking tags and their content
+ */
+export function removeThinkingTags(text: string): string {
+	return text.replace(/^<think>[\s\S]*?<\/think>\s*/, "");
 }

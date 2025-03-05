@@ -1,7 +1,8 @@
 import { Editor, Menu, Notice, Plugin, requestUrl } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
-import { spinnerPlugin } from "spinnerPlugin";
+import { spinnerPlugin } from "./spinnerPlugin";
+import { removeThinkingTags } from "./text-processing";
 import { LocalGPTAction, LocalGPTSettings } from "./interfaces";
 
 import {
@@ -59,7 +60,11 @@ export default class LocalGPT extends Plugin {
 		if (!text.trim()) {
 			return "";
 		}
-		return ["\n", text.trim().replace(selectedText, "").trim(), "\n"].join(
+
+		// Remove <think>...</think> tags and their content from the final output
+		const cleanText = removeThinkingTags(text).trim();
+
+		return ["\n", cleanText.replace(selectedText, "").trim(), "\n"].join(
 			"",
 		);
 	}
@@ -126,8 +131,8 @@ export default class LocalGPT extends Plugin {
 		this.app.workspace.updateOptions();
 
 		const onUpdate = (updatedString: string) => {
-			spinner.updateContent(
-				this.processText(updatedString, selectedText),
+			spinner.processText(updatedString, (text: string) =>
+				this.processText(text, selectedText),
 			);
 			this.app.workspace.updateOptions();
 		};
@@ -230,15 +235,18 @@ export default class LocalGPT extends Plugin {
 			hideSpinner && hideSpinner();
 			this.app.workspace.updateOptions();
 
+			// Remove any thinking tags from the final text
+			const finalText = removeThinkingTags(fullText).trim();
+
 			if (action.replace) {
 				editor.replaceRange(
-					fullText.trim(),
+					finalText,
 					cursorPositionFrom,
 					cursorPositionTo,
 				);
 			} else {
 				const isLastLine = editor.lastLine() === cursorPositionTo.line;
-				const text = this.processText(fullText, selectedText);
+				const text = this.processText(finalText, selectedText);
 				editor.replaceRange(isLastLine ? "\n" + text : text, {
 					ch: 0,
 					line: cursorPositionTo.line + 1,
