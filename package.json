@@ -22,6 +22,7 @@
 	"author": "Pavel Frankov",
 	"license": "MIT",
 	"devDependencies": {
+		"@types/electron": "^1.6.12",
 		"@types/jest": "^29.5.13",
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
@@ -43,5 +44,6 @@
 		"idb": "^8.0.0",
 		"langchain": "^0.3.15",
 		"pdfjs-dist": "4.6.82"
-	}
+	},
+	"packageManager": "npm@10.2.4+sha1.5ada7389d5f32b7a8e2900a9fd2f5eb5ed7e71c2"
 }

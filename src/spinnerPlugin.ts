@@ -1,3 +1,5 @@
+// --- START OF FILE spinnerPlugin.ts ---
+
 import { RangeSetBuilder, EditorState } from "@codemirror/state";
 import {
 	Decoration,
@@ -8,257 +10,234 @@ import {
 	ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
+import { logger } from "./logger";
+import { setIcon } from "obsidian"; // Import setIcon for creating icons
 
-class LoaderWidget extends WidgetType {
-	static readonly element: HTMLSpanElement = document.createElement("span");
+// --- Widget Types ---
 
-	static {
-		this.element.addClasses(["local-gpt-loading", "local-gpt-dots"]);
-	}
-
-	toDOM(view: EditorView): HTMLElement {
-		return LoaderWidget.element.cloneNode(true) as HTMLElement;
-	}
-}
-
-class ThinkingWidget extends WidgetType {
-	private static createDOMStructure(): HTMLElement {
-		const container = document.createElement("div");
-		container.addClass("local-gpt-thinking-container");
-
-		// Add a line break element
-		container.appendChild(document.createElement("br"));
-
-		const textElement = document.createElement("span");
-		textElement.addClass("local-gpt-thinking");
-		textElement.textContent = "Thinking";
-		textElement.setAttribute("data-text", "Thinking");
-
-		container.appendChild(textElement);
-		return container;
-	}
-
-	toDOM(view: EditorView): HTMLElement {
-		return ThinkingWidget.createDOMStructure();
-	}
-}
-
-class ContentWidget extends WidgetType {
+// Represents the "Generating..." state
+class GeneratingWidget extends WidgetType {
 	private dom: HTMLElement | null = null;
 
-	constructor(private text: string) {
+	toDOM(view: EditorView): HTMLElement {
+		if (!this.dom) {
+			this.dom = document.createElement("div");
+			this.dom.addClass("local-gpt-generating-container");
+			this.dom.appendChild(document.createElement("br")); // Line break for positioning
+			const innerContainer = this.dom.createSpan({ cls: "local-gpt-generating-inner" });
+			const iconEl = innerContainer.createSpan({ cls: "local-gpt-generating-icon" });
+			setIcon(iconEl, "loader"); // Obsidian's built-in loader icon
+			innerContainer.createSpan({
+				cls: "local-gpt-generating-text",
+				text: "Generating",
+				attr: { "data-text": "Generating" }
+			});
+		}
+		return this.dom;
+	}
+}
+
+// Represents the "Thinking..." state
+class ThinkingWidget extends WidgetType {
+	private dom: HTMLElement | null = null;
+
+	toDOM(view: EditorView): HTMLElement {
+		if (!this.dom) {
+			this.dom = document.createElement("div");
+			this.dom.addClass("local-gpt-thinking-container");
+			this.dom.appendChild(document.createElement("br")); // Line break for positioning
+			const innerContainer = this.dom.createSpan({ cls: "local-gpt-thinking-inner" });
+			innerContainer.createSpan({ cls: "local-gpt-thinking-icon", text: "🧠" });
+			innerContainer.createSpan({
+				cls: "local-gpt-thinking-text",
+				text: "Thinking",
+				attr: { "data-text": "Thinking" }
+			});
+		}
+		return this.dom;
+	}
+}
+
+// Represents the streaming content display
+class ContentWidget extends WidgetType {
+	private dom: HTMLElement | null = null;
+	public currentText = "";
+
+	constructor(initialText: string) {
 		super();
+		this.currentText = initialText;
 	}
 
-	eq(other: ContentWidget) {
-		return other.text === this.text;
+	eq(other: ContentWidget): boolean {
+		return other.currentText === this.currentText;
 	}
 
-	updateText(newText: string) {
-		if (this.dom && this.text !== newText) {
-			const addedText = newText.slice(this.text.length);
-
-			this.dom.textContent = newText.slice(0, -addedText.length);
-			let lastSpan = this.dom.querySelector("span:last-child");
-			if (!lastSpan) {
-				lastSpan = document.createElement("span");
-				this.dom.appendChild(lastSpan);
-			}
-			lastSpan.textContent = addedText;
-
-			this.text = newText;
+	updateText(newText: string, view: EditorView) {
+		if (this.currentText === newText) return;
+		this.currentText = newText;
+		if (this.dom) {
+			this.dom.textContent = this.currentText;
+			this.dom.classList.remove("local-gpt-streaming-animate");
+			void this.dom.offsetWidth; // Force reflow
+			this.dom.classList.add("local-gpt-streaming-animate");
 		}
 	}
 
 	toDOM(view: EditorView): HTMLElement {
 		if (!this.dom) {
 			this.dom = document.createElement("div");
-			this.dom.addClass("local-gpt-content");
-			this.updateText(this.text);
+			this.dom.classList.add("local-gpt-content");
+			this.dom.setAttribute("role", "document");
+			this.dom.textContent = this.currentText;
+			this.dom.classList.add("local-gpt-streaming-animate");
 		}
 		return this.dom;
 	}
 }
 
-/**
- * Processed result of handling text with thinking tags
- */
-interface ProcessedThinkingResult {
-	// Whether we're in thinking mode
+// --- Plugin Logic ---
+interface SpinnerPositionInfo {
+	widget: WidgetType;
+	isEndOfLine: boolean;
 	isThinking: boolean;
-
-	// The text to display (without thinking content)
-	displayText: string;
 }
 
 export class SpinnerPlugin implements PluginValue {
 	decorations: DecorationSet;
-	private positions: Map<
-		number,
-		{ isEndOfLine: boolean; widget: WidgetType; isThinking: boolean }
-	>;
+	private positions: Map<number, SpinnerPositionInfo>;
 
 	constructor(private editorView: EditorView) {
 		this.positions = new Map();
 		this.decorations = Decoration.none;
-	}
-
-	/**
-	 * Process text with potential <think> tags and update UI accordingly
-	 *
-	 * @param text Raw text that may include <think> tags
-	 * @param processFunc Optional function to process the display text
-	 * @param position Optional position to update specific spinner
-	 * @returns void
-	 */
-	processText(
-		text: string,
-		processFunc?: (text: string) => string,
-		position?: number,
-	) {
-		const result = this.processThinkingTags(text);
-
-		// Update thinking state
-		this.showThinking(result.isThinking, position);
-
-		// Only update visible content if there's content to show
-		if (result.displayText.trim()) {
-			const displayText = processFunc
-				? processFunc(result.displayText)
-				: result.displayText;
-			this.updateContent(displayText, position);
-		}
-	}
-
-	/**
-	 * Process text with potential <think> tags
-	 *
-	 * @param text Raw text that may contain <think> tags
-	 * @returns Object with parsed thinking state and display text
-	 */
-	private processThinkingTags(text: string): ProcessedThinkingResult {
-		// Simple case - no thinking tags at all
-		if (!text.startsWith("<think>")) {
-			return {
-				isThinking: false,
-				displayText: text,
-			};
-		}
-
-		// Check if we have a complete thinking tag
-		const thinkingMatch = text.match(
-			/^<think>([\s\S]*?)(<\/think>\s*([\s\S]*))?$/,
-		);
-
-		if (!thinkingMatch) {
-			return {
-				isThinking: true,
-				displayText: "", // No display text while in thinking mode
-			};
-		}
-
-		// If we have a closing tag, extract content after it
-		if (thinkingMatch[2]) {
-			const afterThinkTag = thinkingMatch[3] || "";
-			return {
-				isThinking: false,
-				displayText: afterThinkTag,
-			};
-		}
-
-		// Open thinking tag without a closing tag
-		return {
-			isThinking: true,
-			displayText: "", // No display text while in thinking mode
-		};
+		logger.debug("SpinnerPlugin initialized.");
 	}
 
 	show(position: number): () => void {
-		const isEndOfLine = this.isPositionAtEndOfLine(
-			this.editorView.state,
-			position,
-		);
+		if (this.positions.has(position)) {
+			logger.warn(`Spinner already exists at position ${position}.`);
+			return () => { };
+		}
+		const isEndOfLine = this.isPositionAtEndOfLine(this.editorView.state, position);
 		this.positions.set(position, {
+			widget: new GeneratingWidget(),
 			isEndOfLine,
-			widget: new LoaderWidget(),
 			isThinking: false,
 		});
-		this.updateDecorations();
+		logger.debug(`Showing spinner (Generating...) at position ${position}`);
+		this.updateDecorations(true); // Force update
 		return () => this.hide(position);
 	}
 
 	hide(position: number) {
-		this.positions.delete(position);
-		this.updateDecorations();
+		if (this.positions.has(position)) {
+			logger.debug(`Hiding spinner at position ${position}`);
+			this.positions.delete(position);
+			this.updateDecorations(true); // Force update
+		} else {
+			logger.warn(`Attempted to hide spinner at position ${position}, but none found.`);
+		}
 	}
 
 	showThinking(enabled: boolean, position?: number) {
 		let updated = false;
-
-		const updatePosition = (data: {
-			widget: WidgetType;
-			isThinking: boolean;
-		}) => {
-			if (enabled && !data.isThinking) {
-				data.widget = new ThinkingWidget();
-				data.isThinking = true;
-				updated = true;
-			} else if (!enabled && data.isThinking) {
-				data.widget = new LoaderWidget();
-				data.isThinking = false;
-				updated = true;
+		const updateEntry = (data: SpinnerPositionInfo, pos: number) => {
+			if (!(data.widget instanceof ContentWidget)) {
+				if (enabled && !data.isThinking) {
+					data.widget = new ThinkingWidget();
+					data.isThinking = true;
+					updated = true;
+				} else if (!enabled && data.isThinking) {
+					data.widget = new GeneratingWidget();
+					data.isThinking = false;
+					updated = true;
+				}
+			} else {
+				if (data.isThinking !== enabled) {
+					data.isThinking = enabled;
+				}
 			}
 		};
 
 		if (position !== undefined) {
 			const data = this.positions.get(position);
-			if (data) updatePosition(data);
+			if (data) updateEntry(data, position);
+			else logger.warn(`showThinking called for unknown position ${position}`);
 		} else {
-			this.positions.forEach(updatePosition);
+			this.positions.forEach(updateEntry);
 		}
 
 		if (updated) {
-			this.updateDecorations();
+			logger.debug(`Updating thinking state display: ${enabled}`);
+			this.updateDecorations(true);
 		}
 	}
 
 	updateContent(text: string, position?: number) {
-		let updated = false;
-		const updatePosition = (data: {
-			widget: WidgetType;
-			isThinking: boolean;
-		}) => {
-			// Don't update content while in thinking mode
-			if (data.isThinking) return;
-
-			if (data.widget instanceof LoaderWidget) {
+		let widgetChanged = false;
+		let contentChanged = false;
+		const updateEntry = (data: SpinnerPositionInfo, pos: number) => {
+			if (!(data.widget instanceof ContentWidget)) {
 				data.widget = new ContentWidget(text);
-				updated = true;
-			} else if (data.widget instanceof ContentWidget) {
-				data.widget.updateText(text);
-				updated = true;
+				data.isThinking = false;
+				widgetChanged = true;
+				contentChanged = true;
+			} else {
+				const tempWidget = new ContentWidget(text);
+				if (!data.widget.eq(tempWidget)) {
+					data.widget.updateText(text, this.editorView);
+					contentChanged = true;
+				}
 			}
 		};
 
 		if (position !== undefined) {
 			const data = this.positions.get(position);
-			if (data) updatePosition(data);
+			if (data) updateEntry(data, position);
+			else logger.warn(`updateContent called for unknown position ${position}`);
 		} else {
-			this.positions.forEach(updatePosition);
+			this.positions.forEach(updateEntry);
 		}
 
-		if (updated) {
-			this.updateDecorations();
+		if (widgetChanged || contentChanged) {
+			this.updateDecorations(widgetChanged || contentChanged);
 		}
 	}
 
 	update(update: ViewUpdate) {
-		if (update.docChanged || update.viewportChanged) {
-			this.updateDecorations();
+		// Only update decorations if necessary
+		let needsRedraw = false;
+		if (update.docChanged) {
+			const updatedPositions = new Map<number, SpinnerPositionInfo>();
+			this.positions.forEach((data, oldPos) => {
+				const newPos = update.changes.mapPos(oldPos, -1, 1);
+				if (newPos !== null) {
+					updatedPositions.set(newPos, data);
+				} else {
+					logger.debug(`Spinner position ${oldPos} deleted due to document changes.`);
+					needsRedraw = true; // Need redraw if positions removed
+				}
+			});
+			// Check if positions actually changed after mapping
+			if (updatedPositions.size !== this.positions.size || ![...updatedPositions.keys()].every(key => this.positions.has(key))) {
+				needsRedraw = true;
+			}
+			this.positions = updatedPositions;
+		}
+
+		if (update.viewportChanged) {
+			needsRedraw = true;
+		}
+
+		if (this.positions.size === 0 && this.decorations.size > 0) {
+			needsRedraw = true; // Need redraw to clear decorations
+		}
+
+		if (needsRedraw) {
+			this.updateDecorations(); // Let updateDecorations decide if measure needed
 		}
 	}
 
-	private updateDecorations() {
+	private updateDecorations(force = false) {
 		const builder = new RangeSetBuilder<Decoration>();
 		this.positions.forEach((data, position) => {
 			builder.add(
@@ -267,21 +246,45 @@ export class SpinnerPlugin implements PluginValue {
 				Decoration.widget({
 					widget: data.widget,
 					side: data.isEndOfLine ? 1 : -1,
+					block: !(data.widget instanceof GeneratingWidget)
 				}),
 			);
 		});
-		this.decorations = builder.finish();
-		this.editorView.requestMeasure();
+		const newDecorations = builder.finish();
+
+		// *** WORKAROUND: Compare sizes as a proxy for equality check ***
+		// This avoids the problematic `eq` call but might redraw slightly more often.
+		const changed = this.decorations.size !== newDecorations.size ||
+						(this.decorations.size > 0 && newDecorations.size === 0) ||
+						(this.decorations.size === 0 && newDecorations.size > 0);
+
+		if (force || changed) {
+			this.decorations = newDecorations;
+			// Only request measure if decorations actually changed or forced
+			this.editorView.requestMeasure();
+		}
 	}
 
-	private isPositionAtEndOfLine(
-		state: EditorState,
-		position: number,
-	): boolean {
-		return position === state.doc.lineAt(position).to;
+	private isPositionAtEndOfLine(state: EditorState, position: number): boolean {
+		try {
+			const clampedPos = Math.max(0, Math.min(position, state.doc.length));
+			return clampedPos === state.doc.lineAt(clampedPos).to;
+		} catch (e) {
+			logger.error(`Error checking endOfLine for pos ${position}:`, e);
+			return false;
+		}
+	}
+
+	destroy() {
+		logger.debug("SpinnerPlugin destroyed.");
+		this.positions.clear();
+		this.decorations = Decoration.none;
 	}
 }
 
+// --- Export Plugin ---
 export const spinnerPlugin = ViewPlugin.fromClass(SpinnerPlugin, {
-	decorations: (v) => v.decorations,
+	decorations: (v: SpinnerPlugin) => v.decorations,
 });
+
+// --- END OF FILE spinnerPlugin.ts ---
