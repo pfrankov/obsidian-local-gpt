@@ -118,9 +118,6 @@ You need **two** plugins:
 4.  **(Updated!)** You will also see commands listed for each action **within your currently selected Action Group** (e.g., `Local GPT: General - Summarize`). You can assign specific hotkeys to these actions.
     *   **Note:** These action-specific hotkeys **only work for the group currently active** in the Local GPT settings (the group shown in the context menu by default). They do *not* work for actions in other groups.
 
-## My other Obsidian plugins
-*   [Colored Tags](https://github.com/pfrankov/obsidian-colored-tags): Colorizes tags in distinguishable colors.
-*   [Obsidian AI Providers](https://github.com/pfrankov/obsidian-ai-providers): The hub for connecting Obsidian to various AI providers.
 
 ## Inspired by
 *   [Obsidian Ollama](https://github.com/hinterdupfinger/obsidian-ollama).
