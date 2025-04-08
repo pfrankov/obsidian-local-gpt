@@ -5,7 +5,7 @@ _Real-time demo. MacBook Pro 13, M1, 16GB, Ollama, orca-mini._
 
 The plugin allows you to open a context menu on selected text to pick an AI assistant's action.
 
-**(🎉 Recent Updates by [xvishon](https://github.com/xvishon)!)** This plugin has been significantly enhanced with features like Action Groups, per-action overrides, improved context menu navigation, better visual feedback, and more!
+**(🎉 Recent Updates by [xvishon](https://github.com/xvishon)!)** This plugin has been significantly enhanced with features like Action Groups, per-action overrides, improved context menu navigation, better visual feedback, enhanced RAG capabilities, and more!
 
 **Key Features:**
 
@@ -16,13 +16,23 @@ The plugin allows you to open a context menu on selected text to pick an AI assi
     *   Set global default providers (Main, Embedding, Vision) and a default creativity level.
     *   Override the provider or creativity (temperature) for specific actions in the settings.
 *   **(New!) Modal Overrides:** Press `Shift` while clicking an action, or enable settings toggles, to temporarily override the AI provider or creativity level for that *single run* via a pop-up modal.
-*   **RAG Context (Experimental):** Automatically includes relevant context from linked notes, backlinks, and even PDF files (powered by an embedding model) to enhance AI responses.
+*   **(Enhanced!) RAG Context:** Automatically includes relevant context from linked notes, backlinks, and even PDF files to enhance AI responses. *See details below.*
 *   **Image Support:** Works with multimodal models to understand images embedded in your notes (using `![[image.png]]` syntax). Requires a Vision provider selected.
-*   **(Improved!) Visual Feedback:** See distinct "Thinking..." or "Generating..." indicators with smoother streaming output directly in your editor.
+*   **(Improved!) Visual Feedback:** See distinct "Thinking..." or "Generating..." indicators with smoother streaming output directly in your editor. An animated status bar item ✨ also shows progress during RAG embedding.
 *   **(New!) Thinking Output:** If the AI model outputs its reasoning within `<think>...</think>` tags, this will be displayed in a collapsible ` ```thoughts ``` ` block above the main response.
 
-<img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">
-_Image support using Ollama + bakllava._
+---
+
+### **(Enhanced!) Retrieval-Augmented Generation (RAG) Features:**
+
+The plugin can automatically retrieve relevant information from your vault to provide better context to the AI when you run an action. This significantly improves the AI's ability to answer questions or perform tasks related to your notes. Enhancements include:
+
+*   **PDF Content Indexing:** Extracts and indexes text directly from `.pdf` files linked within your notes.
+*   **Backlink Awareness:** Considers not only notes you link to, but also notes that link *back* to the current context.
+*   **Smart Caching:** Generated text embeddings are cached efficiently. If a note or PDF hasn't changed, the plugin reuses the cached embeddings, drastically speeding up subsequent actions that use the same context.
+*   **Refined Context Assembly:** Retrieves the most relevant text chunks based on your query, ranks them by relevance and recent edits, and intelligently combines them within length limits.
+*   **Clear Source Attribution:** The context provided to the AI includes clear markers (`[[Filename]]`) indicating the source of the retrieved information.
+*   **Dedicated Embedding Provider:** Uses the specific AI provider you select in the settings for generating text embeddings, ensuring optimal quality and compatibility.
 
 <img width="450" alt="Enhanced Actions with RAG context" src="https://github.com/user-attachments/assets/5fa2ed36-0ef5-43b0-8f16-07588f76d780">
 _RAG context from linked files enhances AI understanding._
@@ -48,6 +58,11 @@ _RAG context from linked files enhances AI understanding._
     4. Now, when you run actions, the plugin will attempt to find relevant text from linked notes, backlinks, and PDFs, providing it as context to the main AI. An animated status bar item ✨ will show progress during embedding.
   </p>
 </details>
+
+<img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">
+_Image support using Ollama + bakllava._
+
+---
 
 ### Default Actions
 The plugin comes with a default "General" group containing:
