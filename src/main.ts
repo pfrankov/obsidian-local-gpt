@@ -37,76 +37,94 @@ import {
 import { preparePrompt } from "./utils";
 
 export default class LocalGPT extends Plugin {
-	settings: LocalGPTSettings;
-	abortControllers: AbortController[] = [];
-	updatingInterval: number;
-	private statusBarItem: HTMLElement;
-	private currentPercentage: number = 0;
-	private targetPercentage: number = 0;
-	private animationFrameId: number | null = null;
-	private totalProgressSteps: number = 0;
-	private completedProgressSteps: number = 0;
+	settings: LocalGPTSettings; // 插件设置
+	abortControllers: AbortController[] = []; // 用于管理异步操作的中止控制器数组
+	updatingInterval: number; // 更新检查的定时器 ID
+	private statusBarItem: HTMLElement; // 状态栏元素
+	private currentPercentage: number = 0; // 当前进度百分比（用于动画）
+	private targetPercentage: number = 0; // 目标进度百分比
+	private animationFrameId: number | null = null; // 动画帧 ID
+	private totalProgressSteps: number = 0; // 总进度步数
+	private completedProgressSteps: number = 0; // 已完成的进度步数
+
 	// 用于临时存储通过 "@" 符号选择的模型ID (内部变量)
+	// 该变量仅生效一次，在使用后会被自动重置为 null
 	private _temporarilySelectedProviderId: string | null = null;
-	editorSuggest?: EditorSuggest<IAIProvider>; // 用于存储 "@" 模型建议器的实例
-	actionSuggest?: EditorSuggest<LocalGPTAction>; // 用于存储 "::" 动作建议器的实例
+	editorSuggest?: ModelSuggestor; // 用于存储 "@" 模型建议器的实例
+	actionSuggest?: ActionSuggestor; // 用于存储 "::" 动作建议器的实例
 
 	// 获取临时选择的 Provider ID
+	// 该方法提供对内部变量的只读访问
 	public getTemporaryProviderId(): string | null {
 		return this._temporarilySelectedProviderId;
 	}
 
 	// 设置临时选择的 Provider ID
+	// 该方法允许外部设置临时选择的模型ID，通常在用户通过 "@" 选择模型后调用
 	public setTemporaryProviderId(id: string | null): void {
 		this._temporarilySelectedProviderId = id;
-		// 不再在此处显示 Notice，因为 ModelSuggestor 和 runAction 已经有相关提示了
-		// (Notice is no longer shown here as ModelSuggestor and runAction already have related notifications)
 	}
 
+	// 插件加载时的生命周期方法
 	async onload() {
+		// 初始化 AI 服务
 		initAI(this.app, this, async () => {
-			await this.loadSettings();
+			await this.loadSettings(); // 加载设置
+			// 添加设置页面标签
 			this.addSettingTab(new LocalGPTSettingTab(this.app, this));
-			this.reload();
+			this.reload(); // 重新加载插件配置
+
+			// 等待工作区准备就绪后初始化
 			this.app.workspace.onLayoutReady(async () => {
+				// 初始化文件缓存
 				// @ts-ignore
 				await fileCache.init(this.app.appId);
 
+				// 延迟5秒后检查更新
 				window.setTimeout(() => {
 					this.checkUpdates();
 				}, 5000);
 			});
+
+			// 注册编辑器扩展插件（旋转加载动画）
 			this.registerEditorExtension(spinnerPlugin);
-			this.initializeStatusBar();
-			// 注册模型建议器
+			this.initializeStatusBar(); // 初始化状态栏
+
+			// 注册模型建议器 (用于 "@" 触发)
 			this.editorSuggest = new ModelSuggestor(this);
 			this.registerEditorSuggest(this.editorSuggest);
-			// 注册 "::" 动作建议器
+			// 注册动作建议器 (用于 "::" 触发)
 			this.actionSuggest = new ActionSuggestor(this);
 			this.registerEditorSuggest(this.actionSuggest);
 		});
 	}
 
+	// 初始化状态栏
 	private initializeStatusBar() {
 		this.statusBarItem = this.addStatusBarItem();
 		this.statusBarItem.addClass("local-gpt-status");
 		this.statusBarItem.hide();
 	}
 
+	// 处理 AI 生成的文本
+	// 移除思考标签 <think>...</think> 并格式化输出
 	processText(text: string, selectedText: string) {
 		if (!text.trim()) {
 			return "";
 		}
 
-		// Remove <think>...</think> tags and their content from the final output
+		// 移除 <think>...</think> 标签及其内容
 		const cleanText = removeThinkingTags(text).trim();
 
+		// 返回格式化后的文本，去除原始选中文本
 		return ["\n", cleanText.replace(selectedText, "").trim(), "\n"].join(
 			"",
 		);
 	}
 
+	// 添加命令面板命令
 	private addCommands() {
+		// 添加右键上下文菜单命令
 		this.addCommand({
 			id: "context-menu",
 			name: "Show context menu",
@@ -119,6 +137,7 @@ export default class LocalGPT extends Plugin {
 
 				const contextMenu = new Menu();
 
+				// 将所有动作添加到上下文菜单
 				this.settings.actions.forEach((action) => {
 					contextMenu.addItem((item) => {
 						item.setTitle(action.name).onClick(
@@ -127,6 +146,7 @@ export default class LocalGPT extends Plugin {
 					});
 				});
 
+				// 获取光标位置并显示菜单
 				const fromRect = editorView.coordsAtPos(
 					editor.posToOffset(cursorPositionFrom),
 				);
@@ -140,6 +160,7 @@ export default class LocalGPT extends Plugin {
 			},
 		});
 
+		// 为每个动作添加快速访问命令
 		this.settings.actions.forEach((action, index) => {
 			this.addCommand({
 				id: `quick-access-${index + 1}`,
@@ -151,22 +172,27 @@ export default class LocalGPT extends Plugin {
 		});
 	}
 
+	// 执行指定的 AI 动作
 	async runAction(action: LocalGPTAction, editor: Editor) {
 		// @ts-expect-error, not typed
 		const editorView = editor.cm;
 
+		// 获取选中的文本，如果没有选中则使用整个文档
 		const selection = editor.getSelection();
 		let selectedText = selection || editor.getValue();
 		const cursorPositionFrom = editor.getCursor("from");
 		const cursorPositionTo = editor.getCursor("to");
 
+		// 创建中止控制器，允许用户通过 ESC 键取消操作
 		const abortController = new AbortController();
 		this.abortControllers.push(abortController);
 
+		// 显示加载动画
 		const spinner = editorView.plugin(spinnerPlugin) || undefined;
 		const hideSpinner = spinner?.show(editor.posToOffset(cursorPositionTo));
 		this.app.workspace.updateOptions();
 
+		// 实时更新处理进度的回调函数
 		const onUpdate = (updatedString: string) => {
 			spinner.processText(updatedString, (text: string) =>
 				this.processText(text, selectedText),
@@ -174,6 +200,7 @@ export default class LocalGPT extends Plugin {
 			this.app.workspace.updateOptions();
 		};
 
+		// 提取并处理文本中的图片链接
 		const regexp = /!\[\[(.+?\.(?:png|jpe?g))]]/gi;
 		const fileNames = Array.from(
 			selectedText.matchAll(regexp),
@@ -182,6 +209,7 @@ export default class LocalGPT extends Plugin {
 
 		selectedText = selectedText.replace(regexp, "");
 
+		// 将图片转换为 Base64 编码
 		const imagesInBase64 =
 			(
 				await Promise.all<string>(
@@ -218,15 +246,18 @@ export default class LocalGPT extends Plugin {
 				)
 			).filter(Boolean) || [];
 
+		// 日志记录
 		logger.time("Processing Embeddings");
 
 		logger.timeEnd("Processing Embeddings");
 		logger.debug("Selected text", selectedText);
 
+		// 等待 AI 服务初始化完成
 		const aiRequestWaiter = await waitForAI();
 
 		const aiProviders: IAIProvidersService = await aiRequestWaiter.promise;
 
+		// 增强上下文：从链接的文件中获取相关内容
 		const context = await this.enhanceWithContext(
 			selectedText,
 			aiProviders,
@@ -237,6 +268,7 @@ export default class LocalGPT extends Plugin {
 			abortController,
 		);
 
+		// 选择要使用的 AI Provider
 		let provider = aiProviders.providers.find(
 			// 默认使用主AI Provider (Default to the main AI provider)
 			(p: IAIProvider) => p.id === this.settings.aiProviders.main,
@@ -252,22 +284,30 @@ export default class LocalGPT extends Plugin {
 			if (tempProvider) {
 				provider = tempProvider; // 使用临时选择的 Provider (Use the temporarily selected provider)
 				// 设置模型显示名称 (Set the model display name)
-				modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
-				new Notice(`Using temporarily selected model: ${modelDisplayName}`); // 提示用户 (Notify the user)
+				modelDisplayName = `${provider.name}${
+					provider.model ? ` (${provider.model})` : ""
+				}`;
+				new Notice(
+					`Using temporarily selected model: ${modelDisplayName}`,
+				); // 提示用户 (Notify the user)
 			} else {
 				new Notice(
 					`Could not find temporarily selected model ID: ${tempId}. Using default AI provider.`,
 				);
 				// 如果临时模型未找到，则尝试使用默认主模型的名称 (If temp model not found, try to use default main model's name)
 				if (provider) {
-					modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
+					modelDisplayName = `${provider.name}${
+						provider.model ? ` (${provider.model})` : ""
+					}`;
 				}
 			}
 			// 重置临时选择的 Provider ID，确保其仅生效一次 (Reset the temporary provider ID to ensure it's used only once)
 			this.setTemporaryProviderId(null); // 使用 setter 方法 (Use setter method)
 		} else if (provider) {
 			// 如果没有临时选择，并且默认主 Provider 已确定，则设置其显示名称 (If no temporary selection and default main provider is set, set its display name)
-			modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
+			modelDisplayName = `${provider.name}${
+				provider.model ? ` (${provider.model})` : ""
+			}`;
 		}
 
 		// 处理图像：如果存在图像，并且当前选择的 Provider 不支持视觉功能，则尝试切换到视觉兼容的 Provider
@@ -302,14 +342,18 @@ export default class LocalGPT extends Plugin {
 		}
 
 		if (!provider) {
-			new Notice("No AI provider found. Please configure a provider in settings.");
+			new Notice(
+				"No AI provider found. Please configure a provider in settings.",
+			);
 			throw new Error("No AI provider found");
 		}
 
 		// 如果在上述逻辑后 modelDisplayName 仍然为空 (例如，初始默认 provider 也未设置)，则最后尝试填充
 		// (If modelDisplayName is still empty after the above logic (e.g., initial default provider was also not set), try one last time to populate it)
 		if (!modelDisplayName && provider) {
-			modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
+			modelDisplayName = `${provider.name}${
+				provider.model ? ` (${provider.model})` : ""
+			}`;
 		}
 
 		// --- 性能指标变量初始化 (Performance Metrics Variable Initialization) ---
@@ -346,7 +390,9 @@ export default class LocalGPT extends Plugin {
 			// --- 总耗时与性能指标计算 (Total Time and Performance Metrics Calculation) ---
 			const requestEndTime = performance.now(); // 请求结束时间 (Request end time)
 			const totalTime = Math.round(requestEndTime - requestStartTime); // 总耗时 (Total time)
-			const ttft = firstChunkTime ? Math.round(firstChunkTime - requestStartTime) : "N/A"; // 首字延迟 (Time to first token)
+			const ttft = firstChunkTime
+				? Math.round(firstChunkTime - requestStartTime)
+				: "N/A"; // 首字延迟 (Time to first token)
 			// Token 数量目前假设为 "N/A" (Token count is currently assumed to be "N/A")
 			// let tokensUsed = "N/A"; // 已在外部作用域定义 (Already defined in the outer scope)
 			// --- End of Total Time and Performance Metrics Calculation ---
@@ -374,10 +420,13 @@ export default class LocalGPT extends Plugin {
 				const isLastLine = editor.lastLine() === cursorPositionTo.line;
 				// processText 进一步处理文本，例如移除原始选中文本部分 (processText further processes the text, e.g., removing the original selected text part)
 				const textToInsert = this.processText(finalText, selectedText);
-				editor.replaceRange(isLastLine ? "\n" + textToInsert : textToInsert, {
-					ch: 0,
-					line: cursorPositionTo.line + 1,
-				});
+				editor.replaceRange(
+					isLastLine ? "\n" + textToInsert : textToInsert,
+					{
+						ch: 0,
+						line: cursorPositionTo.line + 1,
+					},
+				);
 			}
 		});
 
@@ -399,12 +448,15 @@ export default class LocalGPT extends Plugin {
 		});
 	}
 
+	// 使用相关文档内容增强上下文
+	// 通过向量存储和语义搜索找到相关内容
 	async enhanceWithContext(
 		selectedText: string,
 		aiProviders: IAIProvidersService,
 		aiProvider: IAIProvider | undefined,
 		abortController: AbortController,
 	): Promise<string> {
+		// 获取当前活动文件
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile) {
 			return "";
@@ -413,6 +465,7 @@ export default class LocalGPT extends Plugin {
 			return "";
 		}
 
+		// 获取选中文本中提到的链接文件
 		const linkedFiles = getLinkedFiles(
 			selectedText,
 			this.app.vault,
@@ -420,17 +473,21 @@ export default class LocalGPT extends Plugin {
 			activeFile.path,
 		);
 
+		// 如果没有链接文件，返回空字符串
 		if (linkedFiles.length === 0) {
 			return "";
 		}
 
 		try {
+			// 检查是否已取消操作
 			if (abortController?.signal.aborted) {
 				return "";
 			}
 
+			// 初始化进度条
 			this.initializeProgress();
 
+			// 处理链接的文档
 			const processedDocs = await startProcessing(
 				linkedFiles,
 				this.app.vault,
@@ -448,6 +505,7 @@ export default class LocalGPT extends Plugin {
 				return "";
 			}
 
+			// 创建向量存储以进行语义搜索
 			const vectorStore = await createVectorStore(
 				Array.from(processedDocs.values()),
 				this,
@@ -464,6 +522,7 @@ export default class LocalGPT extends Plugin {
 				return "";
 			}
 
+			// 查询向量存储获取相关上下文
 			const relevantContext = await queryVectorStore(
 				selectedText,
 				vectorStore,
@@ -489,19 +548,21 @@ export default class LocalGPT extends Plugin {
 		return "";
 	}
 
+	// 插件卸载时的清理工作
 	onunload() {
-		document.removeEventListener("keydown", this.escapeHandler);
-		window.clearInterval(this.updatingInterval);
+		document.removeEventListener("keydown", this.escapeHandler); // 移除键盘监听
+		window.clearInterval(this.updatingInterval); // 清除更新检查定时器
 		if (this.animationFrameId !== null) {
-			cancelAnimationFrame(this.animationFrameId);
+			cancelAnimationFrame(this.animationFrameId); // 取消动画帧
 		}
 	}
 
+	// 加载插件设置并执行必要的数据迁移
 	async loadSettings() {
 		const loadedData: LocalGPTSettings = await this.loadData();
 		let needToSave = false;
 
-		// Migration
+		// 数据迁移：处理旧版本设置格式
 		if (loadedData) {
 			const oldDefaultProviders = {
 				ollama: {
@@ -720,6 +781,7 @@ export default class LocalGPT extends Plugin {
 		}
 	}
 
+	// 检查插件更新
 	async checkUpdates() {
 		try {
 			const { json: response } = await requestUrl({
@@ -731,6 +793,7 @@ export default class LocalGPT extends Plugin {
 				contentType: "application/json",
 			});
 
+			// 如果有新版本可用，显示通知
 			if (response.tag_name !== this.manifest.version) {
 				new Notice(`⬆️ Local GPT: a new version is available`);
 			}
@@ -739,6 +802,7 @@ export default class LocalGPT extends Plugin {
 		}
 	}
 
+	// ESC 键处理器：取消所有正在进行的 AI 请求
 	escapeHandler = (event: KeyboardEvent) => {
 		if (event.key === "Escape") {
 			this.abortControllers.forEach(
@@ -750,22 +814,25 @@ export default class LocalGPT extends Plugin {
 		}
 	};
 
+	// 重新加载插件配置
 	reload() {
-		this.onunload();
-		this.addCommands();
+		this.onunload(); // 先执行清理
+		this.addCommands(); // 重新添加命令
 		this.abortControllers = [];
 		this.updatingInterval = window.setInterval(
 			this.checkUpdates.bind(this),
 			10800000,
-		); // every 3 hours
+		); // 每3小时检查更新
 		document.addEventListener("keydown", this.escapeHandler);
 	}
 
+	// 保存设置并重新加载插件
 	async saveSettings() {
 		await this.saveData(this.settings);
 		this.reload();
 	}
 
+	// 初始化进度条显示
 	private initializeProgress() {
 		this.totalProgressSteps = 0;
 		this.completedProgressSteps = 0;
@@ -775,16 +842,19 @@ export default class LocalGPT extends Plugin {
 		this.updateStatusBar();
 	}
 
+	// 添加总进度步数
 	private addTotalProgressSteps(steps: number) {
 		this.totalProgressSteps += steps;
 		this.updateProgressBar();
 	}
 
+	// 更新已完成的步数
 	private updateCompletedSteps(steps: number) {
 		this.completedProgressSteps += steps;
 		this.updateProgressBar();
 	}
 
+	// 更新进度条百分比
 	private updateProgressBar() {
 		const newTargetPercentage =
 			this.totalProgressSteps > 0
@@ -803,6 +873,7 @@ export default class LocalGPT extends Plugin {
 		}
 	}
 
+	// 更新状态栏文本
 	private updateStatusBar() {
 		this.statusBarItem.setAttr(
 			"data-text",
@@ -813,9 +884,10 @@ export default class LocalGPT extends Plugin {
 		this.statusBarItem.setText(` `);
 	}
 
+	// 动画显示百分比变化
 	private animatePercentage() {
 		const startTime = performance.now();
-		const duration = 300;
+		const duration = 300; // 动画持续时间300ms
 
 		const animate = (currentTime: number) => {
 			const elapsedTime = currentTime - startTime;
@@ -838,6 +910,7 @@ export default class LocalGPT extends Plugin {
 		this.animationFrameId = requestAnimationFrame(animate);
 	}
 
+	// 隐藏状态栏并重置进度
 	private hideStatusBar() {
 		this.statusBarItem.hide();
 		this.totalProgressSteps = 0;
@@ -848,100 +921,26 @@ export default class LocalGPT extends Plugin {
 }
 
 // 用于 "::" 触发的动作建议器 (Action Suggestor for "::" trigger)
-class ActionSuggestor extends PopoverSuggest<LocalGPTAction> implements EditorSuggest<LocalGPTAction> {
+class ActionSuggestor extends EditorSuggest<LocalGPTAction> {
 	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
 
-	// Explicitly define properties from EditorSuggest (and PopoverSuggest if not already covered)
-	app: App;
-	scope: Scope;
-	context: EditorSuggestContext | null;
-	limit: number;
-	instructionsEl: HTMLElement;
-
 	constructor(plugin: LocalGPT) {
-		super(plugin.app); // 将 App 实例传递给 PopoverSuggest 构造函数 (Pass App instance to PopoverSuggest constructor)
+		super(plugin.app); // 将 App 实例传递给 EditorSuggest 构造函数 (Pass App instance to EditorSuggest constructor)
 		this.plugin = plugin; // 初始化动作建议器，传入 LocalGPT 插件实例
-		this.app = plugin.app; // Explicitly assign if required
-		this.scope = new Scope(); // Explicitly assign if required
-		this.instructionsEl = document.createElement('div');
-		this.limit = 100; // 建议数量限制 (Suggestion limit)
-		this.context = null;
-		// Chinese comment: // 构造函数，初始化父类 PopoverSuggest 并设置插件实例 (Constructor, initializes parent PopoverSuggest and sets plugin instance)
+		// 构造函数，初始化父类 EditorSuggest 并设置插件实例 (Constructor, initializes parent EditorSuggest and sets plugin instance)
 	}
-
-	// 设置建议弹窗的说明性文本 (Sets instructional text for the suggestion popover)
-	setInstructions(cb: (instructionsEl: HTMLElement) => void): void {
-		this.instructionsEl.empty();
-		cb(this.instructionsEl);
-		// Original implementation for reference, now using the required signature:
-		// createDiv([
-		// 	{ command: "↑↓", purpose: "导航 (Navigate)" },
-		// 	{ command: "↵", purpose: "选择 (Select)" },
-		// 	{ command: "esc", purpose: "关闭 (Dismiss)" },
-		// ]);
-	}
-
-	// 更新建议上下文 (Updates the suggestion context)
-	update(newContext: EditorSuggestContext): void {
-		this.context = newContext;
-		if (super.update) {
-			super.update(newContext);
-		}
-	}
-
-	// 建议弹窗打开时的回调 (Callback when suggestion popover opens)
-	onOpen(): void {
-		if (super.onOpen) {
-			super.onOpen();
-		}
-	}
-
-	// 建议弹窗关闭时的回调 (Callback when suggestion popover closes)
-	onClose(): void {
-		if (super.onClose) {
-			super.onClose();
-		}
-	}
-	
-	// --- Potentially missing methods from EditorSuggest / AbstractInputSuggest ---
-	// (Assuming these are required based on typical obsidian.d.ts structure for EditorSuggest)
-
-	// 开始监听编辑器事件 (Start listening to editor events)
-	startListening(): void {
-		if (super.startListening) {
-			// @ts-ignore - startListening might be protected or not exist on PopoverSuggest directly
-			super.startListening();
-		}
-	}
-
-	// 停止监听编辑器事件 (Stop listening to editor events)
-	stopListening(): void {
-		if (super.stopListening) {
-			// @ts-ignore - stopListening might be protected or not exist on PopoverSuggest directly
-			super.stopListening();
-		}
-	}
-	
-	// 是否应该显示建议 (Whether suggestions should be shown)
-	shouldShowSuggestions(context: EditorSuggestContext): boolean {
-		if (super.shouldShowSuggestions) {
-			// @ts-ignore - shouldShowSuggestions might be protected or not exist on PopoverSuggest directly
-			return super.shouldShowSuggestions(context);
-		}
-		return true; // Default implementation if not provided by superclass
-	}
-	// --- End of potentially missing methods ---
-
 
 	// 当用户输入特定字符序列 (例如 "::") 时触发 (Triggered when the user types a specific character sequence, e.g., "::")
 	onTrigger(
 		cursor: EditorPosition, // 当前光标位置 (Current cursor position)
 		editor: Editor, // 当前编辑器实例 (Current editor instance)
 		_file: TFile | null, // 当前打开的文件 (Currently open file, may be null)
-	): EditorSuggestTriggerInfo | null { // 返回触发信息或 null (Returns trigger info or null)
+	): EditorSuggestTriggerInfo | null {
+		// 返回触发信息或 null (Returns trigger info or null)
 		// 检查条件：临时选择的模型ID是否存在，以及输入是否为 "::"
 		// (Check conditions: if a temporary model ID is selected, and if the input is "::")
-		if (!this.plugin.getTemporaryProviderId()) { // 使用 getter 方法 (Use getter method)
+		if (!this.plugin.getTemporaryProviderId()) {
+			// 使用 getter 方法 (Use getter method)
 			return null; // 如果没有临时选择的模型，则不触发 (If no temporary model is selected, do not trigger)
 		}
 
@@ -959,9 +958,10 @@ class ActionSuggestor extends PopoverSuggest<LocalGPTAction> implements EditorSu
 	}
 
 	// 获取建议列表 (Get the list of suggestions)
-	async getSuggestions(
+	getSuggestions(
 		_context: EditorSuggestContext, // 编辑器建议上下文 (Editor suggest context) - _context is not used for now
-	): Promise<LocalGPTAction[]> { // 返回一个 LocalGPTAction 数组的 Promise (Returns a Promise of an array of LocalGPTAction)
+	): LocalGPTAction[] {
+		// 返回一个 LocalGPTAction 数组 (Returns an array of LocalGPTAction)
 		// 直接返回插件设置中的所有动作 (Directly return all actions from plugin settings)
 		return this.plugin.settings.actions;
 	}
@@ -973,7 +973,10 @@ class ActionSuggestor extends PopoverSuggest<LocalGPTAction> implements EditorSu
 	}
 
 	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
-	selectSuggestion(action: LocalGPTAction, evt: MouseEvent | KeyboardEvent): void {
+	selectSuggestion(
+		action: LocalGPTAction,
+		evt: MouseEvent | KeyboardEvent,
+	): void {
 		const currentEditor = this.plugin.app.workspace.activeEditor?.editor;
 		if (!currentEditor) {
 			new Notice("Cannot find active editor to run action."); // 提示用户找不到编辑器 (Notify user editor not found)
@@ -989,91 +992,16 @@ class ActionSuggestor extends PopoverSuggest<LocalGPTAction> implements EditorSu
 }
 
 // 用于模型选择的建议器 (Model Suggestor)
-class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSuggest<IAIProvider> {
+class ModelSuggestor extends EditorSuggest<IAIProvider> {
 	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
 	private aiProvidersService: IAIProvidersService | null = null; // AI Providers 服务实例 (AI Providers service instance)
-	
-	// Explicitly define properties from EditorSuggest (and PopoverSuggest if not already covered)
-	app: App; // PopoverSuggest constructor handles this.app
-	scope: Scope; // PopoverSuggest constructor handles this.scope
-	context: EditorSuggestContext | null;
-	limit: number;
-	instructionsEl: HTMLElement;
 
 	constructor(plugin: LocalGPT) {
-		super(plugin.app); // 将 App 实例传递给 PopoverSuggest 构造函数 (Pass App instance to PopoverSuggest constructor)
+		super(plugin.app); // 将 App 实例传递给 EditorSuggest 构造函数 (Pass App instance to EditorSuggest constructor)
 		this.plugin = plugin; // 初始化模型建议器，传入 LocalGPT 插件实例
-		this.app = plugin.app; // Explicitly assign if required by strict interface conformance, though super(app) does it.
-		this.scope = new Scope(); // PopoverSuggest's constructor creates a scope. Re-assigning might be needed if the interface demands direct ownership.
-		this.instructionsEl = document.createElement('div');
-		this.limit = 100; // 建议数量限制 (Suggestion limit)
-		this.context = null;
-		// Chinese comment: // 构造函数，初始化父类 PopoverSuggest 并设置插件实例 (Constructor, initializes parent PopoverSuggest and sets plugin instance)
+		// 构造函数，初始化父类 EditorSuggest 并设置插件实例 (Constructor, initializes parent EditorSuggest and sets plugin instance)
 		this.loadProviders(); // 异步加载 AI Providers (Asynchronously load AI Providers)
 	}
-
-	// 设置建议弹窗的说明性文本 (Sets instructional text for the suggestion popover)
-	setInstructions(cb: (instructionsEl: HTMLElement) => void): void {
-		this.instructionsEl.empty(); 
-		cb(this.instructionsEl);
-		// Original implementation for reference, now using the required signature:
-		// createDiv([
-		// 	{ command: "↑↓", purpose: "导航 (Navigate)" },
-		// 	{ command: "↵", purpose: "选择 (Select)" },
-		// 	{ command: "esc", purpose: "关闭 (Dismiss)" },
-		// ]);
-	}
-
-	// 更新建议上下文 (Updates the suggestion context)
-	update(newContext: EditorSuggestContext): void {
-		this.context = newContext;
-		if (super.update) {
-			super.update(newContext);
-		}
-	}
-
-	// 建议弹窗打开时的回调 (Callback when suggestion popover opens)
-	onOpen(): void {
-		if (super.onOpen) {
-			super.onOpen();
-		}
-	}
-
-	// 建议弹窗关闭时的回调 (Callback when suggestion popover closes)
-	onClose(): void {
-		if (super.onClose) {
-			super.onClose();
-		}
-	}
-
-	// --- Potentially missing methods from EditorSuggest / AbstractInputSuggest ---
-	// (Assuming these are required based on typical obsidian.d.ts structure for EditorSuggest)
-
-	// 开始监听编辑器事件 (Start listening to editor events)
-	startListening(): void {
-		if (super.startListening) {
-			// @ts-ignore - startListening might be protected or not exist on PopoverSuggest directly
-			super.startListening();
-		}
-	}
-
-	// 停止监听编辑器事件 (Stop listening to editor events)
-	stopListening(): void {
-		if (super.stopListening) {
-			// @ts-ignore - stopListening might be protected or not exist on PopoverSuggest directly
-			super.stopListening();
-		}
-	}
-	
-	// 是否应该显示建议 (Whether suggestions should be shown)
-	shouldShowSuggestions(context: EditorSuggestContext): boolean {
-		if (super.shouldShowSuggestions) {
-			// @ts-ignore - shouldShowSuggestions might be protected or not exist on PopoverSuggest directly
-			return super.shouldShowSuggestions(context);
-		}
-		return true; // Default implementation if not provided by superclass
-	}
-	// --- End of potentially missing methods ---
 
 	// 异步加载 AI Providers 服务 (Asynchronously loads the AI Providers service)
 	private async loadProviders() {
@@ -1081,8 +1009,13 @@ class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSugges
 			const aiRequestWaiter = await waitForAI(); // 等待 AI 服务初始化 (Wait for AI service initialization)
 			this.aiProvidersService = await aiRequestWaiter.promise; // 获取 AI Providers 服务实例 (Get the AI Providers service instance)
 		} catch (error) {
-			console.error("Error loading AI providers for ModelSuggestor:", error);
-			new Notice("Failed to load AI providers for model suggestion. Model selection via '@' might not work.");
+			console.error(
+				"Error loading AI providers for ModelSuggestor:",
+				error,
+			);
+			new Notice(
+				"Failed to load AI providers for model suggestion. Model selection via '@' might not work.",
+			);
 		}
 	}
 
@@ -1091,7 +1024,8 @@ class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSugges
 		cursor: EditorPosition, // 当前光标位置 (Current cursor position)
 		editor: Editor, // 当前编辑器实例 (Current editor instance)
 		_file: TFile | null, // 当前打开的文件 (Currently open file, may be null)
-	): EditorSuggestTriggerInfo | null { // 返回触发信息或 null (Returns trigger info or null)
+	): EditorSuggestTriggerInfo | null {
+		// 返回触发信息或 null (Returns trigger info or null)
 		const line = editor.getLine(cursor.line); // 获取当前行内容 (Get current line content)
 		const sub = line.substring(0, cursor.ch); // 获取光标前的子字符串 (Get substring before the cursor)
 		const match = sub.match(/@([\w\s]*)$/); // 检查 "@" 符号后跟任意单词字符或空格 (Check for "@" symbol followed by any word characters or spaces)
@@ -1107,9 +1041,10 @@ class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSugges
 	}
 
 	// 获取建议列表 (Get the list of suggestions)
-	async getSuggestions(
+	getSuggestions(
 		context: EditorSuggestContext, // 编辑器建议上下文 (Editor suggest context)
-	): Promise<IAIProvider[]> { // 返回一个 IAIProvider 数组的 Promise (Returns a Promise of an array of IAIProvider)
+	): IAIProvider[] {
+		// 返回一个 IAIProvider 数组 (Returns an array of IAIProvider)
 		if (!this.aiProvidersService) {
 			// 如果 AI Provider 服务未加载，则不显示建议 (If AI Provider service is not loaded, show no suggestions)
 			// A notice is already shown in loadProviders
@@ -1124,7 +1059,8 @@ class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSugges
 		return providers.filter(
 			(provider) =>
 				provider.name.toLowerCase().includes(query) ||
-				(provider.model && provider.model.toLowerCase().includes(query)),
+				(provider.model &&
+					provider.model.toLowerCase().includes(query)),
 		);
 	}
 
@@ -1137,7 +1073,10 @@ class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSugges
 	}
 
 	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
-	selectSuggestion(suggestion: IAIProvider, evt: MouseEvent | KeyboardEvent): void {
+	selectSuggestion(
+		suggestion: IAIProvider,
+		evt: MouseEvent | KeyboardEvent,
+	): void {
 		// 将选择的 Provider ID 存储到插件的临时变量中 (Store the selected Provider ID in the plugin's temporary variable)
 		this.plugin.setTemporaryProviderId(suggestion.id); // 使用 setter 方法 (Use setter method)
 		// 提示用户已选择模型 (Notify the user that a model has been selected)
