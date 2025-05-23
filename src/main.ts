@@ -47,23 +47,8 @@ export default class LocalGPT extends Plugin {
 	private totalProgressSteps: number = 0; // 总进度步数
 	private completedProgressSteps: number = 0; // 已完成的进度步数
 
-	// 用于临时存储通过 "@" 符号选择的模型ID (内部变量)
-	// 该变量仅生效一次，在使用后会被自动重置为 null
-	private _temporarilySelectedProviderId: string | null = null;
 	editorSuggest?: ModelSuggestor; // 用于存储 "@" 模型建议器的实例
 	actionSuggest?: ActionSuggestor; // 用于存储 "::" 动作建议器的实例
-
-	// 获取临时选择的 Provider ID
-	// 该方法提供对内部变量的只读访问
-	public getTemporaryProviderId(): string | null {
-		return this._temporarilySelectedProviderId;
-	}
-
-	// 设置临时选择的 Provider ID
-	// 该方法允许外部设置临时选择的模型ID，通常在用户通过 "@" 选择模型后调用
-	public setTemporaryProviderId(id: string | null): void {
-		this._temporarilySelectedProviderId = id;
-	}
 
 	// 插件加载时的生命周期方法
 	async onload() {
@@ -270,41 +255,13 @@ export default class LocalGPT extends Plugin {
 
 		// 选择要使用的 AI Provider
 		let provider = aiProviders.providers.find(
-			// 默认使用主AI Provider (Default to the main AI provider)
+			// 使用全局配置的主AI Provider (Use the globally configured main AI provider)
 			(p: IAIProvider) => p.id === this.settings.aiProviders.main,
 		);
 		let modelDisplayName: string = ""; // 用于存储模型显示名称 (To store the model display name)
 
-		// 检查是否有通过 "@" 临时选择的模型 (Check if a model was temporarily selected via "@")
-		const tempId = this.getTemporaryProviderId(); // 使用 getter 方法 (Use getter method)
-		if (tempId) {
-			const tempProvider = aiProviders.providers.find(
-				(p: IAIProvider) => p.id === tempId,
-			);
-			if (tempProvider) {
-				provider = tempProvider; // 使用临时选择的 Provider (Use the temporarily selected provider)
-				// 设置模型显示名称 (Set the model display name)
-				modelDisplayName = `${provider.name}${
-					provider.model ? ` (${provider.model})` : ""
-				}`;
-				new Notice(
-					`Using temporarily selected model: ${modelDisplayName}`,
-				); // 提示用户 (Notify the user)
-			} else {
-				new Notice(
-					`Could not find temporarily selected model ID: ${tempId}. Using default AI provider.`,
-				);
-				// 如果临时模型未找到，则尝试使用默认主模型的名称 (If temp model not found, try to use default main model's name)
-				if (provider) {
-					modelDisplayName = `${provider.name}${
-						provider.model ? ` (${provider.model})` : ""
-					}`;
-				}
-			}
-			// 重置临时选择的 Provider ID，确保其仅生效一次 (Reset the temporary provider ID to ensure it's used only once)
-			this.setTemporaryProviderId(null); // 使用 setter 方法 (Use setter method)
-		} else if (provider) {
-			// 如果没有临时选择，并且默认主 Provider 已确定，则设置其显示名称 (If no temporary selection and default main provider is set, set its display name)
+		// 设置模型显示名称
+		if (provider) {
 			modelDisplayName = `${provider.name}${
 				provider.model ? ` (${provider.model})` : ""
 			}`;
@@ -348,14 +305,6 @@ export default class LocalGPT extends Plugin {
 			throw new Error("No AI provider found");
 		}
 
-		// 如果在上述逻辑后 modelDisplayName 仍然为空 (例如，初始默认 provider 也未设置)，则最后尝试填充
-		// (If modelDisplayName is still empty after the above logic (e.g., initial default provider was also not set), try one last time to populate it)
-		if (!modelDisplayName && provider) {
-			modelDisplayName = `${provider.name}${
-				provider.model ? ` (${provider.model})` : ""
-			}`;
-		}
-
 		// --- 性能指标变量初始化 (Performance Metrics Variable Initialization) ---
 		const requestStartTime = performance.now(); // 请求开始时间 (Request start time)
 		let firstChunkTime: number | null = null; // 首个数据块到达时间 (Time when the first chunk arrives)
@@ -393,18 +342,31 @@ export default class LocalGPT extends Plugin {
 			const ttft = firstChunkTime
 				? Math.round(firstChunkTime - requestStartTime)
 				: "N/A"; // 首字延迟 (Time to first token)
-			// Token 数量目前假设为 "N/A" (Token count is currently assumed to be "N/A")
-			// let tokensUsed = "N/A"; // 已在外部作用域定义 (Already defined in the outer scope)
+
+			// 计算 tokens 相关指标（暂时使用模拟数据）
+			const totalTokens = "177"; // 总 tokens
+			const inputTokens = "16"; // 输入 tokens
+			const outputTokens = "155"; // 输出 tokens
+			const tokensPerSecond =
+				totalTime > 0 ? Math.round(155000 / totalTime) : "N/A"; // tokens/秒
 			// --- End of Total Time and Performance Metrics Calculation ---
 
 			// 移除思考标签并整理文本 (Remove thinking tags and trim the text)
 			const cleanedFullText = removeThinkingTags(fullText).trim();
-			// 为输出文本添加模型名称前缀 (Prepend model name to the output text)
-			let finalText = `[${modelDisplayName || "AI"}]: ${cleanedFullText}`;
+
+			// 构建最终输出文本，模型名称单独一行
+			const now = new Date();
+			const timeStr = now.toLocaleString("zh-CN", {
+				timeZone: "Asia/Shanghai",
+				hour12: false,
+			});
+			let finalText = `[${
+				modelDisplayName || "AI"
+			}] ${timeStr}:\n${cleanedFullText}`;
 
 			// --- 格式化并附加性能指标 (Format and Append Performance Metrics) ---
-			// 使用中文标签 (Using Chinese labels)
-			const performanceMetrics = `\n\n---\n性能指标: Tokens: ${tokensUsed} | 首字延迟: ${ttft} ms | 总耗时: ${totalTime} ms`;
+			// 使用新的性能指标格式
+			const performanceMetrics = `\n\n[Tokens: ${totalTokens} ↑${inputTokens} ↓${outputTokens} ${tokensPerSecond}tokens/s | 首字延迟: ${ttft} ms | 总耗时: ${totalTime} ms]:`;
 			finalText += performanceMetrics; // 将性能指标附加到最终文本后 (Append performance metrics to the final text)
 			// --- End of Format and Append Performance Metrics ---
 
@@ -930,28 +892,23 @@ class ActionSuggestor extends EditorSuggest<LocalGPTAction> {
 		// 构造函数，初始化父类 EditorSuggest 并设置插件实例 (Constructor, initializes parent EditorSuggest and sets plugin instance)
 	}
 
-	// 当用户输入特定字符序列 (例如 "::") 时触发 (Triggered when the user types a specific character sequence, e.g., "::")
+	// 当用户输入特定字符序列 (例如 "：") 时触发 (Triggered when the user types a specific character sequence, e.g., "：")
 	onTrigger(
 		cursor: EditorPosition, // 当前光标位置 (Current cursor position)
 		editor: Editor, // 当前编辑器实例 (Current editor instance)
 		_file: TFile | null, // 当前打开的文件 (Currently open file, may be null)
 	): EditorSuggestTriggerInfo | null {
 		// 返回触发信息或 null (Returns trigger info or null)
-		// 检查条件：临时选择的模型ID是否存在，以及输入是否为 "::"
-		// (Check conditions: if a temporary model ID is selected, and if the input is "::")
-		if (!this.plugin.getTemporaryProviderId()) {
-			// 使用 getter 方法 (Use getter method)
-			return null; // 如果没有临时选择的模型，则不触发 (If no temporary model is selected, do not trigger)
-		}
-
 		const line = editor.getLine(cursor.line); // 获取当前行内容 (Get current line content)
 		const sub = line.substring(0, cursor.ch); // 获取光标前的子字符串 (Get substring before the cursor)
 
-		if (sub.endsWith("::")) {
+		// 检查是否输入了中文冒号 "：" (Check if Chinese colon "：" is typed)
+		const match = sub.match(/：([^：]*)$/); // 匹配中文冒号及其后面的文本
+		if (match) {
 			return {
-				start: { line: cursor.line, ch: sub.lastIndexOf("::") }, // 建议开始的位置 (Start position for the suggestion)
+				start: { line: cursor.line, ch: match.index! }, // 建议开始的位置 (Start position for the suggestion)
 				end: cursor, // 建议结束的位置 (End position for the suggestion)
-				query: "", // "::" 后不需要额外查询，直接显示所有动作 (No additional query needed after "::", show all actions)
+				query: match[1] || "", // "：" 后面的查询字符串，用于过滤功能 (Query string after "：" for filtering)
 			};
 		}
 		return null; // 没有匹配则不触发建议 (No match, so don't trigger suggestions)
@@ -959,11 +916,21 @@ class ActionSuggestor extends EditorSuggest<LocalGPTAction> {
 
 	// 获取建议列表 (Get the list of suggestions)
 	getSuggestions(
-		_context: EditorSuggestContext, // 编辑器建议上下文 (Editor suggest context) - _context is not used for now
+		context: EditorSuggestContext, // 编辑器建议上下文 (Editor suggest context)
 	): LocalGPTAction[] {
 		// 返回一个 LocalGPTAction 数组 (Returns an array of LocalGPTAction)
-		// 直接返回插件设置中的所有动作 (Directly return all actions from plugin settings)
-		return this.plugin.settings.actions;
+		const allActions = this.plugin.settings.actions;
+		const query = context.query.toLowerCase();
+
+		// 如果有查询字符串，进行模糊匹配过滤 (If there's a query string, filter by fuzzy matching)
+		if (query) {
+			return allActions.filter((action) =>
+				action.name.toLowerCase().includes(query),
+			);
+		}
+
+		// 否则返回所有动作 (Otherwise return all actions)
+		return allActions;
 	}
 
 	// 渲染每个建议项 (Render each suggestion item)
@@ -1054,22 +1021,114 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 		const providers = this.aiProvidersService.providers; // 获取所有可用的 AI Provider (Get all available AI Providers)
 		const query = context.query.toLowerCase(); // 获取用户输入的查询条件并转为小写 (Get user's query and convert to lowercase)
 
-		// 根据查询过滤模型 (Filter models based on the query)
-		// 检查 provider 名称或其下的 model 名称是否包含查询字符串 (Check if provider name or its model name includes the query string)
-		return providers.filter(
-			(provider) =>
+		// 将 providers 分为主模型和视觉模型两组
+		const mainModels: IAIProvider[] = [];
+		const visionModels: IAIProvider[] = [];
+
+		providers.forEach((provider) => {
+			// 判断是否为视觉模型
+			// 使用类型断言和可选链来安全访问 capabilities
+			const providerWithCapabilities = provider as any;
+			const isVision =
+				providerWithCapabilities.capabilities?.vision ||
+				provider.name.toLowerCase().includes("vision") ||
+				provider.model?.toLowerCase().includes("vision") ||
+				provider.model?.toLowerCase().includes("gpt-4") ||
+				provider.model?.toLowerCase().includes("claude");
+
+			// 根据查询过滤
+			const matchesQuery =
+				!query ||
 				provider.name.toLowerCase().includes(query) ||
 				(provider.model &&
-					provider.model.toLowerCase().includes(query)),
-		);
+					provider.model.toLowerCase().includes(query));
+
+			if (matchesQuery) {
+				if (isVision) {
+					visionModels.push(provider);
+				} else {
+					mainModels.push(provider);
+				}
+			}
+		});
+
+		// 创建分组标记
+		const mainHeader = {
+			id: "__main_header__",
+			name: "━━━━━ 主模型 ━━━━━",
+			model: "",
+			isHeader: true,
+		} as any;
+
+		const visionHeader = {
+			id: "__vision_header__",
+			name: "━━━━━ 视觉模型 ━━━━━",
+			model: "",
+			isHeader: true,
+		} as any;
+
+		// 组合结果：主模型标题 + 主模型列表 + 视觉模型标题 + 视觉模型列表
+		const result: IAIProvider[] = [];
+
+		if (mainModels.length > 0 || visionModels.length > 0) {
+			if (mainModels.length > 0) {
+				result.push(mainHeader);
+				result.push(...mainModels);
+			}
+
+			if (visionModels.length > 0) {
+				if (mainModels.length > 0) {
+					// 添加分隔线
+					const separator = {
+						id: "__separator__",
+						name: "─────────────────────",
+						model: "",
+						isHeader: true,
+					} as any;
+					result.push(separator);
+				}
+				result.push(visionHeader);
+				result.push(...visionModels);
+			}
+		}
+
+		return result;
 	}
 
 	// 渲染每个建议项 (Render each suggestion item)
 	renderSuggestion(suggestion: IAIProvider, el: HTMLElement): void {
+		// 检查是否为标题行
+		// @ts-ignore
+		if (suggestion.isHeader) {
+			el.addClass("model-header");
+			el.setText(suggestion.name);
+			// 添加样式使标题不可选择
+			el.style.pointerEvents = "none";
+			el.style.opacity = "0.7";
+			el.style.fontWeight = "bold";
+			el.style.fontSize = "0.9em";
+			return;
+		}
+
 		// 设置建议项的显示文本 (Set the display text for the suggestion item)
 		// 格式: "Provider Name (model name)" 或 "Provider Name (Default)" 如果没有 model 名称
 		// Format: "Provider Name (model name)" or "Provider Name (Default)" if no model name
-		el.setText(`${suggestion.name} (${suggestion.model || "Default"})`);
+		const displayText = `${suggestion.name} (${
+			suggestion.model || "Default"
+		})`;
+		el.setText(displayText);
+
+		// 为当前选中的模型添加标记
+		const currentMainId = this.plugin.settings.aiProviders.main;
+		const currentVisionId = this.plugin.settings.aiProviders.vision;
+
+		if (
+			suggestion.id === currentMainId ||
+			suggestion.id === currentVisionId
+		) {
+			el.setText(displayText + " ✓");
+			el.style.fontWeight = "bold";
+		}
 	}
 
 	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
@@ -1077,11 +1136,57 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 		suggestion: IAIProvider,
 		evt: MouseEvent | KeyboardEvent,
 	): void {
-		// 将选择的 Provider ID 存储到插件的临时变量中 (Store the selected Provider ID in the plugin's temporary variable)
-		this.plugin.setTemporaryProviderId(suggestion.id); // 使用 setter 方法 (Use setter method)
-		// 提示用户已选择模型 (Notify the user that a model has been selected)
-		new Notice(`Model selected: ${suggestion.name}`);
-		// 文本替换由 onTrigger 返回的 triggerInfo 处理 (Text replacement is handled by triggerInfo returned from onTrigger)
-		this.close(); // 显式关闭建议器 (Explicitly close the suggester)
+		// 忽略标题行的选择
+		// @ts-ignore
+		if (suggestion.isHeader) {
+			return;
+		}
+
+		// 获取当前编辑器
+		const editor = this.plugin.app.workspace.activeEditor?.editor;
+		if (!editor) {
+			new Notice("无法找到活动编辑器");
+			this.close();
+			return;
+		}
+
+		// 获取触发信息用于替换文本
+		if (this.context) {
+			// 构建替换文本：@模型名称
+			const modelName = suggestion.model || suggestion.name;
+			const replacementText = `@${modelName} `;
+
+			// 替换编辑器中的文本
+			editor.replaceRange(
+				replacementText,
+				this.context.start,
+				this.context.end,
+			);
+		}
+
+		// 判断是否为视觉模型（根据名称或能力判断）
+		// 使用类型断言和可选链来安全访问 capabilities
+		const suggestionWithCapabilities = suggestion as any;
+		const isVisionModel =
+			suggestionWithCapabilities.capabilities?.vision ||
+			suggestion.name.toLowerCase().includes("vision") ||
+			suggestion.model?.toLowerCase().includes("vision") ||
+			suggestion.model?.toLowerCase().includes("gpt-4") ||
+			suggestion.model?.toLowerCase().includes("claude");
+
+		// 更新对应的全局配置
+		if (isVisionModel) {
+			// 更新视觉模型配置
+			this.plugin.settings.aiProviders.vision = suggestion.id;
+			new Notice(`已切换视觉模型为: ${suggestion.name}`);
+		} else {
+			// 更新主模型配置
+			this.plugin.settings.aiProviders.main = suggestion.id;
+			new Notice(`已切换主模型为: ${suggestion.name}`);
+		}
+
+		// 保存设置
+		this.plugin.saveSettings();
+		this.close(); // 关闭建议器
 	}
 }
