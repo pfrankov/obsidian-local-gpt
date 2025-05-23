@@ -1,4 +1,15 @@
-import { Editor, Menu, Notice, Plugin, requestUrl } from "obsidian";
+import {
+	Editor,
+	Menu,
+	Notice,
+	Plugin,
+	requestUrl,
+	EditorSuggest, // Added
+	EditorPosition, // Added
+	TFile, // Added
+	EditorSuggestTriggerInfo, // Added
+	EditorSuggestContext, // Added
+} from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "./spinnerPlugin";
@@ -31,10 +42,22 @@ export default class LocalGPT extends Plugin {
 	private animationFrameId: number | null = null;
 	private totalProgressSteps: number = 0;
 	private completedProgressSteps: number = 0;
-	// 用于临时存储通过 "@" 符号选择的模型ID
-	private temporarilySelectedProviderId: string | null = null;
+	// 用于临时存储通过 "@" 符号选择的模型ID (内部变量)
+	private _temporarilySelectedProviderId: string | null = null;
 	editorSuggest?: EditorSuggest<IAIProvider>; // 用于存储 "@" 模型建议器的实例
 	actionSuggest?: EditorSuggest<LocalGPTAction>; // 用于存储 "::" 动作建议器的实例
+
+	// 获取临时选择的 Provider ID
+	public getTemporaryProviderId(): string | null {
+		return this._temporarilySelectedProviderId;
+	}
+
+	// 设置临时选择的 Provider ID
+	public setTemporaryProviderId(id: string | null): void {
+		this._temporarilySelectedProviderId = id;
+		// 不再在此处显示 Notice，因为 ModelSuggestor 和 runAction 已经有相关提示了
+		// (Notice is no longer shown here as ModelSuggestor and runAction already have related notifications)
+	}
 
 	async onload() {
 		initAI(this.app, this, async () => {
@@ -217,9 +240,10 @@ export default class LocalGPT extends Plugin {
 		let modelDisplayName: string = ""; // 用于存储模型显示名称 (To store the model display name)
 
 		// 检查是否有通过 "@" 临时选择的模型 (Check if a model was temporarily selected via "@")
-		if (this.temporarilySelectedProviderId) {
+		const tempId = this.getTemporaryProviderId(); // 使用 getter 方法 (Use getter method)
+		if (tempId) {
 			const tempProvider = aiProviders.providers.find(
-				(p: IAIProvider) => p.id === this.temporarilySelectedProviderId,
+				(p: IAIProvider) => p.id === tempId,
 			);
 			if (tempProvider) {
 				provider = tempProvider; // 使用临时选择的 Provider (Use the temporarily selected provider)
@@ -228,7 +252,7 @@ export default class LocalGPT extends Plugin {
 				new Notice(`Using temporarily selected model: ${modelDisplayName}`); // 提示用户 (Notify the user)
 			} else {
 				new Notice(
-					`Could not find temporarily selected model ID: ${this.temporarilySelectedProviderId}. Using default AI provider.`,
+					`Could not find temporarily selected model ID: ${tempId}. Using default AI provider.`,
 				);
 				// 如果临时模型未找到，则尝试使用默认主模型的名称 (If temp model not found, try to use default main model's name)
 				if (provider) {
@@ -236,7 +260,7 @@ export default class LocalGPT extends Plugin {
 				}
 			}
 			// 重置临时选择的 Provider ID，确保其仅生效一次 (Reset the temporary provider ID to ensure it's used only once)
-			this.temporarilySelectedProviderId = null;
+			this.setTemporaryProviderId(null); // 使用 setter 方法 (Use setter method)
 		} else if (provider) {
 			// 如果没有临时选择，并且默认主 Provider 已确定，则设置其显示名称 (If no temporary selection and default main provider is set, set its display name)
 			modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
@@ -836,7 +860,7 @@ class ActionSuggestor implements EditorSuggestor<LocalGPTAction> {
 	): EditorSuggestTriggerInfo | null { // 返回触发信息或 null (Returns trigger info or null)
 		// 检查条件：临时选择的模型ID是否存在，以及输入是否为 "::"
 		// (Check conditions: if a temporary model ID is selected, and if the input is "::")
-		if (!this.plugin.temporarilySelectedProviderId) {
+		if (!this.plugin.getTemporaryProviderId()) { // 使用 getter 方法 (Use getter method)
 			return null; // 如果没有临时选择的模型，则不触发 (If no temporary model is selected, do not trigger)
 		}
 
@@ -961,7 +985,7 @@ class ModelSuggestor implements EditorSuggestor<IAIProvider> {
 	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
 	selectSuggestion(suggestion: IAIProvider, _evt: MouseEvent | KeyboardEvent): void {
 		// 将选择的 Provider ID 存储到插件的临时变量中 (Store the selected Provider ID in the plugin's temporary variable)
-		this.plugin.temporarilySelectedProviderId = suggestion.id;
+		this.plugin.setTemporaryProviderId(suggestion.id); // 使用 setter 方法 (Use setter method)
 		// 提示用户已选择模型 (Notify the user that a model has been selected)
 		new Notice(`Model selected: ${suggestion.name}`);
 
@@ -974,15 +998,11 @@ class ModelSuggestor implements EditorSuggestor<IAIProvider> {
 		// However, if we wanted to manually close it, we would need to access the specific
 		// EditorSuggest instance that Obsidian creates around our EditorSuggestor.
 		// For now, we rely on Obsidian's default behavior.
+		// The text replacement (e.g., replacing "@query" with what the user typed or the suggestion itself)
+		// is handled by Obsidian based on the `start` and `end` positions returned by `onTrigger`.
+		// We do not need to manually call `editor.replaceRange` here for that purpose.
 
-		// If we needed to manually replace text, we would do it here.
-		// For example, replacing "@query" with the selected model name.
-		const currentEditor = this.plugin.app.workspace.activeEditor?.editor;
-		if (currentEditor && context.start && context.end) {
-			const replacementText = `@${suggestion.name}`; // Or whatever text you want to insert
-			currentEditor.replaceRange(replacementText, context.start, context.end);
-		}
-
-
+		// The erroneous block using `context.start` and `context.end` has been removed.
+		// `context` is not available in `selectSuggestion`.
 	}
 }
