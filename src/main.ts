@@ -4,11 +4,15 @@ import {
 	Notice,
 	Plugin,
 	requestUrl,
-	EditorSuggest, // Added
-	EditorPosition, // Added
-	TFile, // Added
-	EditorSuggestTriggerInfo, // Added
-	EditorSuggestContext, // Added
+	EditorSuggest,
+	EditorPosition,
+	TFile,
+	EditorSuggestTriggerInfo,
+	EditorSuggestContext,
+	App, // For constructor and app property
+	Scope, // For constructor of PopoverSuggest
+	PopoverSuggest, // To extend from
+	Instruction, // For setInstructions
 } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
@@ -844,13 +848,29 @@ export default class LocalGPT extends Plugin {
 }
 
 // 用于 "::" 触发的动作建议器 (Action Suggestor for "::" trigger)
-// @ts-ignore - Obsidian's EditorSuggestor is an interface, not a class.
-class ActionSuggestor implements EditorSuggestor<LocalGPTAction> {
+class ActionSuggestor extends PopoverSuggest<LocalGPTAction> implements EditorSuggest<LocalGPTAction> {
 	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
+	// context: EditorSuggestContext | null = null; // PopoverSuggest handles context
+	limit: number = 100; // 建议数量限制 (Suggestion limit)
 
 	constructor(plugin: LocalGPT) {
-		this.plugin = plugin;
+		super(plugin.app); // 将 App 实例传递给 PopoverSuggest 构造函数 (Pass App instance to PopoverSuggest constructor)
+		this.plugin = plugin; // 初始化动作建议器，传入 LocalGPT 插件实例
 	}
+
+	// 设置建议器的说明 (Set instructions for the suggester)
+	setInstructions(createDiv: (instructions: Instruction[]) => void): void {
+		createDiv([
+			{ command: "↑↓", purpose: "导航 (Navigate)" },
+			{ command: "↵", purpose: "选择 (Select)" },
+			{ command: "esc", purpose: "关闭 (Dismiss)" },
+		]);
+	}
+
+	// PopoverSuggest 会处理 onOpen, onClose, update
+	// onOpen(): void { super.onOpen?.(); }
+	// onClose(): void { super.onClose?.(); }
+	// update(newContext: EditorSuggestContext): void { super.update(newContext); }
 
 	// 当用户输入特定字符序列 (例如 "::") 时触发 (Triggered when the user types a specific character sequence, e.g., "::")
 	onTrigger(
@@ -892,34 +912,48 @@ class ActionSuggestor implements EditorSuggestor<LocalGPTAction> {
 	}
 
 	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
-	selectSuggestion(action: LocalGPTAction, _evt: MouseEvent | KeyboardEvent): void {
-		const editor = this.plugin.app.workspace.activeEditor?.editor;
-		if (!editor) {
-			new Notice("Cannot find active editor to run action.");
+	selectSuggestion(action: LocalGPTAction, evt: MouseEvent | KeyboardEvent): void {
+		const currentEditor = this.plugin.app.workspace.activeEditor?.editor;
+		if (!currentEditor) {
+			new Notice("Cannot find active editor to run action."); // 提示用户找不到编辑器 (Notify user editor not found)
+			this.close(); // 关闭建议器 (Close the suggester)
 			return;
 		}
-
 		// 执行选择的动作 (Execute the selected action)
-		this.plugin.runAction(action, editor);
-
+		this.plugin.runAction(action, currentEditor);
 		// 提示用户动作已执行 (Notify the user that the action has been executed)
-		new Notice(`Running action: ${action.name}`);
-
-		// EditorSuggestor 会自动处理关闭和文本替换 ("query" 和 "::" 的移除)
-		// (EditorSuggestor automatically handles closing and text replacement - removal of "query" and "::")
+		// new Notice(`Running action: ${action.name}`); // runAction 内部已有 Notice，此处可省略 (Notice already in runAction, can be omitted here)
+		this.close(); // 显式关闭建议器 (Explicitly close the suggester)
 	}
 }
 
 // 用于模型选择的建议器 (Model Suggestor)
-// @ts-ignore - Obsidian's EditorSuggestor is an interface, not a class.
-class ModelSuggestor implements EditorSuggestor<IAIProvider> {
+class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSuggest<IAIProvider> {
 	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
 	private aiProvidersService: IAIProvidersService | null = null; // AI Providers 服务实例 (AI Providers service instance)
+	// context: EditorSuggestContext | null = null; // PopoverSuggest handles context
+	limit: number = 100; // 建议数量限制 (Suggestion limit)
 
 	constructor(plugin: LocalGPT) {
-		this.plugin = plugin;
+		super(plugin.app); // 将 App 实例传递给 PopoverSuggest 构造函数 (Pass App instance to PopoverSuggest constructor)
+		this.plugin = plugin; // 初始化模型建议器，传入 LocalGPT 插件实例
 		this.loadProviders(); // 异步加载 AI Providers (Asynchronously load AI Providers)
 	}
+
+	// 设置建议器的说明 (Set instructions for the suggester)
+	setInstructions(createDiv: (instructions: Instruction[]) => void): void {
+		createDiv([
+			{ command: "↑↓", purpose: "导航 (Navigate)" },
+			{ command: "↵", purpose: "选择 (Select)" },
+			{ command: "esc", purpose: "关闭 (Dismiss)" },
+		]);
+	}
+
+	// PopoverSuggest 会处理 onOpen, onClose, update
+	// onOpen(): void { super.onOpen?.(); }
+	// onClose(): void { super.onClose?.(); }
+	// update(newContext: EditorSuggestContext): void { super.update(newContext); }
+
 
 	// 异步加载 AI Providers 服务 (Asynchronously loads the AI Providers service)
 	private async loadProviders() {
@@ -983,26 +1017,12 @@ class ModelSuggestor implements EditorSuggestor<IAIProvider> {
 	}
 
 	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
-	selectSuggestion(suggestion: IAIProvider, _evt: MouseEvent | KeyboardEvent): void {
+	selectSuggestion(suggestion: IAIProvider, evt: MouseEvent | KeyboardEvent): void {
 		// 将选择的 Provider ID 存储到插件的临时变量中 (Store the selected Provider ID in the plugin's temporary variable)
 		this.plugin.setTemporaryProviderId(suggestion.id); // 使用 setter 方法 (Use setter method)
 		// 提示用户已选择模型 (Notify the user that a model has been selected)
 		new Notice(`Model selected: ${suggestion.name}`);
-
-		// 关闭建议器 (Close the suggester)
-		// this.plugin.editorSuggest is the instance of EditorSuggest<IAIProvider>
-		// which is ModelSuggestor itself in this case.
-		// The EditorSuggest class (wrapper) handles closing.
-		// We don't need to call close on this.plugin.editorSuggest explicitly here.
-		// The obsidian API handles closing the suggestor automatically after selection.
-		// However, if we wanted to manually close it, we would need to access the specific
-		// EditorSuggest instance that Obsidian creates around our EditorSuggestor.
-		// For now, we rely on Obsidian's default behavior.
-		// The text replacement (e.g., replacing "@query" with what the user typed or the suggestion itself)
-		// is handled by Obsidian based on the `start` and `end` positions returned by `onTrigger`.
-		// We do not need to manually call `editor.replaceRange` here for that purpose.
-
-		// The erroneous block using `context.start` and `context.end` has been removed.
-		// `context` is not available in `selectSuggestion`.
+		// 文本替换由 onTrigger 返回的 triggerInfo 处理 (Text replacement is handled by triggerInfo returned from onTrigger)
+		this.close(); // 显式关闭建议器 (Explicitly close the suggester)
 	}
 }
