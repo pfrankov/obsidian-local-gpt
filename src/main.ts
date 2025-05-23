@@ -974,6 +974,86 @@ export default class LocalGPT extends Plugin {
 		
 		return { inputTokens, outputTokens, totalTokens };
 	}
+
+	// 智能视觉模型判断器 (Smart Vision Model Detector)
+	public isVisionCapableModel(provider: IAIProvider): boolean {
+		const providerWithCapabilities = provider as any;
+		
+		// 1. 首先检查 capabilities.vision 属性（最可靠）
+		if (providerWithCapabilities.capabilities?.vision) {
+			return true;
+		}
+		
+		// 2. 基于准确的模型名称匹配
+		const modelName = provider.model?.toLowerCase() || "";
+		const providerName = provider.name.toLowerCase();
+		
+		// OpenAI 视觉模型
+		const openaiVisionModels = [
+			"gpt-4-vision-preview",
+			"gpt-4o",
+			"gpt-4o-mini", 
+			"gpt-4o-2024-05-13",
+			"gpt-4o-2024-08-06",
+			"gpt-4-turbo-vision"
+		];
+		
+		// Anthropic 视觉模型 (Claude 3系列)
+		const anthropicVisionModels = [
+			"claude-3-opus",
+			"claude-3-sonnet", 
+			"claude-3-haiku",
+			"claude-3.5-sonnet",
+			"claude-3-5-sonnet"
+		];
+		
+		// Google 视觉模型
+		const googleVisionModels = [
+			"gemini-pro-vision",
+			"gemini-1.5-pro",
+			"gemini-1.5-flash",
+			"gemini-2.0-flash"
+		];
+		
+		// 其他已知视觉模型
+		const otherVisionModels = [
+			"llava",
+			"llava-llama3", 
+			"llava-phi3",
+			"moondream",
+			"bakllava",
+			"cogvlm"
+		];
+		
+		// 检查精确匹配
+		const allVisionModels = [
+			...openaiVisionModels,
+			...anthropicVisionModels, 
+			...googleVisionModels,
+			...otherVisionModels
+		];
+		
+		for (const visionModel of allVisionModels) {
+			if (modelName.includes(visionModel)) {
+				return true;
+			}
+		}
+		
+		// 3. 检查名称中包含 "vision" 的模型
+		if (modelName.includes("vision") || providerName.includes("vision")) {
+			return true;
+		}
+		
+		// 4. 特殊情况：一些provider可能在名称中标注了视觉能力
+		const visionKeywords = ["visual", "multimodal", "mm", "vlm"];
+		for (const keyword of visionKeywords) {
+			if (modelName.includes(keyword) || providerName.includes(keyword)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
 }
 
 // 用于 "::" 触发的动作建议器 (Action Suggestor for "::" trigger)
@@ -1115,10 +1195,6 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 		const providers = this.aiProvidersService.providers; // 获取所有可用的 AI Provider (Get all available AI Providers)
 		const query = context.query.toLowerCase(); // 获取用户输入的查询条件并转为小写 (Get user's query and convert to lowercase)
 
-		// 将 providers 分为主模型和视觉模型两组
-		const mainModels: IAIProvider[] = [];
-		const visionModels: IAIProvider[] = [];
-
 		// 计算匹配分数的函数
 		const getMatchScore = (provider: IAIProvider): number => {
 			if (!query) return 0;
@@ -1138,21 +1214,12 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 			return 0;
 		};
 
-		// 存储最高分数的提供者
-		let highestScore = 0;
+		// 过滤并评分所有模型
+		const filteredProviders: IAIProvider[] = [];
 		let bestMatch: IAIProvider | null = null;
+		let highestScore = 0;
 
 		providers.forEach((provider) => {
-			// 判断是否为视觉模型
-			// 使用类型断言和可选链来安全访问 capabilities
-			const providerWithCapabilities = provider as any;
-			const isVision =
-				providerWithCapabilities.capabilities?.vision ||
-				provider.name.toLowerCase().includes("vision") ||
-				provider.model?.toLowerCase().includes("vision") ||
-				provider.model?.toLowerCase().includes("gpt-4") ||
-				provider.model?.toLowerCase().includes("claude");
-
 			// 计算匹配分数
 			const score = getMatchScore(provider);
 
@@ -1166,87 +1233,49 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 			const matchesQuery = score > 0 || !query;
 
 			if (matchesQuery) {
-				if (isVision) {
-					visionModels.push(provider);
-				} else {
-					mainModels.push(provider);
-				}
+				filteredProviders.push(provider);
 			}
 		});
 
-		// 创建分组标记
-		const mainHeader = {
-			id: "__main_header__",
-			name: "━━━━━ 主模型 ━━━━━",
-			model: "",
-			isHeader: true,
-		} as any;
-
-		const visionHeader = {
-			id: "__vision_header__",
-			name: "━━━━━ 视觉模型 ━━━━━",
-			model: "",
-			isHeader: true,
-		} as any;
-
-		// 组合结果：主模型标题 + 主模型列表 + 视觉模型标题 + 视觉模型列表
-		const result: IAIProvider[] = [];
-
-		if (mainModels.length > 0 || visionModels.length > 0) {
-			if (mainModels.length > 0) {
-				result.push(mainHeader);
-				result.push(...mainModels);
-			}
-
-			if (visionModels.length > 0) {
-				result.push(visionHeader);
-				result.push(...visionModels);
-			}
-		}
-
-		// 如果有最佳匹配，将其标记为建议的第一项
+		// 排序：最佳匹配放在第一位，其余按名称排序
+		const sortedProviders = [...filteredProviders];
+		
 		if (bestMatch && query && highestScore > 0) {
-			// 将最佳匹配项移到对应分组的第一位
-			const isVisionBest = visionModels.includes(bestMatch);
-			if (isVisionBest) {
-				const index = visionModels.indexOf(bestMatch);
-				if (index > 0) {
-					visionModels.splice(index, 1);
-					visionModels.unshift(bestMatch);
-				}
-			} else {
-				const index = mainModels.indexOf(bestMatch);
-				if (index > 0) {
-					mainModels.splice(index, 1);
-					mainModels.unshift(bestMatch);
-				}
+			// 移除最佳匹配项，然后将其放在第一位
+			const bestMatchIndex = sortedProviders.findIndex(p => p.id === bestMatch!.id);
+			if (bestMatchIndex > -1) {
+				sortedProviders.splice(bestMatchIndex, 1);
 			}
+			
+			// 剩余项按名称排序
+			sortedProviders.sort((a, b) => a.name.localeCompare(b.name));
+			
+			// 最佳匹配放在第一位
+			sortedProviders.unshift(bestMatch);
+		} else {
+			// 没有查询时，简单按名称排序
+			sortedProviders.sort((a, b) => a.name.localeCompare(b.name));
 		}
 
-		return result;
+		return sortedProviders;
 	}
 
 	// 渲染每个建议项 (Render each suggestion item)
 	renderSuggestion(suggestion: IAIProvider, el: HTMLElement): void {
-		// 检查是否为标题行
-		// @ts-ignore
-		if (suggestion.isHeader) {
-			el.addClass("model-header");
-			el.setText(suggestion.name);
-			// 添加样式使标题不可选择
-			el.style.pointerEvents = "none";
-			el.style.opacity = "0.7";
-			el.style.fontWeight = "bold";
-			el.style.fontSize = "0.9em";
-			return;
-		}
-
+		// 使用智能视觉模型判断器确定模型类型
+		const isVisionModel = this.plugin.isVisionCapableModel(suggestion);
+		
+		// 根据模型类型选择图标
+		const modelTypeIcon = isVisionModel ? "👁️" : "💬";
+		
 		// 设置建议项的显示文本 (Set the display text for the suggestion item)
-		// 格式: "Provider Name (model name)" 或 "Provider Name (Default)" 如果没有 model 名称
-		// Format: "Provider Name (model name)" or "Provider Name (Default)" if no model name
-		const displayText = `${suggestion.name} (${
+		// 格式: "Provider Name (model name) 图标" 
+		// Format: "Provider Name (model name) icon"
+		const baseText = `${suggestion.name} (${
 			suggestion.model || "Default"
 		})`;
+		
+		const displayText = `${baseText} ${modelTypeIcon}`;
 		el.setText(displayText);
 
 		// 为当前选中的模型添加标记
@@ -1267,12 +1296,6 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 		suggestion: IAIProvider,
 		evt: MouseEvent | KeyboardEvent,
 	): void {
-		// 忽略标题行的选择
-		// @ts-ignore
-		if (suggestion.isHeader) {
-			return;
-		}
-
 		// 获取当前编辑器
 		const editor = this.plugin.app.workspace.activeEditor?.editor;
 		if (!editor) {
@@ -1295,15 +1318,8 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 			);
 		}
 
-		// 判断是否为视觉模型（根据名称或能力判断）
-		// 使用类型断言和可选链来安全访问 capabilities
-		const suggestionWithCapabilities = suggestion as any;
-		const isVisionModel =
-			suggestionWithCapabilities.capabilities?.vision ||
-			suggestion.name.toLowerCase().includes("vision") ||
-			suggestion.model?.toLowerCase().includes("vision") ||
-			suggestion.model?.toLowerCase().includes("gpt-4") ||
-			suggestion.model?.toLowerCase().includes("claude");
+		// 使用智能视觉模型判断器
+		const isVisionModel = this.plugin.isVisionCapableModel(suggestion);
 
 		// 更新对应的全局配置
 		if (isVisionModel) {
