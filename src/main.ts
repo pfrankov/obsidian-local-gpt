@@ -31,6 +31,10 @@ export default class LocalGPT extends Plugin {
 	private animationFrameId: number | null = null;
 	private totalProgressSteps: number = 0;
 	private completedProgressSteps: number = 0;
+	// 用于临时存储通过 "@" 符号选择的模型ID
+	private temporarilySelectedProviderId: string | null = null;
+	editorSuggest?: EditorSuggest<IAIProvider>; // 用于存储 "@" 模型建议器的实例
+	actionSuggest?: EditorSuggest<LocalGPTAction>; // 用于存储 "::" 动作建议器的实例
 
 	async onload() {
 		initAI(this.app, this, async () => {
@@ -47,6 +51,12 @@ export default class LocalGPT extends Plugin {
 			});
 			this.registerEditorExtension(spinnerPlugin);
 			this.initializeStatusBar();
+			// 注册模型建议器
+			this.editorSuggest = new ModelSuggestor(this);
+			this.registerEditorSuggest(this.editorSuggest);
+			// 注册 "::" 动作建议器
+			this.actionSuggest = new ActionSuggestor(this);
+			this.registerEditorSuggest(this.actionSuggest);
 		});
 	}
 
@@ -201,22 +211,87 @@ export default class LocalGPT extends Plugin {
 		);
 
 		let provider = aiProviders.providers.find(
+			// 默认使用主AI Provider (Default to the main AI provider)
 			(p: IAIProvider) => p.id === this.settings.aiProviders.main,
 		);
+		let modelDisplayName: string = ""; // 用于存储模型显示名称 (To store the model display name)
+
+		// 检查是否有通过 "@" 临时选择的模型 (Check if a model was temporarily selected via "@")
+		if (this.temporarilySelectedProviderId) {
+			const tempProvider = aiProviders.providers.find(
+				(p: IAIProvider) => p.id === this.temporarilySelectedProviderId,
+			);
+			if (tempProvider) {
+				provider = tempProvider; // 使用临时选择的 Provider (Use the temporarily selected provider)
+				// 设置模型显示名称 (Set the model display name)
+				modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
+				new Notice(`Using temporarily selected model: ${modelDisplayName}`); // 提示用户 (Notify the user)
+			} else {
+				new Notice(
+					`Could not find temporarily selected model ID: ${this.temporarilySelectedProviderId}. Using default AI provider.`,
+				);
+				// 如果临时模型未找到，则尝试使用默认主模型的名称 (If temp model not found, try to use default main model's name)
+				if (provider) {
+					modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
+				}
+			}
+			// 重置临时选择的 Provider ID，确保其仅生效一次 (Reset the temporary provider ID to ensure it's used only once)
+			this.temporarilySelectedProviderId = null;
+		} else if (provider) {
+			// 如果没有临时选择，并且默认主 Provider 已确定，则设置其显示名称 (If no temporary selection and default main provider is set, set its display name)
+			modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
+		}
+
+		// 处理图像：如果存在图像，并且当前选择的 Provider 不支持视觉功能，则尝试切换到视觉兼容的 Provider
+		// (Handle images: if images are present and the currently selected provider does not support vision, try switching to a vision-compatible provider)
 		if (imagesInBase64.length) {
-			provider =
-				aiProviders.providers.find(
+			// 如果有图片，并且当前选择的provider不支持vision，尝试切换到vision-compatible provider
+			// @ts-ignore
+			if (!provider || !provider.capabilities?.vision) {
+				const visionProvider = aiProviders.providers.find(
 					(p: IAIProvider) =>
 						p.id === this.settings.aiProviders.vision,
-				) || provider;
+				);
+				if (visionProvider) {
+					provider = visionProvider;
+					new Notice(
+						`Switched to vision-capable model: ${provider.name} for image processing.`,
+					);
+				} else if (!provider) {
+					// If no provider was selected at all and vision is needed but not configured
+					new Notice(
+						"Vision provider not configured, but images are present.",
+					);
+					throw new Error(
+						"Vision provider not configured for image processing.",
+					);
+				}
+				// If a provider was already selected but it's not vision capable,
+				// and no specific vision provider is set, we might proceed without vision
+				// or throw an error depending on desired behavior. Here, we'll let it proceed
+				// and the provider itself might error out if it can't handle images.
+			}
 		}
 
 		if (!provider) {
+			new Notice("No AI provider found. Please configure a provider in settings.");
 			throw new Error("No AI provider found");
 		}
 
+		// 如果在上述逻辑后 modelDisplayName 仍然为空 (例如，初始默认 provider 也未设置)，则最后尝试填充
+		// (If modelDisplayName is still empty after the above logic (e.g., initial default provider was also not set), try one last time to populate it)
+		if (!modelDisplayName && provider) {
+			modelDisplayName = `${provider.name}${provider.model ? ` (${provider.model})` : ""}`;
+		}
+
+		// --- 性能指标变量初始化 (Performance Metrics Variable Initialization) ---
+		const requestStartTime = performance.now(); // 请求开始时间 (Request start time)
+		let firstChunkTime: number | null = null; // 首个数据块到达时间 (Time when the first chunk arrives)
+		let tokensUsed: string | number = "N/A"; // 使用的 Token 数量，默认为 N/A (Number of tokens used, defaults to N/A)
+		// --- End of Performance Metrics Variable Initialization ---
+
 		const chunkHandler = await aiProviders.execute({
-			provider,
+			provider, // 使用最终确定的 Provider (Use the finally determined provider)
 			prompt: preparePrompt(action.prompt, selectedText, context),
 			images: imagesInBase64,
 			systemPrompt: action.system,
@@ -228,6 +303,11 @@ export default class LocalGPT extends Plugin {
 		});
 
 		chunkHandler.onData((chunk: string, accumulatedText: string) => {
+			// --- TTFT捕获 (TTFT Capture) ---
+			if (firstChunkTime === null) {
+				firstChunkTime = performance.now(); // 记录首个数据块到达时间 (Record time of first chunk arrival)
+			}
+			// --- End of TTFT Capture ---
 			onUpdate(accumulatedText);
 		});
 
@@ -235,19 +315,38 @@ export default class LocalGPT extends Plugin {
 			hideSpinner && hideSpinner();
 			this.app.workspace.updateOptions();
 
-			// Remove any thinking tags from the final text
-			const finalText = removeThinkingTags(fullText).trim();
+			// --- 总耗时与性能指标计算 (Total Time and Performance Metrics Calculation) ---
+			const requestEndTime = performance.now(); // 请求结束时间 (Request end time)
+			const totalTime = Math.round(requestEndTime - requestStartTime); // 总耗时 (Total time)
+			const ttft = firstChunkTime ? Math.round(firstChunkTime - requestStartTime) : "N/A"; // 首字延迟 (Time to first token)
+			// Token 数量目前假设为 "N/A" (Token count is currently assumed to be "N/A")
+			// let tokensUsed = "N/A"; // 已在外部作用域定义 (Already defined in the outer scope)
+			// --- End of Total Time and Performance Metrics Calculation ---
+
+			// 移除思考标签并整理文本 (Remove thinking tags and trim the text)
+			const cleanedFullText = removeThinkingTags(fullText).trim();
+			// 为输出文本添加模型名称前缀 (Prepend model name to the output text)
+			let finalText = `[${modelDisplayName || "AI"}]: ${cleanedFullText}`;
+
+			// --- 格式化并附加性能指标 (Format and Append Performance Metrics) ---
+			// 使用中文标签 (Using Chinese labels)
+			const performanceMetrics = `\n\n---\n性能指标: Tokens: ${tokensUsed} | 首字延迟: ${ttft} ms | 总耗时: ${totalTime} ms`;
+			finalText += performanceMetrics; // 将性能指标附加到最终文本后 (Append performance metrics to the final text)
+			// --- End of Format and Append Performance Metrics ---
 
 			if (action.replace) {
+				// 如果动作用于替换选中文本 (If the action is to replace selected text)
 				editor.replaceRange(
-					finalText,
+					finalText, // 插入带有模型名称的文本 (Insert text with model name)
 					cursorPositionFrom,
 					cursorPositionTo,
 				);
 			} else {
+				// 否则，在选中文本后插入 (Otherwise, insert after the selected text)
 				const isLastLine = editor.lastLine() === cursorPositionTo.line;
-				const text = this.processText(finalText, selectedText);
-				editor.replaceRange(isLastLine ? "\n" + text : text, {
+				// processText 进一步处理文本，例如移除原始选中文本部分 (processText further processes the text, e.g., removing the original selected text part)
+				const textToInsert = this.processText(finalText, selectedText);
+				editor.replaceRange(isLastLine ? "\n" + textToInsert : textToInsert, {
 					ch: 0,
 					line: cursorPositionTo.line + 1,
 				});
@@ -717,5 +816,173 @@ export default class LocalGPT extends Plugin {
 		this.completedProgressSteps = 0;
 		this.currentPercentage = 0;
 		this.targetPercentage = 0;
+	}
+}
+
+// 用于 "::" 触发的动作建议器 (Action Suggestor for "::" trigger)
+// @ts-ignore - Obsidian's EditorSuggestor is an interface, not a class.
+class ActionSuggestor implements EditorSuggestor<LocalGPTAction> {
+	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
+
+	constructor(plugin: LocalGPT) {
+		this.plugin = plugin;
+	}
+
+	// 当用户输入特定字符序列 (例如 "::") 时触发 (Triggered when the user types a specific character sequence, e.g., "::")
+	onTrigger(
+		cursor: EditorPosition, // 当前光标位置 (Current cursor position)
+		editor: Editor, // 当前编辑器实例 (Current editor instance)
+		_file: TFile | null, // 当前打开的文件 (Currently open file, may be null)
+	): EditorSuggestTriggerInfo | null { // 返回触发信息或 null (Returns trigger info or null)
+		// 检查条件：临时选择的模型ID是否存在，以及输入是否为 "::"
+		// (Check conditions: if a temporary model ID is selected, and if the input is "::")
+		if (!this.plugin.temporarilySelectedProviderId) {
+			return null; // 如果没有临时选择的模型，则不触发 (If no temporary model is selected, do not trigger)
+		}
+
+		const line = editor.getLine(cursor.line); // 获取当前行内容 (Get current line content)
+		const sub = line.substring(0, cursor.ch); // 获取光标前的子字符串 (Get substring before the cursor)
+
+		if (sub.endsWith("::")) {
+			return {
+				start: { line: cursor.line, ch: sub.lastIndexOf("::") }, // 建议开始的位置 (Start position for the suggestion)
+				end: cursor, // 建议结束的位置 (End position for the suggestion)
+				query: "", // "::" 后不需要额外查询，直接显示所有动作 (No additional query needed after "::", show all actions)
+			};
+		}
+		return null; // 没有匹配则不触发建议 (No match, so don't trigger suggestions)
+	}
+
+	// 获取建议列表 (Get the list of suggestions)
+	async getSuggestions(
+		_context: EditorSuggestContext, // 编辑器建议上下文 (Editor suggest context) - _context is not used for now
+	): Promise<LocalGPTAction[]> { // 返回一个 LocalGPTAction 数组的 Promise (Returns a Promise of an array of LocalGPTAction)
+		// 直接返回插件设置中的所有动作 (Directly return all actions from plugin settings)
+		return this.plugin.settings.actions;
+	}
+
+	// 渲染每个建议项 (Render each suggestion item)
+	renderSuggestion(action: LocalGPTAction, el: HTMLElement): void {
+		// 设置建议项的显示文本为动作名称 (Set the display text for the suggestion item to the action name)
+		el.setText(action.name);
+	}
+
+	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
+	selectSuggestion(action: LocalGPTAction, _evt: MouseEvent | KeyboardEvent): void {
+		const editor = this.plugin.app.workspace.activeEditor?.editor;
+		if (!editor) {
+			new Notice("Cannot find active editor to run action.");
+			return;
+		}
+
+		// 执行选择的动作 (Execute the selected action)
+		this.plugin.runAction(action, editor);
+
+		// 提示用户动作已执行 (Notify the user that the action has been executed)
+		new Notice(`Running action: ${action.name}`);
+
+		// EditorSuggestor 会自动处理关闭和文本替换 ("query" 和 "::" 的移除)
+		// (EditorSuggestor automatically handles closing and text replacement - removal of "query" and "::")
+	}
+}
+
+// 用于模型选择的建议器 (Model Suggestor)
+// @ts-ignore - Obsidian's EditorSuggestor is an interface, not a class.
+class ModelSuggestor implements EditorSuggestor<IAIProvider> {
+	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
+	private aiProvidersService: IAIProvidersService | null = null; // AI Providers 服务实例 (AI Providers service instance)
+
+	constructor(plugin: LocalGPT) {
+		this.plugin = plugin;
+		this.loadProviders(); // 异步加载 AI Providers (Asynchronously load AI Providers)
+	}
+
+	// 异步加载 AI Providers 服务 (Asynchronously loads the AI Providers service)
+	private async loadProviders() {
+		try {
+			const aiRequestWaiter = await waitForAI(); // 等待 AI 服务初始化 (Wait for AI service initialization)
+			this.aiProvidersService = await aiRequestWaiter.promise; // 获取 AI Providers 服务实例 (Get the AI Providers service instance)
+		} catch (error) {
+			console.error("Error loading AI providers for ModelSuggestor:", error);
+			new Notice("Failed to load AI providers for model suggestion. Model selection via '@' might not work.");
+		}
+	}
+
+	// 当用户输入特定字符 (例如 "@") 时触发 (Triggered when the user types a specific character, e.g., "@")
+	onTrigger(
+		cursor: EditorPosition, // 当前光标位置 (Current cursor position)
+		editor: Editor, // 当前编辑器实例 (Current editor instance)
+		_file: TFile | null, // 当前打开的文件 (Currently open file, may be null)
+	): EditorSuggestTriggerInfo | null { // 返回触发信息或 null (Returns trigger info or null)
+		const line = editor.getLine(cursor.line); // 获取当前行内容 (Get current line content)
+		const sub = line.substring(0, cursor.ch); // 获取光标前的子字符串 (Get substring before the cursor)
+		const match = sub.match(/@([\w\s]*)$/); // 检查 "@" 符号后跟任意单词字符或空格 (Check for "@" symbol followed by any word characters or spaces)
+
+		if (match) {
+			return {
+				start: { line: cursor.line, ch: match.index! }, // 建议开始的位置 (Start position for the suggestion)
+				end: cursor, // 建议结束的位置 (End position for the suggestion)
+				query: match[1], // "@" 后面的查询字符串 (Query string after "@")
+			};
+		}
+		return null; // 没有匹配则不触发建议 (No match, so don't trigger suggestions)
+	}
+
+	// 获取建议列表 (Get the list of suggestions)
+	async getSuggestions(
+		context: EditorSuggestContext, // 编辑器建议上下文 (Editor suggest context)
+	): Promise<IAIProvider[]> { // 返回一个 IAIProvider 数组的 Promise (Returns a Promise of an array of IAIProvider)
+		if (!this.aiProvidersService) {
+			// 如果 AI Provider 服务未加载，则不显示建议 (If AI Provider service is not loaded, show no suggestions)
+			// A notice is already shown in loadProviders
+			return [];
+		}
+
+		const providers = this.aiProvidersService.providers; // 获取所有可用的 AI Provider (Get all available AI Providers)
+		const query = context.query.toLowerCase(); // 获取用户输入的查询条件并转为小写 (Get user's query and convert to lowercase)
+
+		// 根据查询过滤模型 (Filter models based on the query)
+		// 检查 provider 名称或其下的 model 名称是否包含查询字符串 (Check if provider name or its model name includes the query string)
+		return providers.filter(
+			(provider) =>
+				provider.name.toLowerCase().includes(query) ||
+				(provider.model && provider.model.toLowerCase().includes(query)),
+		);
+	}
+
+	// 渲染每个建议项 (Render each suggestion item)
+	renderSuggestion(suggestion: IAIProvider, el: HTMLElement): void {
+		// 设置建议项的显示文本 (Set the display text for the suggestion item)
+		// 格式: "Provider Name (model name)" 或 "Provider Name (Default)" 如果没有 model 名称
+		// Format: "Provider Name (model name)" or "Provider Name (Default)" if no model name
+		el.setText(`${suggestion.name} (${suggestion.model || "Default"})`);
+	}
+
+	// 当用户选择一个建议项时调用 (Called when the user selects a suggestion item)
+	selectSuggestion(suggestion: IAIProvider, _evt: MouseEvent | KeyboardEvent): void {
+		// 将选择的 Provider ID 存储到插件的临时变量中 (Store the selected Provider ID in the plugin's temporary variable)
+		this.plugin.temporarilySelectedProviderId = suggestion.id;
+		// 提示用户已选择模型 (Notify the user that a model has been selected)
+		new Notice(`Model selected: ${suggestion.name}`);
+
+		// 关闭建议器 (Close the suggester)
+		// this.plugin.editorSuggest is the instance of EditorSuggest<IAIProvider>
+		// which is ModelSuggestor itself in this case.
+		// The EditorSuggest class (wrapper) handles closing.
+		// We don't need to call close on this.plugin.editorSuggest explicitly here.
+		// The obsidian API handles closing the suggestor automatically after selection.
+		// However, if we wanted to manually close it, we would need to access the specific
+		// EditorSuggest instance that Obsidian creates around our EditorSuggestor.
+		// For now, we rely on Obsidian's default behavior.
+
+		// If we needed to manually replace text, we would do it here.
+		// For example, replacing "@query" with the selected model name.
+		const currentEditor = this.plugin.app.workspace.activeEditor?.editor;
+		if (currentEditor && context.start && context.end) {
+			const replacementText = `@${suggestion.name}`; // Or whatever text you want to insert
+			currentEditor.replaceRange(replacementText, context.start, context.end);
+		}
+
+
 	}
 }
