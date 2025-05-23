@@ -332,7 +332,7 @@ export default class LocalGPT extends Plugin {
 			onUpdate(accumulatedText);
 		});
 
-		chunkHandler.onEnd((fullText: string) => {
+				chunkHandler.onEnd((fullText: string, metadata?: any) => {
 			hideSpinner && hideSpinner();
 			this.app.workspace.updateOptions();
 
@@ -342,13 +342,50 @@ export default class LocalGPT extends Plugin {
 			const ttft = firstChunkTime
 				? Math.round(firstChunkTime - requestStartTime)
 				: "N/A"; // 首字延迟 (Time to first token)
+			
+			// 尝试从 SDK 获取实际的 token 使用数据
+			const usage =
+				metadata?.usage ||
+				metadata?.tokens ||
+				metadata?.tokenUsage ||
+				// @ts-ignore - chunkHandler 可能包含 usage 信息
+				chunkHandler.usage ||
+				(chunkHandler as any).tokens ||
+				(chunkHandler as any).tokenUsage ||
+				null;
+			
+			// 如果有实际的 token 数据，使用它；否则使用估算
+			let inputTokens: number;
+			let outputTokens: number;
+			let totalTokens: number;
+			
+			if (usage && (usage.prompt_tokens || usage.promptTokens || usage.inputTokens)) {
+				// 使用实际的 token 数据
+				inputTokens = usage.prompt_tokens || usage.promptTokens || usage.inputTokens || 0;
+				outputTokens = usage.completion_tokens || usage.completionTokens || usage.outputTokens || 0;
+				totalTokens = usage.total_tokens || usage.totalTokens || (inputTokens + outputTokens);
+				
+				console.log("使用实际 token 数据:", { inputTokens, outputTokens, totalTokens });
+			} else {
+				// 使用智能估算
+				const cleanedFullText = removeThinkingTags(fullText).trim();
+				const estimatedUsage = this.estimateTokenUsage(
+					selectedText, 
+					cleanedFullText, 
+					action.system
+				);
+				
+				inputTokens = estimatedUsage.inputTokens;
+				outputTokens = estimatedUsage.outputTokens;
+				totalTokens = estimatedUsage.totalTokens;
+				
+				console.log("使用智能估算 token 数据:", { inputTokens, outputTokens, totalTokens });
+			}
 
-			// 计算 tokens 相关指标（暂时使用模拟数据）
-			const totalTokens = "177"; // 总 tokens
-			const inputTokens = "16"; // 输入 tokens
-			const outputTokens = "155"; // 输出 tokens
-			const tokensPerSecond =
-				totalTime > 0 ? Math.round(155000 / totalTime) : "N/A"; // tokens/秒
+			// 计算生成速度 (tokens/second)
+			const tokensPerSecond = totalTime > 0 
+				? Math.round((outputTokens * 1000) / totalTime)
+				: 0;
 			// --- End of Total Time and Performance Metrics Calculation ---
 
 			// 移除思考标签并整理文本 (Remove thinking tags and trim the text)
@@ -362,10 +399,10 @@ export default class LocalGPT extends Plugin {
 			});
 			let finalText = `[${
 				modelDisplayName || "AI"
-			}] ${timeStr}:\n${cleanedFullText}`;
+			} ${timeStr}]:\n${cleanedFullText}`;
 
 			// --- 格式化并附加性能指标 (Format and Append Performance Metrics) ---
-			// 使用新的性能指标格式
+			// 使用新的智能估算性能指标格式
 			const performanceMetrics = `\n\n[Tokens: ${totalTokens} ↑${inputTokens} ↓${outputTokens} ${tokensPerSecond}tokens/s | 首字延迟: ${ttft} ms | 总耗时: ${totalTime} ms]:`;
 			finalText += performanceMetrics; // 将性能指标附加到最终文本后 (Append performance metrics to the final text)
 			// --- End of Format and Append Performance Metrics ---
@@ -880,6 +917,63 @@ export default class LocalGPT extends Plugin {
 		this.currentPercentage = 0;
 		this.targetPercentage = 0;
 	}
+
+	// 智能 Token 估算器 (Smart Token Estimator)
+	private estimateTokens(text: string, isInput: boolean = false): number {
+		if (!text) return 0;
+		
+		// 基于经验的估算规则：
+		// - 英文：大约4个字符 = 1个token
+		// - 中文：大约1.5个字符 = 1个token
+		// - 代码：大约3个字符 = 1个token
+		// - Markdown 格式化文本：大约3.5个字符 = 1个token
+		
+		const chineseCharPattern = /[\u4e00-\u9fff]/g;
+		const codeBlockPattern = /```[\s\S]*?```/g;
+		const inlineCodePattern = /`[^`]+`/g;
+		const markdownPattern = /[*_~`#\[\]()]/g;
+		
+		const chineseChars = (text.match(chineseCharPattern) || []).length;
+		const codeBlocks = (text.match(codeBlockPattern) || []).join('');
+		const inlineCode = (text.match(inlineCodePattern) || []).join('');
+		const markdownChars = (text.match(markdownPattern) || []).length;
+		
+		// 移除代码块和行内代码来计算普通文本
+		const textWithoutCode = text
+			.replace(codeBlockPattern, '')
+			.replace(inlineCodePattern, '');
+		
+		const englishChars = textWithoutCode.length - chineseChars;
+		
+		// 计算不同类型文本的 token
+		const chineseTokens = Math.ceil(chineseChars * 0.67); // 1.5字符/token
+		const englishTokens = Math.ceil(englishChars * 0.25); // 4字符/token
+		const codeTokens = Math.ceil(codeBlocks.length * 0.33); // 3字符/token
+		const markdownTokens = Math.ceil(markdownChars * 0.1); // 格式化标记的额外开销
+		
+		const totalTokens = chineseTokens + englishTokens + codeTokens + markdownTokens;
+		
+		// 为输入文本添加系统提示的估算开销
+		if (isInput) {
+			return Math.max(totalTokens + 50, 10); // 最少10个token，包含系统提示开销
+		}
+		
+		return Math.max(totalTokens, 1); // 最少1个token
+	}
+
+	// 估算输入输出 tokens (Estimate input/output tokens)
+	private estimateTokenUsage(inputText: string, outputText: string, systemPrompt?: string): {
+		inputTokens: number;
+		outputTokens: number;
+		totalTokens: number;
+	} {
+		const systemTokens = systemPrompt ? this.estimateTokens(systemPrompt, true) : 0;
+		const inputTokens = this.estimateTokens(inputText, true) + systemTokens;
+		const outputTokens = this.estimateTokens(outputText, false);
+		const totalTokens = inputTokens + outputTokens;
+		
+		return { inputTokens, outputTokens, totalTokens };
+	}
 }
 
 // 用于 "::" 触发的动作建议器 (Action Suggestor for "::" trigger)
@@ -1025,6 +1119,29 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 		const mainModels: IAIProvider[] = [];
 		const visionModels: IAIProvider[] = [];
 
+		// 计算匹配分数的函数
+		const getMatchScore = (provider: IAIProvider): number => {
+			if (!query) return 0;
+
+			const name = provider.name.toLowerCase();
+			const model = provider.model?.toLowerCase() || "";
+
+			// 完全匹配得分最高
+			if (name === query || model === query) return 100;
+
+			// 开头匹配得分次之
+			if (name.startsWith(query) || model.startsWith(query)) return 80;
+
+			// 包含匹配得分较低
+			if (name.includes(query) || model.includes(query)) return 50;
+
+			return 0;
+		};
+
+		// 存储最高分数的提供者
+		let highestScore = 0;
+		let bestMatch: IAIProvider | null = null;
+
 		providers.forEach((provider) => {
 			// 判断是否为视觉模型
 			// 使用类型断言和可选链来安全访问 capabilities
@@ -1036,12 +1153,17 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 				provider.model?.toLowerCase().includes("gpt-4") ||
 				provider.model?.toLowerCase().includes("claude");
 
+			// 计算匹配分数
+			const score = getMatchScore(provider);
+
+			// 更新最佳匹配
+			if (score > highestScore) {
+				highestScore = score;
+				bestMatch = provider;
+			}
+
 			// 根据查询过滤
-			const matchesQuery =
-				!query ||
-				provider.name.toLowerCase().includes(query) ||
-				(provider.model &&
-					provider.model.toLowerCase().includes(query));
+			const matchesQuery = score > 0 || !query;
 
 			if (matchesQuery) {
 				if (isVision) {
@@ -1077,18 +1199,27 @@ class ModelSuggestor extends EditorSuggest<IAIProvider> {
 			}
 
 			if (visionModels.length > 0) {
-				if (mainModels.length > 0) {
-					// 添加分隔线
-					const separator = {
-						id: "__separator__",
-						name: "─────────────────────",
-						model: "",
-						isHeader: true,
-					} as any;
-					result.push(separator);
-				}
 				result.push(visionHeader);
 				result.push(...visionModels);
+			}
+		}
+
+		// 如果有最佳匹配，将其标记为建议的第一项
+		if (bestMatch && query && highestScore > 0) {
+			// 将最佳匹配项移到对应分组的第一位
+			const isVisionBest = visionModels.includes(bestMatch);
+			if (isVisionBest) {
+				const index = visionModels.indexOf(bestMatch);
+				if (index > 0) {
+					visionModels.splice(index, 1);
+					visionModels.unshift(bestMatch);
+				}
+			} else {
+				const index = mainModels.indexOf(bestMatch);
+				if (index > 0) {
+					mainModels.splice(index, 1);
+					mainModels.unshift(bestMatch);
+				}
 			}
 		}
 
