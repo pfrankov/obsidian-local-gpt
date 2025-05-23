@@ -850,27 +850,88 @@ export default class LocalGPT extends Plugin {
 // 用于 "::" 触发的动作建议器 (Action Suggestor for "::" trigger)
 class ActionSuggestor extends PopoverSuggest<LocalGPTAction> implements EditorSuggest<LocalGPTAction> {
 	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
-	// context: EditorSuggestContext | null = null; // PopoverSuggest handles context
-	limit: number = 100; // 建议数量限制 (Suggestion limit)
+
+	// Explicitly define properties from EditorSuggest (and PopoverSuggest if not already covered)
+	app: App;
+	scope: Scope;
+	context: EditorSuggestContext | null;
+	limit: number;
+	instructionsEl: HTMLElement;
 
 	constructor(plugin: LocalGPT) {
 		super(plugin.app); // 将 App 实例传递给 PopoverSuggest 构造函数 (Pass App instance to PopoverSuggest constructor)
 		this.plugin = plugin; // 初始化动作建议器，传入 LocalGPT 插件实例
+		this.app = plugin.app; // Explicitly assign if required
+		this.scope = new Scope(); // Explicitly assign if required
+		this.instructionsEl = document.createElement('div');
+		this.limit = 100; // 建议数量限制 (Suggestion limit)
+		this.context = null;
+		// Chinese comment: // 构造函数，初始化父类 PopoverSuggest 并设置插件实例 (Constructor, initializes parent PopoverSuggest and sets plugin instance)
 	}
 
-	// 设置建议器的说明 (Set instructions for the suggester)
-	setInstructions(createDiv: (instructions: Instruction[]) => void): void {
-		createDiv([
-			{ command: "↑↓", purpose: "导航 (Navigate)" },
-			{ command: "↵", purpose: "选择 (Select)" },
-			{ command: "esc", purpose: "关闭 (Dismiss)" },
-		]);
+	// 设置建议弹窗的说明性文本 (Sets instructional text for the suggestion popover)
+	setInstructions(cb: (instructionsEl: HTMLElement) => void): void {
+		this.instructionsEl.empty();
+		cb(this.instructionsEl);
+		// Original implementation for reference, now using the required signature:
+		// createDiv([
+		// 	{ command: "↑↓", purpose: "导航 (Navigate)" },
+		// 	{ command: "↵", purpose: "选择 (Select)" },
+		// 	{ command: "esc", purpose: "关闭 (Dismiss)" },
+		// ]);
 	}
 
-	// PopoverSuggest 会处理 onOpen, onClose, update
-	// onOpen(): void { super.onOpen?.(); }
-	// onClose(): void { super.onClose?.(); }
-	// update(newContext: EditorSuggestContext): void { super.update(newContext); }
+	// 更新建议上下文 (Updates the suggestion context)
+	update(newContext: EditorSuggestContext): void {
+		this.context = newContext;
+		if (super.update) {
+			super.update(newContext);
+		}
+	}
+
+	// 建议弹窗打开时的回调 (Callback when suggestion popover opens)
+	onOpen(): void {
+		if (super.onOpen) {
+			super.onOpen();
+		}
+	}
+
+	// 建议弹窗关闭时的回调 (Callback when suggestion popover closes)
+	onClose(): void {
+		if (super.onClose) {
+			super.onClose();
+		}
+	}
+	
+	// --- Potentially missing methods from EditorSuggest / AbstractInputSuggest ---
+	// (Assuming these are required based on typical obsidian.d.ts structure for EditorSuggest)
+
+	// 开始监听编辑器事件 (Start listening to editor events)
+	startListening(): void {
+		if (super.startListening) {
+			// @ts-ignore - startListening might be protected or not exist on PopoverSuggest directly
+			super.startListening();
+		}
+	}
+
+	// 停止监听编辑器事件 (Stop listening to editor events)
+	stopListening(): void {
+		if (super.stopListening) {
+			// @ts-ignore - stopListening might be protected or not exist on PopoverSuggest directly
+			super.stopListening();
+		}
+	}
+	
+	// 是否应该显示建议 (Whether suggestions should be shown)
+	shouldShowSuggestions(context: EditorSuggestContext): boolean {
+		if (super.shouldShowSuggestions) {
+			// @ts-ignore - shouldShowSuggestions might be protected or not exist on PopoverSuggest directly
+			return super.shouldShowSuggestions(context);
+		}
+		return true; // Default implementation if not provided by superclass
+	}
+	// --- End of potentially missing methods ---
+
 
 	// 当用户输入特定字符序列 (例如 "::") 时触发 (Triggered when the user types a specific character sequence, e.g., "::")
 	onTrigger(
@@ -931,29 +992,88 @@ class ActionSuggestor extends PopoverSuggest<LocalGPTAction> implements EditorSu
 class ModelSuggestor extends PopoverSuggest<IAIProvider> implements EditorSuggest<IAIProvider> {
 	private plugin: LocalGPT; // LocalGPT 插件实例引用 (Reference to the LocalGPT plugin instance)
 	private aiProvidersService: IAIProvidersService | null = null; // AI Providers 服务实例 (AI Providers service instance)
-	// context: EditorSuggestContext | null = null; // PopoverSuggest handles context
-	limit: number = 100; // 建议数量限制 (Suggestion limit)
+	
+	// Explicitly define properties from EditorSuggest (and PopoverSuggest if not already covered)
+	app: App; // PopoverSuggest constructor handles this.app
+	scope: Scope; // PopoverSuggest constructor handles this.scope
+	context: EditorSuggestContext | null;
+	limit: number;
+	instructionsEl: HTMLElement;
 
 	constructor(plugin: LocalGPT) {
 		super(plugin.app); // 将 App 实例传递给 PopoverSuggest 构造函数 (Pass App instance to PopoverSuggest constructor)
 		this.plugin = plugin; // 初始化模型建议器，传入 LocalGPT 插件实例
+		this.app = plugin.app; // Explicitly assign if required by strict interface conformance, though super(app) does it.
+		this.scope = new Scope(); // PopoverSuggest's constructor creates a scope. Re-assigning might be needed if the interface demands direct ownership.
+		this.instructionsEl = document.createElement('div');
+		this.limit = 100; // 建议数量限制 (Suggestion limit)
+		this.context = null;
+		// Chinese comment: // 构造函数，初始化父类 PopoverSuggest 并设置插件实例 (Constructor, initializes parent PopoverSuggest and sets plugin instance)
 		this.loadProviders(); // 异步加载 AI Providers (Asynchronously load AI Providers)
 	}
 
-	// 设置建议器的说明 (Set instructions for the suggester)
-	setInstructions(createDiv: (instructions: Instruction[]) => void): void {
-		createDiv([
-			{ command: "↑↓", purpose: "导航 (Navigate)" },
-			{ command: "↵", purpose: "选择 (Select)" },
-			{ command: "esc", purpose: "关闭 (Dismiss)" },
-		]);
+	// 设置建议弹窗的说明性文本 (Sets instructional text for the suggestion popover)
+	setInstructions(cb: (instructionsEl: HTMLElement) => void): void {
+		this.instructionsEl.empty(); 
+		cb(this.instructionsEl);
+		// Original implementation for reference, now using the required signature:
+		// createDiv([
+		// 	{ command: "↑↓", purpose: "导航 (Navigate)" },
+		// 	{ command: "↵", purpose: "选择 (Select)" },
+		// 	{ command: "esc", purpose: "关闭 (Dismiss)" },
+		// ]);
 	}
 
-	// PopoverSuggest 会处理 onOpen, onClose, update
-	// onOpen(): void { super.onOpen?.(); }
-	// onClose(): void { super.onClose?.(); }
-	// update(newContext: EditorSuggestContext): void { super.update(newContext); }
+	// 更新建议上下文 (Updates the suggestion context)
+	update(newContext: EditorSuggestContext): void {
+		this.context = newContext;
+		if (super.update) {
+			super.update(newContext);
+		}
+	}
 
+	// 建议弹窗打开时的回调 (Callback when suggestion popover opens)
+	onOpen(): void {
+		if (super.onOpen) {
+			super.onOpen();
+		}
+	}
+
+	// 建议弹窗关闭时的回调 (Callback when suggestion popover closes)
+	onClose(): void {
+		if (super.onClose) {
+			super.onClose();
+		}
+	}
+
+	// --- Potentially missing methods from EditorSuggest / AbstractInputSuggest ---
+	// (Assuming these are required based on typical obsidian.d.ts structure for EditorSuggest)
+
+	// 开始监听编辑器事件 (Start listening to editor events)
+	startListening(): void {
+		if (super.startListening) {
+			// @ts-ignore - startListening might be protected or not exist on PopoverSuggest directly
+			super.startListening();
+		}
+	}
+
+	// 停止监听编辑器事件 (Stop listening to editor events)
+	stopListening(): void {
+		if (super.stopListening) {
+			// @ts-ignore - stopListening might be protected or not exist on PopoverSuggest directly
+			super.stopListening();
+		}
+	}
+	
+	// 是否应该显示建议 (Whether suggestions should be shown)
+	shouldShowSuggestions(context: EditorSuggestContext): boolean {
+		if (super.shouldShowSuggestions) {
+			// @ts-ignore - shouldShowSuggestions might be protected or not exist on PopoverSuggest directly
+			return super.shouldShowSuggestions(context);
+		}
+		return true; // Default implementation if not provided by superclass
+	}
+	// --- End of potentially missing methods ---
 
 	// 异步加载 AI Providers 服务 (Asynchronously loads the AI Providers service)
 	private async loadProviders() {
