@@ -20,6 +20,10 @@ export function preprocessContent(content: string): string {
 }
 
 export function splitContent(content: string): string[] {
+	if (content.length < MAX_CHUNK_SIZE) {
+		return [content];
+	}
+
 	logger.debug("Splitting content", { contentLength: content.length });
 	const sections = content
 		.split(/^---$/m)
