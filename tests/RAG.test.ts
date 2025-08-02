@@ -1,4 +1,4 @@
-import { startProcessing, getLinkedFiles, queryVectorStore, getFileContent, processDocumentForRAG, createVectorStore, clearEmbeddingsCache, getCreatedTime, ProcessingContext } from '../src/rag';
+import { startProcessing, getLinkedFiles, queryVectorStore, getFileContent, processDocumentForRAG, createVectorStore, clearContentCache, getCreatedTime, ProcessingContext } from '../src/rag';
 import { Document } from 'langchain/document';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 import { extractTextFromPDF } from '../src/processors/pdf';
@@ -116,7 +116,6 @@ describe('RAG Functions', () => {
       expect(vectorStore).toBe(mockVectorStore);
       expect(mockEmbedder.embedDocuments).toHaveBeenCalled();
       expect(mockVectorStore.addVectors).toHaveBeenCalledTimes(2);
-      expect(fileCache.setEmbeddings).toHaveBeenCalledTimes(2);
       expect(mockAddTotalProgressSteps).toHaveBeenCalled();
       expect(mockUpdateCompletedSteps).toHaveBeenCalled();
     });
@@ -151,10 +150,10 @@ describe('RAG Functions', () => {
     });
   });
 
-  describe('clearEmbeddingsCache', () => {
-    it('should clear the embeddings cache', async () => {
-      await clearEmbeddingsCache();
-      expect(fileCache.clearEmbeddings).toHaveBeenCalled();
+  describe('clearContentCache', () => {
+    it('should clear the content cache', async () => {
+      await clearContentCache();
+      expect(fileCache.clearContent).toHaveBeenCalled();
     });
   });
 

@@ -1,13 +1,5 @@
 import { openDB, IDBPDatabase } from "idb";
 
-interface EmbeddingsCacheItem {
-	mtime: number;
-	chunks: {
-		content: string;
-		embedding: number[];
-	}[];
-}
-
 interface ContentCacheItem {
 	mtime: number;
 	content: string;
@@ -15,33 +7,33 @@ interface ContentCacheItem {
 
 class FileCache {
 	private db: IDBPDatabase | null = null;
-	private vaultId: string = "";
+	private vaultId = "";
 	async init(vaultId: string) {
 		this.vaultId = vaultId;
 		const dbName = `LocalGPTCache/${this.vaultId}`;
-		this.db = await openDB(dbName, 2, {
+		this.db = await openDB(dbName, 3, {
 			upgrade(db, oldVersion, newVersion) {
+				// Version 1: embeddings store (deprecated)
 				if (oldVersion < 1) {
-					db.createObjectStore("embeddings");
+					// Create embeddings store for old versions, but it will be removed in version 3
+					if (!db.objectStoreNames.contains("embeddings")) {
+						db.createObjectStore("embeddings");
+					}
 				}
+				// Version 2: content store
 				if (oldVersion < 2) {
-					db.createObjectStore("content");
+					if (!db.objectStoreNames.contains("content")) {
+						db.createObjectStore("content");
+					}
+				}
+				// Version 3: remove embeddings store as caching moved to AI providers
+				if (oldVersion < 3) {
+					if (db.objectStoreNames.contains("embeddings")) {
+						db.deleteObjectStore("embeddings");
+					}
 				}
 			},
 		});
-	}
-
-	async getEmbeddings(key: string): Promise<EmbeddingsCacheItem | undefined> {
-		if (!this.db) throw new Error("Database not initialized");
-		return this.db.get("embeddings", key);
-	}
-
-	async setEmbeddings(
-		key: string,
-		value: EmbeddingsCacheItem,
-	): Promise<void> {
-		if (!this.db) throw new Error("Database not initialized");
-		await this.db.put("embeddings", value, key);
 	}
 
 	async getContent(key: string): Promise<ContentCacheItem | undefined> {
@@ -54,11 +46,6 @@ class FileCache {
 		await this.db.put("content", value, key);
 	}
 
-	async clearEmbeddings(): Promise<void> {
-		if (!this.db) throw new Error("Database not initialized");
-		await this.db.clear("embeddings");
-	}
-
 	async clearContent(): Promise<void> {
 		if (!this.db) throw new Error("Database not initialized");
 		await this.db.clear("content");
@@ -66,7 +53,6 @@ class FileCache {
 
 	async clearAll(): Promise<void> {
 		if (!this.db) throw new Error("Database not initialized");
-		await this.db.clear("embeddings");
 		await this.db.clear("content");
 	}
 }
