@@ -4,11 +4,14 @@ export const Menu = jest.fn();
 export const Editor = jest.fn();
 export const App = jest.fn();
 export const PluginManifest = jest.fn();
-export const TFile = jest.fn().mockImplementation(() => ({
-  path: 'mock/path.md',
-  extension: 'md',
-  stat: { mtime: 123456789 }
-}));
+export class TFile {
+  path: string = 'mock/path.md';
+  extension: string = 'md';
+  stat: { mtime: number } = { mtime: 123456789 };
+  basename: string = 'mock';
+  
+  constructor() {}
+}
 export const Vault = jest.fn().mockImplementation(() => ({
   cachedRead: jest.fn().mockImplementation((file) => {
     if (file.extension === 'unsupported') {

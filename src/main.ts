@@ -2,15 +2,9 @@ import { Editor, Menu, Notice, Plugin, requestUrl } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "./spinnerPlugin";
-import { removeThinkingTags } from "./text-processing";
 import { LocalGPTAction, LocalGPTSettings } from "./interfaces";
 
-import {
-	createVectorStore,
-	getLinkedFiles,
-	queryVectorStore,
-	startProcessing,
-} from "./rag";
+import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
 import { logger } from "./logger";
 import { fileCache } from "./indexedDB";
 import {
@@ -20,6 +14,17 @@ import {
 	IAIProvidersService,
 } from "@obsidian-ai-providers/sdk";
 import { preparePrompt } from "./utils";
+
+/**
+ * Remove all thinking tags and their content from text
+ * Used for final output processing
+ *
+ * @param text Text that may contain thinking tags
+ * @returns Clean text without thinking tags and their content
+ */
+function removeThinkingTags(text: string): string {
+	return text.replace(/^<think>[\s\S]*?<\/think>\s*/, "");
+}
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
@@ -279,10 +284,7 @@ export default class LocalGPT extends Plugin {
 		abortController: AbortController,
 	): Promise<string> {
 		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile) {
-			return "";
-		}
-		if (!aiProvider) {
+		if (!activeFile || !aiProvider || abortController?.signal.aborted) {
 			return "";
 		}
 
@@ -292,74 +294,57 @@ export default class LocalGPT extends Plugin {
 			this.app.metadataCache,
 			activeFile.path,
 		);
-
 		if (linkedFiles.length === 0) {
 			return "";
 		}
 
 		try {
-			if (abortController?.signal.aborted) {
-				return "";
-			}
-
 			this.initializeProgress();
+
+			// Add total steps: processing files + search
+			this.addTotalProgressSteps(linkedFiles.length + 1);
 
 			const processedDocs = await startProcessing(
 				linkedFiles,
 				this.app.vault,
 				this.app.metadataCache,
 				activeFile,
-			);
-
-			if (processedDocs.size === 0) {
-				this.hideStatusBar();
-				return "";
-			}
-
-			if (abortController?.signal.aborted) {
-				this.hideStatusBar();
-				return "";
-			}
-
-			const vectorStore = await createVectorStore(
-				Array.from(processedDocs.values()),
-				this,
-				activeFile.path,
-				aiProvider as any,
-				aiProviders,
-				abortController,
-				this.addTotalProgressSteps.bind(this),
 				this.updateCompletedSteps.bind(this),
 			);
 
+			if (processedDocs.size === 0 || abortController?.signal.aborted) {
+				this.hideStatusBar();
+				return "";
+			}
+
+			const retrieveDocuments = Array.from(processedDocs.values());
+
 			if (abortController?.signal.aborted) {
 				this.hideStatusBar();
 				return "";
 			}
 
-			const relevantContext = await queryVectorStore(
+			const relevantContext = await searchDocuments(
 				selectedText,
-				vectorStore,
+				retrieveDocuments,
+				aiProviders,
+				aiProvider,
+				abortController,
+				this.updateCompletedSteps.bind(this),
 			);
 
 			this.hideStatusBar();
-
-			if (relevantContext.trim()) {
-				return relevantContext;
-			}
+			return relevantContext.trim() || "";
 		} catch (error) {
 			this.hideStatusBar();
-			if (abortController?.signal.aborted) {
-				return "";
+			if (!abortController?.signal.aborted) {
+				console.error("Error processing RAG:", error);
+				new Notice(
+					`Error processing related documents: ${error.message}. Continuing with original text.`,
+				);
 			}
-
-			console.error("Error processing RAG:", error);
-			new Notice(
-				`Error processing related documents: ${error.message}. Continuing with original text.`,
-			);
+			return "";
 		}
-
-		return "";
 	}
 
 	onunload() {
