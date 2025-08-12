@@ -172,17 +172,34 @@ export async function searchDocuments(
 	aiProviders: any,
 	embeddingProvider: any,
 	abortController: AbortController,
-	updateCompletedSteps: (steps: number) => void,
+    updateCompletedSteps: (steps: number) => void,
+    addTotalProgressSteps?: (steps: number) => void,
 ): Promise<string> {
 	if (abortController?.signal.aborted) return "";
 
 	try {
+		let lastProcessedChunks = 0;
+		let initialized = false;
 		const results = await aiProviders.retrieve({
 			query,
 			documents,
 			embeddingProvider,
+			onProgress: (progress: any) => {
+				if (abortController?.signal.aborted) return;
+				// Initialize dynamic steps based on total chunks when first progress event arrives
+				if (!initialized) {
+					initialized = true;
+					// Allocate steps for each chunk
+					addTotalProgressSteps?.(progress.totalChunks || 0);
+				}
+				const processed = progress.processedChunks?.length || 0;
+				if (processed > lastProcessedChunks) {
+					updateCompletedSteps(processed - lastProcessedChunks);
+					lastProcessedChunks = processed;
+				}
+			},
+			abortController
 		});
-		updateCompletedSteps(1);
 		return formatResults(results);
 	} catch (error) {
 		if (!abortController?.signal.aborted) {

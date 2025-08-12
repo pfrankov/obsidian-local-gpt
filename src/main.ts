@@ -33,7 +33,12 @@ export default class LocalGPT extends Plugin {
 	private statusBarItem: HTMLElement;
 	private currentPercentage: number = 0;
 	private targetPercentage: number = 0;
-	private animationFrameId: number | null = null;
+	private frameId: number | null = null;
+	private lastFrameTime: number | null = null;
+	private displayedPercentage: number = 0; // fractional internal value
+	private baseSpeed: number = 0; // percent per ms (smoothed)
+	private lastTargetUpdateTime: number | null = null;
+	private progressFinished: boolean = false; // controls when we can show 100%
 	private totalProgressSteps: number = 0;
 	private completedProgressSteps: number = 0;
 
@@ -135,6 +140,11 @@ export default class LocalGPT extends Plugin {
 		const hideSpinner = spinner?.show(editor.posToOffset(cursorPositionTo));
 		this.app.workspace.updateOptions();
 
+		abortController.signal.addEventListener("abort", () => {
+			hideSpinner && hideSpinner();
+			this.app.workspace.updateOptions();
+		});
+
 		const onUpdate = (updatedString: string) => {
 			spinner.processText(updatedString, (text: string) =>
 				this.processText(text, selectedText),
@@ -220,61 +230,54 @@ export default class LocalGPT extends Plugin {
 			throw new Error("No AI provider found");
 		}
 
-		const chunkHandler = await aiProviders.execute({
-			provider,
-			prompt: preparePrompt(action.prompt, selectedText, context),
-			images: imagesInBase64,
-			systemPrompt: action.system,
-			options: {
-				temperature:
-					action.temperature ||
-					CREATIVITY[this.settings.defaults.creativity].temperature,
-			},
-		});
-
-		chunkHandler.onData((chunk: string, accumulatedText: string) => {
-			onUpdate(accumulatedText);
-		});
-
-		chunkHandler.onEnd((fullText: string) => {
-			hideSpinner && hideSpinner();
-			this.app.workspace.updateOptions();
-
-			// Remove any thinking tags from the final text
-			const finalText = removeThinkingTags(fullText).trim();
-
-			if (action.replace) {
-				editor.replaceRange(
-					finalText,
-					cursorPositionFrom,
-					cursorPositionTo,
-				);
-			} else {
-				const isLastLine = editor.lastLine() === cursorPositionTo.line;
-				const text = this.processText(finalText, selectedText);
-				editor.replaceRange(isLastLine ? "\n" + text : text, {
-					ch: 0,
-					line: cursorPositionTo.line + 1,
-				});
-			}
-		});
-
-		chunkHandler.onError((error: Error) => {
-			console.log("abort handled");
+		let fullText = "";
+		try {
+			fullText = await aiProviders.execute({
+				provider,
+				prompt: preparePrompt(action.prompt, selectedText, context),
+				images: imagesInBase64,
+				systemPrompt: action.system,
+				options: {
+					temperature:
+						action.temperature ||
+						CREATIVITY[this.settings.defaults.creativity].temperature,
+				},
+				onProgress: (chunk: string, accumulatedText: string) => {
+					onUpdate(accumulatedText);
+				},
+				abortController
+			});
+		} catch(error) {
 			if (!abortController.signal.aborted) {
 				new Notice(`Error while generating text: ${error.message}`);
 			}
-			hideSpinner && hideSpinner();
-			this.app.workspace.updateOptions();
 			logger.separator();
-		});
-
-		abortController.signal.addEventListener("abort", () => {
-			console.log("make abort");
-			chunkHandler.abort();
+		} finally {
 			hideSpinner && hideSpinner();
 			this.app.workspace.updateOptions();
-		});
+		}
+
+		if (abortController.signal.aborted) {
+			return;
+		}
+
+		// Remove any thinking tags from the final text
+		const finalText = removeThinkingTags(fullText).trim();
+
+		if (action.replace) {
+			editor.replaceRange(
+				finalText,
+				cursorPositionFrom,
+				cursorPositionTo,
+			);
+		} else {
+			const isLastLine = editor.lastLine() === cursorPositionTo.line;
+			const text = this.processText(finalText, selectedText);
+			editor.replaceRange(isLastLine ? "\n" + text : text, {
+				ch: 0,
+				line: cursorPositionTo.line + 1,
+			});
+		}
 	}
 
 	async enhanceWithContext(
@@ -300,9 +303,6 @@ export default class LocalGPT extends Plugin {
 
 		try {
 			this.initializeProgress();
-
-			// Add total steps: processing files + search
-			this.addTotalProgressSteps(linkedFiles.length + 1);
 
 			const processedDocs = await startProcessing(
 				linkedFiles,
@@ -331,6 +331,7 @@ export default class LocalGPT extends Plugin {
 				aiProvider,
 				abortController,
 				this.updateCompletedSteps.bind(this),
+				this.addTotalProgressSteps.bind(this),
 			);
 
 			this.hideStatusBar();
@@ -350,8 +351,8 @@ export default class LocalGPT extends Plugin {
 	onunload() {
 		document.removeEventListener("keydown", this.escapeHandler);
 		window.clearInterval(this.updatingInterval);
-		if (this.animationFrameId !== null) {
-			cancelAnimationFrame(this.animationFrameId);
+		if (this.frameId !== null) {
+			cancelAnimationFrame(this.frameId);
 		}
 	}
 
@@ -629,6 +630,12 @@ export default class LocalGPT extends Plugin {
 		this.completedProgressSteps = 0;
 		this.currentPercentage = 0;
 		this.targetPercentage = 0;
+		this.displayedPercentage = 0;
+		this.baseSpeed = 0;
+		this.lastTargetUpdateTime = null;
+		this.lastFrameTime = null;
+	this.progressFinished = false;
+		this.stopAnimation();
 		this.statusBarItem.show();
 		this.updateStatusBar();
 	}
@@ -640,60 +647,103 @@ export default class LocalGPT extends Plugin {
 
 	private updateCompletedSteps(steps: number) {
 		this.completedProgressSteps += steps;
+		// Maintain invariant: total >= completed (dynamic totals may appear late)
+		if (this.completedProgressSteps > this.totalProgressSteps) {
+			this.totalProgressSteps = this.completedProgressSteps;
+		}
 		this.updateProgressBar();
 	}
 
 	private updateProgressBar() {
-		const newTargetPercentage =
-			this.totalProgressSteps > 0
-				? Math.round(
-						(this.completedProgressSteps /
-							this.totalProgressSteps) *
-							100,
-					)
-				: 0;
-
-		if (this.targetPercentage !== newTargetPercentage) {
-			this.targetPercentage = newTargetPercentage;
-			if (this.animationFrameId === null) {
-				this.animatePercentage();
+		let ratio = 0;
+		if (this.totalProgressSteps > 0) {
+			ratio = this.completedProgressSteps / this.totalProgressSteps;
+		}
+		if (ratio > 1) {
+			ratio = 1; // safety clamp, logical invariant already enforced
+		}
+		const newTarget = Math.floor(ratio * 100);
+		if (newTarget === this.targetPercentage) {
+			return;
+		}
+		const now = performance.now();
+		if (this.lastTargetUpdateTime !== null) {
+			const dt = now - this.lastTargetUpdateTime;
+			const diff = newTarget - this.targetPercentage;
+			if (dt > 0 && diff > 0) {
+				const instantaneous = diff / dt;
+				const alpha = 0.25; // smoothing factor
+				if (this.baseSpeed === 0) {
+					this.baseSpeed = instantaneous;
+				} else {
+					this.baseSpeed = this.baseSpeed * (1 - alpha) + instantaneous * alpha;
+				}
+				// Clamp speed to avoid extreme jumps
+				const MIN = 0.02 / 16; // ~0.02% per frame at 60fps
+				const MAX = 3 / 16; // ~3% per frame at 60fps
+				if (this.baseSpeed < MIN) {
+					this.baseSpeed = MIN;
+				}
+				if (this.baseSpeed > MAX) {
+					this.baseSpeed = MAX;
+				}
 			}
+		}
+		this.targetPercentage = newTarget;
+		this.lastTargetUpdateTime = now;
+		if (this.frameId === null) {
+			this.lastFrameTime = null;
+			this.frameId = requestAnimationFrame(this.animationLoop);
 		}
 	}
 
 	private updateStatusBar() {
+		const shown = this.progressFinished ? this.currentPercentage : Math.min(this.currentPercentage, 99);
 		this.statusBarItem.setAttr(
 			"data-text",
-			this.currentPercentage
-				? `✨ Enhancing ${this.currentPercentage}%`
-				: "✨ Enhancing",
+			shown ? `✨ Enhancing ${shown}%` : "✨ Enhancing",
 		);
 		this.statusBarItem.setText(` `);
 	}
 
-	private animatePercentage() {
-		const startTime = performance.now();
-		const duration = 300;
-
-		const animate = (currentTime: number) => {
-			const elapsedTime = currentTime - startTime;
-			const progress = Math.min(elapsedTime / duration, 1);
-
-			this.currentPercentage = Math.round(
-				this.currentPercentage +
-					(this.targetPercentage - this.currentPercentage) * progress,
-			);
-
-			this.updateStatusBar();
-
-			if (progress < 1) {
-				this.animationFrameId = requestAnimationFrame(animate);
-			} else {
-				this.animationFrameId = null;
+	private animationLoop = (time: number) => {
+		if (this.lastFrameTime === null) {
+			this.lastFrameTime = time;
+		}
+		const delta = time - this.lastFrameTime;
+		this.lastFrameTime = time;
+		const target = this.targetPercentage;
+		if (delta > 0 && this.displayedPercentage < target) {
+			let speed = this.baseSpeed;
+			if (speed === 0) {
+				// Initial guess: reach target in ~400ms
+				speed = (target - this.displayedPercentage) / 400;
 			}
-		};
+			this.displayedPercentage = Math.min(target, this.displayedPercentage + speed * delta);
+			const rounded = Math.floor(this.displayedPercentage);
+			if (rounded !== this.currentPercentage) {
+				this.currentPercentage = rounded;
+				this.updateStatusBar();
+			}
+		}
+		if (this.displayedPercentage >= target) {
+			this.displayedPercentage = target;
+			this.currentPercentage = target;
+			this.updateStatusBar();
+		}
+		if (this.currentPercentage < this.targetPercentage || this.displayedPercentage < this.targetPercentage) {
+			this.frameId = requestAnimationFrame(this.animationLoop);
+			return;
+		}
+		this.stopAnimation();
+	};
 
-		this.animationFrameId = requestAnimationFrame(animate);
+	private stopAnimation() {
+		if (this.frameId !== null) {
+			cancelAnimationFrame(this.frameId);
+		}
+		this.frameId = null;
+		this.lastFrameTime = null;
 	}
 
 	private hideStatusBar() {
@@ -702,5 +752,22 @@ export default class LocalGPT extends Plugin {
 		this.completedProgressSteps = 0;
 		this.currentPercentage = 0;
 		this.targetPercentage = 0;
+		this.displayedPercentage = 0;
+		this.baseSpeed = 0;
+		this.lastTargetUpdateTime = null;
+		this.lastFrameTime = null;
+		this.progressFinished = false;
+		this.stopAnimation();
+	}
+
+	private markProgressFinished() {
+		if (this.progressFinished) {
+			return;
+		}
+		this.progressFinished = true;
+		this.currentPercentage = 100;
+		this.displayedPercentage = 100;
+		this.targetPercentage = 100;
+		this.updateStatusBar();
 	}
 }
