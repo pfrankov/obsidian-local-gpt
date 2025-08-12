@@ -172,8 +172,8 @@ export async function searchDocuments(
 	aiProviders: any,
 	embeddingProvider: any,
 	abortController: AbortController,
-    updateCompletedSteps: (steps: number) => void,
-    addTotalProgressSteps?: (steps: number) => void,
+	updateCompletedSteps: (steps: number) => void,
+	addTotalProgressSteps?: (steps: number) => void,
 ): Promise<string> {
 	if (abortController?.signal.aborted) return "";
 
@@ -198,8 +198,12 @@ export async function searchDocuments(
 					lastProcessedChunks = processed;
 				}
 			},
-			abortController
+			abortController,
 		});
+		// Fallback: if no progress events fired but we got results, mimic one step for backward compatibility
+		if (!initialized && results?.length) {
+			updateCompletedSteps(1);
+		}
 		return formatResults(results);
 	} catch (error) {
 		if (!abortController?.signal.aborted) {

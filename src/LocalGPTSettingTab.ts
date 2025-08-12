@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction } from "./interfaces";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
+import { I18n } from "./i18n";
 
 const SEPARATOR = "✂️";
 
@@ -57,7 +58,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setHeading()
-				.setName("Main AI Provider")
+				.setName(I18n.t("settings.mainProvider"))
 				.setClass("ai-providers-select")
 				.addDropdown((dropdown) =>
 					dropdown
@@ -71,8 +72,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 
 			new Setting(containerEl)
-				.setName("Embedding AI Provider")
-				.setDesc("Optional. Used for ✨ Enhanced Actions.")
+				.setName(I18n.t("settings.embeddingProvider"))
+				.setDesc(I18n.t("settings.embeddingProviderDesc"))
 				.setClass("ai-providers-select")
 				.addDropdown((dropdown) =>
 					dropdown
@@ -88,11 +89,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 
 			new Setting(containerEl)
-				.setName("Vision AI Provider")
+				.setName(I18n.t("settings.visionProvider"))
 				.setClass("ai-providers-select")
-				.setDesc(
-					"Optional. This is used for images. If not set, the main AI provider will be used.",
-				)
+				.setDesc(I18n.t("settings.visionProviderDesc"))
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(providers)
@@ -107,15 +106,15 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 
 			new Setting(containerEl)
-				.setName("Creativity")
+				.setName(I18n.t("settings.creativity"))
 				.setDesc("")
 				.addDropdown((dropdown) => {
 					dropdown
-						.addOption("", "⚪ None")
+						.addOption("", I18n.t("settings.creativityNone"))
 						.addOptions({
-							low: "️💡 Low",
-							medium: "🎨 Medium",
-							high: "🚀 High",
+							low: I18n.t("settings.creativityLow"),
+							medium: I18n.t("settings.creativityMedium"),
+							high: I18n.t("settings.creativityHigh"),
 						})
 						.setValue(
 							String(this.plugin.settings.defaults.creativity) ||
@@ -149,15 +148,15 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("div", { cls: "local-gpt-settings-separator" });
 
-		containerEl.createEl("h3", { text: "Actions" });
+		containerEl.createEl("h3", { text: I18n.t("settings.actions") });
 
 		if (!this.editEnabled) {
 			const quickAdd = new Setting(containerEl)
-				.setName("Quick add")
+				.setName(I18n.t("settings.quickAdd"))
 				.setDesc("")
 				.addText((text) => {
 					text.inputEl.style.minWidth = "100%";
-					text.setPlaceholder("Paste action");
+					text.setPlaceholder(I18n.t("settings.quickAddPlaceholder"));
 					text.onChange(async (value) => {
 						const quickAddAction: LocalGPTAction = value
 							.split(SEPARATOR)
@@ -194,10 +193,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					});
 				});
 
-			quickAdd.descEl.innerHTML = `You can share the best sets prompts or get one <a href="https://github.com/pfrankov/obsidian-local-gpt/discussions/2">from the community</a>.<br/><strong>Important:</strong> if you already have an action with the same name it will be overwritten.`;
+			quickAdd.descEl.innerHTML = I18n.t("settings.quickAddDesc");
 
 			new Setting(containerEl)
-				.setName("Add new manually")
+				.setName(I18n.t("settings.addNewManually"))
 				.addButton((button) =>
 					button.setIcon("plus").onClick(async () => {
 						this.editEnabled = true;
@@ -206,32 +205,38 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					}),
 				);
 		} else {
-			new Setting(containerEl).setName("Action name").addText((text) => {
-				editingAction?.name && text.setValue(editingAction.name);
-				text.inputEl.style.minWidth = "100%";
-				text.setPlaceholder("Summarize selection");
-				text.onChange(async (value) => {
-					editingAction.name = value;
+			new Setting(containerEl)
+				.setName(I18n.t("settings.actionName"))
+				.addText((text) => {
+					editingAction?.name && text.setValue(editingAction.name);
+					text.inputEl.style.minWidth = "100%";
+					text.setPlaceholder(
+						I18n.t("settings.actionNamePlaceholder"),
+					);
+					text.onChange(async (value) => {
+						editingAction.name = value;
+					});
 				});
-			});
 
 			new Setting(containerEl)
-				.setName("System prompt")
-				.setDesc("Optional")
+				.setName(I18n.t("settings.systemPrompt"))
+				.setDesc(I18n.t("settings.systemPromptDesc"))
 				.addTextArea((text) => {
 					editingAction?.system &&
 						text.setValue(editingAction.system);
 					text.inputEl.style.minWidth = "100%";
 					text.inputEl.style.minHeight = "6em";
 					text.inputEl.style.resize = "vertical";
-					text.setPlaceholder("You are a helpful assistant.");
+					text.setPlaceholder(
+						I18n.t("settings.systemPromptPlaceholder"),
+					);
 					text.onChange(async (value) => {
 						editingAction.system = value;
 					});
 				});
 
 			const promptSetting = new Setting(containerEl)
-				.setName("Prompt")
+				.setName(I18n.t("settings.prompt"))
 				.setDesc("")
 				.addTextArea((text) => {
 					editingAction?.prompt &&
@@ -245,13 +250,11 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					});
 				});
 
-			promptSetting.descEl.innerHTML = `Please read about<br/><a href="https://github.com/pfrankov/obsidian-local-gpt/blob/master/docs/prompt-templating.md">Prompt templating</a><br/>if you want to customize<br/>your resulting prompts`;
+			promptSetting.descEl.innerHTML = I18n.t("settings.promptDesc");
 
 			new Setting(containerEl)
-				.setName("Replace selected text")
-				.setDesc(
-					"If checked, the highlighted text will be replaced with a response from the model.",
-				)
+				.setName(I18n.t("settings.replaceSelected"))
+				.setDesc(I18n.t("settings.replaceSelectedDesc"))
 				.addToggle((component) => {
 					editingAction?.replace &&
 						component.setValue(editingAction.replace);
@@ -265,40 +268,45 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			if (this.editExistingAction) {
 				actionButtonsRow.addButton((button) => {
 					button.buttonEl.style.marginRight = "2em";
-					button.setButtonText("Remove").onClick(async () => {
-						if (!button.buttonEl.hasClass("mod-warning")) {
-							button.setClass("mod-warning");
-							return;
-						}
+					button
+						.setButtonText(I18n.t("settings.remove"))
+						.onClick(async () => {
+							if (!button.buttonEl.hasClass("mod-warning")) {
+								button.setClass("mod-warning");
+								return;
+							}
 
-						this.plugin.settings.actions =
-							this.plugin.settings.actions.filter(
-								(innerAction) => innerAction !== editingAction,
-							);
-						await this.plugin.saveSettings();
-						this.editExistingAction = undefined;
-						this.editEnabled = false;
-						this.display();
-					});
+							this.plugin.settings.actions =
+								this.plugin.settings.actions.filter(
+									(innerAction) =>
+										innerAction !== editingAction,
+								);
+							await this.plugin.saveSettings();
+							this.editExistingAction = undefined;
+							this.editEnabled = false;
+							this.display();
+						});
 				});
 			}
 
 			actionButtonsRow
 				.addButton((button) => {
-					button.setButtonText("Close").onClick(async () => {
-						this.editEnabled = false;
-						this.editExistingAction = undefined;
-						this.display();
-					});
+					button
+						.setButtonText(I18n.t("settings.close"))
+						.onClick(async () => {
+							this.editEnabled = false;
+							this.editExistingAction = undefined;
+							this.display();
+						});
 				})
 				.addButton((button) =>
 					button
 						.setCta()
-						.setButtonText("Save")
+						.setButtonText(I18n.t("settings.save"))
 						.onClick(async () => {
 							if (!editingAction.name) {
 								new Notice(
-									"Please enter a name for the action.",
+									I18n.t("notices.actionNameRequired"),
 								);
 								return;
 							}
@@ -311,7 +319,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 									)
 								) {
 									new Notice(
-										`An action with the name "${editingAction.name}" already exists.`,
+										I18n.t("notices.actionNameExists", {
+											name: editingAction.name,
+										}),
 									);
 									return;
 								}
@@ -325,7 +335,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 									).length > 1
 								) {
 									new Notice(
-										`An action with the name "${editingAction.name}" already exists.`,
+										I18n.t("notices.actionNameExists", {
+											name: editingAction.name,
+										}),
 									);
 									return;
 								}
@@ -349,7 +361,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 		}
 
-		containerEl.createEl("h4", { text: "Actions list" });
+		containerEl.createEl("h4", { text: I18n.t("settings.actionsList") });
 
 		this.plugin.settings.actions.forEach((action, actionIndex) => {
 			const sharingString = [
@@ -371,7 +383,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					.addButton((button) =>
 						button.setIcon("copy").onClick(async () => {
 							navigator.clipboard.writeText(sharingString);
-							new Notice("Copied");
+							new Notice(I18n.t("notices.copied"));
 						}),
 					)
 					.addButton((button) =>
@@ -439,7 +451,11 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			new Setting(containerEl).setName("").addButton((button) => {
 				this.changingOrder && button.setCta();
 				button
-					.setButtonText(this.changingOrder ? "Done" : "Change order")
+					.setButtonText(
+						this.changingOrder
+							? I18n.t("settings.done")
+							: I18n.t("settings.changeOrder"),
+					)
 					.onClick(async () => {
 						this.changingOrder = !this.changingOrder;
 						this.display();
@@ -447,16 +463,14 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			});
 		}
 
-		containerEl.createEl("h4", { text: "Danger zone" });
+		containerEl.createEl("h4", { text: I18n.t("settings.dangerZone") });
 		new Setting(containerEl)
-			.setName("Reset actions")
-			.setDesc(
-				"🚨 Reset all actions to the default. This cannot be undone and will delete all your custom actions.",
-			)
+			.setName(I18n.t("settings.resetActions"))
+			.setDesc(I18n.t("settings.resetActionsDesc"))
 			.addButton((button) =>
 				button
 					.setClass("mod-warning")
-					.setButtonText("Reset")
+					.setButtonText(I18n.t("settings.reset"))
 					.onClick(async () => {
 						button.setDisabled(true);
 						button.buttonEl.setAttribute("disabled", "true");
@@ -477,13 +491,17 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		if (alreadyExistingActionIndex >= 0) {
 			this.plugin.settings.actions[alreadyExistingActionIndex] =
 				editingAction;
-			new Notice(`Rewritten "${editingAction.name}" action`);
+			new Notice(
+				I18n.t("notices.actionRewritten", { name: editingAction.name }),
+			);
 		} else {
 			this.plugin.settings.actions = [
 				editingAction,
 				...this.plugin.settings.actions,
 			];
-			new Notice(`Added "${editingAction.name}" action`);
+			new Notice(
+				I18n.t("notices.actionAdded", { name: editingAction.name }),
+			);
 		}
 		await this.plugin.saveSettings();
 	}

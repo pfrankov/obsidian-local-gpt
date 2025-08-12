@@ -6,6 +6,7 @@ import { LocalGPTAction, LocalGPTSettings } from "./interfaces";
 
 import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
 import { logger } from "./logger";
+import { I18n } from "./i18n";
 import { fileCache } from "./indexedDB";
 import {
 	initAI,
@@ -82,7 +83,7 @@ export default class LocalGPT extends Plugin {
 	private addCommands() {
 		this.addCommand({
 			id: "context-menu",
-			name: "Show context menu",
+			name: I18n.t("commands.showContextMenu"),
 			editorCallback: (editor: Editor) => {
 				// @ts-expect-error, not typed
 				const editorView = editor.cm;
@@ -240,16 +241,21 @@ export default class LocalGPT extends Plugin {
 				options: {
 					temperature:
 						action.temperature ||
-						CREATIVITY[this.settings.defaults.creativity].temperature,
+						CREATIVITY[this.settings.defaults.creativity]
+							.temperature,
 				},
 				onProgress: (chunk: string, accumulatedText: string) => {
 					onUpdate(accumulatedText);
 				},
-				abortController
+				abortController,
 			});
-		} catch(error) {
+		} catch (error) {
 			if (!abortController.signal.aborted) {
-				new Notice(`Error while generating text: ${error.message}`);
+				new Notice(
+					I18n.t("notices.errorGenerating", {
+						message: (error as any).message,
+					}),
+				);
 			}
 			logger.separator();
 		} finally {
@@ -341,7 +347,9 @@ export default class LocalGPT extends Plugin {
 			if (!abortController?.signal.aborted) {
 				console.error("Error processing RAG:", error);
 				new Notice(
-					`Error processing related documents: ${error.message}. Continuing with original text.`,
+					I18n.t("notices.errorProcessingRag", {
+						message: (error as any).message,
+					}),
 				);
 			}
 			return "";
@@ -485,7 +493,7 @@ export default class LocalGPT extends Plugin {
 			if (loadedData._version < 7) {
 				needToSave = true;
 
-				new Notice("️🚨 IMPORTANT! Update Local GPT settings!", 0);
+				new Notice(I18n.t("notices.importantUpdate"), 0);
 
 				const aiRequestWaiter = await waitForAI();
 				const aiProviders = await aiRequestWaiter.promise;
@@ -591,7 +599,7 @@ export default class LocalGPT extends Plugin {
 			});
 
 			if (response.tag_name !== this.manifest.version) {
-				new Notice(`⬆️ Local GPT: a new version is available`);
+				new Notice(I18n.t("notices.newVersion"));
 			}
 		} catch (error) {
 			console.error("Error checking for updates:", error);
@@ -634,7 +642,7 @@ export default class LocalGPT extends Plugin {
 		this.baseSpeed = 0;
 		this.lastTargetUpdateTime = null;
 		this.lastFrameTime = null;
-	this.progressFinished = false;
+		this.progressFinished = false;
 		this.stopAnimation();
 		this.statusBarItem.show();
 		this.updateStatusBar();
@@ -676,7 +684,8 @@ export default class LocalGPT extends Plugin {
 				if (this.baseSpeed === 0) {
 					this.baseSpeed = instantaneous;
 				} else {
-					this.baseSpeed = this.baseSpeed * (1 - alpha) + instantaneous * alpha;
+					this.baseSpeed =
+						this.baseSpeed * (1 - alpha) + instantaneous * alpha;
 				}
 				// Clamp speed to avoid extreme jumps
 				const MIN = 0.02 / 16; // ~0.02% per frame at 60fps
@@ -698,7 +707,9 @@ export default class LocalGPT extends Plugin {
 	}
 
 	private updateStatusBar() {
-		const shown = this.progressFinished ? this.currentPercentage : Math.min(this.currentPercentage, 99);
+		const shown = this.progressFinished
+			? this.currentPercentage
+			: Math.min(this.currentPercentage, 99);
 		this.statusBarItem.setAttr(
 			"data-text",
 			shown ? `✨ Enhancing ${shown}%` : "✨ Enhancing",
@@ -719,7 +730,10 @@ export default class LocalGPT extends Plugin {
 				// Initial guess: reach target in ~400ms
 				speed = (target - this.displayedPercentage) / 400;
 			}
-			this.displayedPercentage = Math.min(target, this.displayedPercentage + speed * delta);
+			this.displayedPercentage = Math.min(
+				target,
+				this.displayedPercentage + speed * delta,
+			);
 			const rounded = Math.floor(this.displayedPercentage);
 			if (rounded !== this.currentPercentage) {
 				this.currentPercentage = rounded;
@@ -731,7 +745,10 @@ export default class LocalGPT extends Plugin {
 			this.currentPercentage = target;
 			this.updateStatusBar();
 		}
-		if (this.currentPercentage < this.targetPercentage || this.displayedPercentage < this.targetPercentage) {
+		if (
+			this.currentPercentage < this.targetPercentage ||
+			this.displayedPercentage < this.targetPercentage
+		) {
 			this.frameId = requestAnimationFrame(this.animationLoop);
 			return;
 		}

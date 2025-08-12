@@ -298,11 +298,11 @@ describe('RAG Functions', () => {
 				mockUpdateCompletedSteps
 			);
 
-			expect(mockAIProviders.retrieve).toHaveBeenCalledWith({
+			expect(mockAIProviders.retrieve).toHaveBeenCalledWith(expect.objectContaining({
 				query,
 				documents,
 				embeddingProvider: mockEmbeddingProvider
-			});
+			}));
 			expect(mockUpdateCompletedSteps).toHaveBeenCalledWith(1);
 			expect(result).toContain('[[file2]]');
 			expect(result).toContain('[[file1]]');

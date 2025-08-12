@@ -38,6 +38,12 @@ You can also add yours, share the best actions or get one [from the community](h
 
 <img width="479" alt="Settings" src="https://github.com/user-attachments/assets/5337e74c-864b-45cb-82e0-2c32bbbfa3ed" />
 
+### Supported languages
+- English
+- Chinese
+- German
+- Russian
+
 ## Installation
 ### 1. Install Plugin
 #### Obsidian plugin store (recommended)
