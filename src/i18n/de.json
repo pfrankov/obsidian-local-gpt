@@ -1,6 +1,6 @@
 {
 	"commands": { "showContextMenu": "Kontextmenü anzeigen" },
-	"status": { "enhancing": "✨ Verbessern..." },
+	"status": { "enhancing": "✨ Verbessern" },
 	"notices": {
 		"errorGenerating": "Fehler bei der Texterzeugung: {{message}}",
 		"errorProcessingRag": "Fehler bei der Verarbeitung verknüpfter Dokumente: {{message}}. Fahre mit dem Originaltext fort.",

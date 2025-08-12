@@ -1,6 +1,6 @@
 {
 	"commands": { "showContextMenu": "Показать контекстное меню" },
-	"status": { "enhancing": "✨ Улучшение..." },
+	"status": { "enhancing": "✨ Улучшение" },
 	"notices": {
 		"errorGenerating": "Ошибка генерации текста: {{message}}",
 		"errorProcessingRag": "Ошибка обработки связанных документов: {{message}}. Продолжаю с исходным текстом.",
