@@ -43,9 +43,19 @@
 		"actionsList": "Aktionsliste",
 		"changeOrder": "Reihenfolge ändern",
 		"done": "Fertig",
+		"advancedSettings": "Erweiterte Einstellungen",
+		"advancedSettingsDesc": "✨ Erweiterte Aktionen (RAG), Alle Aktionen zurücksetzen",
+		"enhancedActions": "Erweiterte Aktionen",
+		"enhancedActionsLabel": "RAG‑Kontext",
+		"enhancedActionsDesc": "Mehr Kontext kann die Antwortqualität bei leistungsstarken Modellen verbessern, bei schwächeren jedoch verschlechtern. Größerer Kontext verbraucht außerdem mehr Tokens und erhöht die Kosten pro Anfrage (bei kostenpflichtigen Modellen).",
+		"contextLimitLocal": "Lokale Modelle",
+		"contextLimitCloud": "Cloud‑Modelle",
+		"contextLimitAdvanced": "Top: GPT, Claude, Gemini",
+		"contextLimitMax": "Keine Limits (Achtung)",
 		"dangerZone": "Gefahrenzone",
 		"resetActions": "Aktionen zurücksetzen",
 		"resetActionsDesc": "🚨 Setzt alle Aktionen auf die Standardeinstellungen zurück. Dies kann nicht rückgängig gemacht werden und löscht alle Ihre benutzerdefinierten Aktionen.",
-		"reset": "Zurücksetzen"
+		"reset": "Zurücksetzen",
+		"confirmReset": "Zurücksetzen bestätigen"
 	}
 }

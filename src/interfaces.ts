@@ -6,6 +6,11 @@ export interface LocalGPTSettings {
 	};
 	defaults: {
 		creativity: string;
+		/**
+		 * Preset that controls the overall limit for context chunks in Enhanced Actions (RAG).
+		 * Values: 'local' | 'cloud' | 'advanced' | 'max'
+		 */
+		contextLimit?: string;
 	};
 	actions: LocalGPTAction[];
 	_version: number;

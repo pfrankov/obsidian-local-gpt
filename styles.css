@@ -4,6 +4,30 @@
 	height: 1em;
 }
 
+/* Advanced settings styling (match AI Providers look-and-feel) */
+.local-gpt-advanced-toggle {
+	margin-top: 1.5em;
+	border: 0;
+}
+
+.local-gpt-advanced-group {
+	margin-top: 0.75em;
+	padding: 1em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.local-gpt-advanced-group > h4 {
+	margin: 0 0 0.75em;
+	font-weight: 700;
+}
+
+.local-gpt-advanced-group .setting-item {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 0.5em;
+	padding-top: 0.5em;
+}
+
 .local-gpt-content {
 	color: var(--text-faint);
 	display: block;

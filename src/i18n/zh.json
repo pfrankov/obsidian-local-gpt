@@ -43,9 +43,19 @@
 		"actionsList": "操作列表",
 		"changeOrder": "更改顺序",
 		"done": "完成",
+		"advancedSettings": "高级设置",
+		"advancedSettingsDesc": "✨ 增强操作（RAG）、重置所有操作",
+		"enhancedActions": "增强操作",
+		"enhancedActionsLabel": "RAG 上下文",
+		"enhancedActionsDesc": "更多上下文可提升强大模型的答案质量，但可能降低较弱模型的质量。更大的上下文也会消耗更多 Token，并提高每次请求成本（对付费模型而言）。",
+		"contextLimitLocal": "本地模型",
+		"contextLimitCloud": "云端模型",
+		"contextLimitAdvanced": "顶级：GPT、Claude、Gemini",
+		"contextLimitMax": "无限制（注意）",
 		"dangerZone": "危险区域",
 		"resetActions": "重置操作",
 		"resetActionsDesc": "🚨 将所有操作重置为默认值。此操作无法撤销，并将删除所有您的自定义操作。",
-		"reset": "重置"
+		"reset": "重置",
+		"confirmReset": "确认重置"
 	}
 }

@@ -5,7 +5,6 @@ import { extractTextFromPDF } from "./processors/pdf";
 import { fileCache } from "./indexedDB";
 
 const MAX_DEPTH = 10;
-const MAX_CONTEXT_LENGTH = 10000;
 
 export interface ProcessingContext {
 	vault: Vault;
@@ -173,13 +172,17 @@ export async function searchDocuments(
 	embeddingProvider: any,
 	abortController: AbortController,
 	updateCompletedSteps: (steps: number) => void,
-	addTotalProgressSteps?: (steps: number) => void,
+	addTotalProgressSteps: (steps: number) => void,
+	contextLimit: number,
 ): Promise<string> {
 	if (abortController?.signal.aborted) return "";
 
 	try {
 		let lastProcessedChunks = 0;
 		let initialized = false;
+
+		logger.info("Passed contextLimit for context", contextLimit);
+
 		const results = await aiProviders.retrieve({
 			query,
 			documents,
@@ -204,7 +207,7 @@ export async function searchDocuments(
 		if (!initialized && results?.length) {
 			updateCompletedSteps(1);
 		}
-		return formatResults(results);
+		return formatResults(results, contextLimit);
 	} catch (error) {
 		if (!abortController?.signal.aborted) {
 			console.error("Error in searchDocuments:", error);
@@ -213,7 +216,10 @@ export async function searchDocuments(
 	}
 }
 
-function formatResults(results: IAIProvidersRetrievalResult[]): string {
+function formatResults(
+	results: IAIProvidersRetrievalResult[],
+	contextLimit: number,
+): string {
 	if (!results?.length) return "";
 
 	const groupedResults = new Map<string, IAIProvidersRetrievalResult[]>();
@@ -236,19 +242,22 @@ function formatResults(results: IAIProvidersRetrievalResult[]): string {
 	let totalLength = 0;
 
 	for (const [basename, groupResults] of sortedGroups) {
-		if (totalLength >= MAX_CONTEXT_LENGTH) break;
+		if (totalLength >= contextLimit) break;
 
 		formattedResults += `[[${basename}]]\n`;
 
 		const sortedResults = groupResults.sort((a, b) => b.score - a.score);
 		for (const result of sortedResults) {
 			const content = result.content.trim();
-			if (content && totalLength + content.length < MAX_CONTEXT_LENGTH) {
+			if (content && totalLength + content.length < contextLimit) {
 				formattedResults += `${content}\n\n`;
 				totalLength += content.length + 2;
 			}
 		}
 	}
 
-	return formattedResults.trim();
+	formattedResults = formattedResults.trim();
+	logger.info("Total length of context", formattedResults.length);
+
+	return formattedResults;
 }

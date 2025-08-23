@@ -43,9 +43,19 @@
 		"actionsList": "Actions list",
 		"changeOrder": "Change order",
 		"done": "Done",
+		"advancedSettings": "Advanced settings",
+		"advancedSettingsDesc": "✨ Enhanced Actions (RAG), Reset all actions",
+		"enhancedActions": "Enhanced Actions",
+		"enhancedActionsLabel": "RAG context",
+		"enhancedActionsDesc": "More context can improve answer quality for powerful models, but may reduce quality for weaker ones. Larger context also consumes more tokens and increases request cost for paid models.",
+		"contextLimitLocal": "Local models",
+		"contextLimitCloud": "Cloud models",
+		"contextLimitAdvanced": "Top: GPT, Claude, Gemini",
+		"contextLimitMax": "No limits (danger)",
 		"dangerZone": "Danger zone",
 		"resetActions": "Reset actions",
 		"resetActionsDesc": "🚨 Reset all actions to the default. This cannot be undone and will delete all your custom actions.",
-		"reset": "Reset"
+		"reset": "Reset",
+		"confirmReset": "Confirm reset"
 	}
 }

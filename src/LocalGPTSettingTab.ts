@@ -26,6 +26,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	editExistingAction?: LocalGPTAction;
 	modelsOptions: Record<string, string> = {};
 	changingOrder = false;
+	// Controls visibility of the Advanced settings section
+	private isAdvancedMode = false;
+	// Guard to require a second click before destructive reset
+	private isConfirmingReset = false;
 
 	constructor(app: App, plugin: LocalGPT) {
 		super(app, plugin);
@@ -463,23 +467,86 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			});
 		}
 
-		containerEl.createEl("h4", { text: I18n.t("settings.dangerZone") });
+		// Advanced settings toggle (similar to AI Providers "For developers")
 		new Setting(containerEl)
-			.setName(I18n.t("settings.resetActions"))
-			.setDesc(I18n.t("settings.resetActionsDesc"))
-			.addButton((button) =>
-				button
-					.setClass("mod-warning")
-					.setButtonText(I18n.t("settings.reset"))
-					.onClick(async () => {
-						button.setDisabled(true);
-						button.buttonEl.setAttribute("disabled", "true");
-						button.buttonEl.classList.remove("mod-warning");
-						this.plugin.settings.actions = DEFAULT_SETTINGS.actions;
-						await this.plugin.saveSettings();
-						this.display();
-					}),
+			.setHeading()
+			.setName(I18n.t("settings.advancedSettings"))
+			.setDesc(I18n.t("settings.advancedSettingsDesc"))
+			.setClass("local-gpt-advanced-toggle")
+			.addToggle((toggle) =>
+				toggle.setValue(this.isAdvancedMode).onChange((value) => {
+					this.isAdvancedMode = value;
+					this.display();
+				}),
 			);
+
+		if (this.isAdvancedMode) {
+			// Group: ✨ Enhanced Actions (RAG) — styled container
+			const enhancedSection = containerEl.createDiv(
+				"local-gpt-advanced-group",
+			);
+			enhancedSection.createEl("h4", {
+				text: I18n.t("settings.enhancedActions"),
+			});
+			new Setting(enhancedSection)
+				.setName(I18n.t("settings.enhancedActionsLabel"))
+				.setDesc(I18n.t("settings.enhancedActionsDesc"))
+				.setClass("ai-providers-select")
+				.addDropdown((dropdown) => {
+					// Preset options with non-numeric labels
+					dropdown
+						.addOptions({
+							local: I18n.t("settings.contextLimitLocal"),
+							cloud: I18n.t("settings.contextLimitCloud"),
+							advanced: I18n.t("settings.contextLimitAdvanced"),
+							max: I18n.t("settings.contextLimitMax"),
+						})
+						.setValue(
+							String(
+								this.plugin.settings.defaults.contextLimit ||
+									"local",
+							),
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.defaults.contextLimit = value;
+							await this.plugin.saveSettings();
+						});
+				});
+
+			// Group: Danger zone — reset all actions (moved here as-is) in a styled container
+			const dangerSection = containerEl.createDiv(
+				"local-gpt-advanced-group",
+			);
+			dangerSection.createEl("h4", {
+				text: I18n.t("settings.dangerZone"),
+			});
+			new Setting(dangerSection)
+				.setName(I18n.t("settings.resetActions"))
+				.setDesc(I18n.t("settings.resetActionsDesc"))
+				.addButton((button) =>
+					button
+						.setClass("mod-warning")
+						.setButtonText(I18n.t("settings.reset"))
+						.onClick(async () => {
+							if (!this.isConfirmingReset) {
+								this.isConfirmingReset = true;
+								button.setButtonText(
+									I18n.t("settings.confirmReset"),
+								);
+								return;
+							}
+
+							button.setDisabled(true);
+							button.buttonEl.setAttribute("disabled", "true");
+							button.buttonEl.classList.remove("mod-warning");
+							this.plugin.settings.actions =
+								DEFAULT_SETTINGS.actions;
+							await this.plugin.saveSettings();
+							this.isConfirmingReset = false;
+							this.display();
+						}),
+				);
+		}
 	}
 
 	async addNewAction(editingAction: LocalGPTAction) {

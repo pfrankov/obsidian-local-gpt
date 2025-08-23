@@ -330,6 +330,21 @@ export default class LocalGPT extends Plugin {
 				return "";
 			}
 
+			const contextLimit = (() => {
+				const preset = this.settings?.defaults?.contextLimit as
+					| "local"
+					| "cloud"
+					| "advanced"
+					| "max";
+				const map: Record<string, number> = {
+					local: 10_000,
+					cloud: 32_000,
+					advanced: 100_000,
+					max: 3_000_000,
+				};
+				return map[preset];
+			})();
+
 			const relevantContext = await searchDocuments(
 				selectedText,
 				retrieveDocuments,
@@ -338,6 +353,7 @@ export default class LocalGPT extends Plugin {
 				abortController,
 				this.updateCompletedSteps.bind(this),
 				this.addTotalProgressSteps.bind(this),
+				contextLimit,
 			);
 
 			this.hideStatusBar();
@@ -577,6 +593,18 @@ export default class LocalGPT extends Plugin {
 				delete (loadedData as any).providers;
 
 				loadedData._version = 7;
+			}
+
+			// v8: introduce defaults.contextLimit preset for Enhanced Actions
+			if (loadedData._version < 8) {
+				needToSave = true;
+				// Keep current behavior equivalent to "local" preset
+				(loadedData as any).defaults =
+					(loadedData as any).defaults || {};
+				(loadedData as any).defaults.contextLimit =
+					(loadedData as any).defaults.contextLimit || "local";
+
+				loadedData._version = 8;
 			}
 		}
 

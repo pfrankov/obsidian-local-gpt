@@ -295,7 +295,9 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				abortController,
-				mockUpdateCompletedSteps
+				mockUpdateCompletedSteps,
+				jest.fn(),
+				10000
 			);
 
 			expect(mockAIProviders.retrieve).toHaveBeenCalledWith(expect.objectContaining({
@@ -320,7 +322,9 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				abortController,
-				jest.fn()
+				jest.fn(),
+				jest.fn(),
+				10000
 			);
 
 			expect(result).toBe('');
@@ -338,7 +342,9 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				abortController,
-				jest.fn()
+				jest.fn(),
+				jest.fn(),
+				10000
 			);
 
 			expect(result).toBe('');
@@ -359,7 +365,9 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				abortController,
-				jest.fn()
+				jest.fn(),
+				jest.fn(),
+				10000
 			);
 
 			expect(result).toBe('');
@@ -406,7 +414,9 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				new AbortController(),
-				jest.fn()
+				jest.fn(),
+				jest.fn(),
+				10000
 			);
 
 			// Should be sorted by file creation time (newer first)
@@ -420,6 +430,59 @@ describe('RAG Functions', () => {
 			expect(highScoreIndex).toBeLessThan(lowScoreIndex);
 		});
 
+		describe('Context limit presets', () => {
+			const presetCases = [
+				{ preset: undefined, expectedChunks: 1, label: 'default (no preset)' },
+				{ preset: 'local', expectedChunks: 1, label: 'local' },
+				{ preset: 'cloud', expectedChunks: 6, label: 'cloud' },
+				{ preset: 'advanced', expectedChunks: 19, label: 'advanced' },
+				{ preset: 'max', expectedChunks: 25, label: 'max' },
+			];
+
+			const makeResults = (doc: IAIDocument) =>
+				Array.from({ length: 25 }, () => ({
+					content: 'A'.repeat(5000),
+					score: 0.5,
+					document: doc,
+				})) as unknown as IAIProvidersRetrievalResult[];
+
+			for (const { preset, expectedChunks, label } of presetCases) {
+				it(`should respect preset: ${label}`, async () => {
+					const map: Record<string, number> = {
+						local: 10000,
+						cloud: 32000,
+						advanced: 100000,
+						max: 3000000,
+					};
+					const limit = preset ? map[preset] : 10000;
+
+					const doc: IAIDocument = {
+						content: 'irrelevant',
+						meta: { basename: 'fileX', stat: { ctime: 1 } },
+					};
+
+					const mocked = makeResults(doc);
+					mockAIProviders.retrieve.mockResolvedValue(mocked);
+
+					const result = await searchDocuments(
+						'query',
+						[doc],
+						mockAIProviders,
+						mockEmbeddingProvider,
+						new AbortController(),
+						jest.fn(),
+						jest.fn(),
+						limit,
+					);
+
+					// Count A's equals number of included chunks * 5000
+					const aCount = (result.match(/A/g) || []).length;
+					expect(aCount).toBe(expectedChunks * 5000);
+
+				});
+			}
+		});
+
 		it('should handle empty results', async () => {
 			mockAIProviders.retrieve.mockResolvedValue([]);
 
@@ -429,13 +492,15 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				new AbortController(),
-				jest.fn()
+				jest.fn(),
+				jest.fn(),
+				10000
 			);
 
 			expect(result).toBe('');
 		});
 
-		it('should respect MAX_CONTEXT_LENGTH limit', async () => {
+		it('should respect context limit', async () => {
 			const longContent = 'A'.repeat(5000);
 			const documents: IAIDocument[] = [
 				{
@@ -465,10 +530,12 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				new AbortController(),
-				jest.fn()
+				jest.fn(),
+				jest.fn(),
+				10000
 			);
 
-			// Should not exceed reasonable length due to MAX_CONTEXT_LENGTH
+			// Should not exceed reasonable length due to context limit
 			expect(result.length).toBeLessThan(15000); // Some buffer for formatting
 		});
 	});
@@ -636,7 +703,9 @@ describe('RAG Functions', () => {
 					mockAIProviders,
 					mockEmbeddingProvider,
 					abortController,
-					mockUpdateCompletedSteps
+					mockUpdateCompletedSteps,
+					jest.fn(),
+					10000
 				);
 	
 				expect(mockUpdateCompletedSteps).toHaveBeenCalledTimes(1);
@@ -654,7 +723,9 @@ describe('RAG Functions', () => {
 					mockAIProviders,
 					mockEmbeddingProvider,
 					abortController,
-					mockUpdateCompletedSteps
+					mockUpdateCompletedSteps,
+					jest.fn(),
+					10000
 				);
 	
 				expect(result).toBe('');
@@ -673,7 +744,9 @@ describe('RAG Functions', () => {
 					mockAIProviders,
 					mockEmbeddingProvider,
 					abortController,
-					mockUpdateCompletedSteps
+					mockUpdateCompletedSteps,
+					jest.fn(),
+					10000
 				);
 	
 				expect(result).toBe('');
