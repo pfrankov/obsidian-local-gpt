@@ -1,6 +1,15 @@
 {
-	"commands": { "showContextMenu": "Показать контекстное меню" },
-	"status": { "enhancing": "✨ Улучшение" },
+	"commands": {
+		"showContextMenu": "Показать контекстное меню",
+		"actionPalette": {
+			"name": "Палитра действий",
+			"placeholder": "Ваш промпт... | Enter: отправить, Esc: отмена"
+		}
+	},
+	"statusBar": {
+		"enhancing": "✨ Улучшение",
+		"enhancingWithProgress": "✨ Улучшение {{percent}}%"
+	},
 	"notices": {
 		"errorGenerating": "Ошибка генерации текста: {{message}}",
 		"errorProcessingRag": "Ошибка обработки связанных документов: {{message}}. Продолжаю с исходным текстом.",

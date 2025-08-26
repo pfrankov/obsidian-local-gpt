@@ -1,6 +1,15 @@
 {
-	"commands": { "showContextMenu": "Kontextmenü anzeigen" },
-	"status": { "enhancing": "✨ Verbessern" },
+	"commands": {
+		"showContextMenu": "Kontextmenü anzeigen",
+		"actionPalette": {
+			"name": "Aktionspalette",
+			"placeholder": "Ihr Prompt... | Enter: senden, Esc: abbrechen"
+		}
+	},
+	"statusBar": {
+		"enhancing": "✨ Verbessern",
+		"enhancingWithProgress": "✨ Verbessern {{percent}}%"
+	},
 	"notices": {
 		"errorGenerating": "Fehler bei der Texterzeugung: {{message}}",
 		"errorProcessingRag": "Fehler bei der Verarbeitung verknüpfter Dokumente: {{message}}. Fahre mit dem Originaltext fort.",

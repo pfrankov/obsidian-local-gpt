@@ -1,6 +1,15 @@
 {
-	"commands": { "showContextMenu": "显示上下文菜单" },
-	"status": { "enhancing": "✨ 增强中" },
+	"commands": {
+		"showContextMenu": "显示上下文菜单",
+		"actionPalette": {
+			"name": "动作面板",
+			"placeholder": "您的提示... | Enter: 发送, Esc: 取消"
+		}
+	},
+	"statusBar": {
+		"enhancing": "✨ 增强中",
+		"enhancingWithProgress": "✨ 增强中 {{percent}}%"
+	},
 	"notices": {
 		"errorGenerating": "生成文本时出错: {{message}}",
 		"errorProcessingRag": "处理相关文档时出错: {{message}}。将继续使用原始文本。",

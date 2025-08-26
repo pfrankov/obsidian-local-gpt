@@ -1,6 +1,15 @@
 {
-	"commands": { "showContextMenu": "Show context menu" },
-	"status": { "enhancing": "✨ Enhancing" },
+	"commands": {
+		"showContextMenu": "Show context menu",
+		"actionPalette": {
+			"name": "Action Palette",
+			"placeholder": "Your prompt... | Enter: send, Esc: cancel"
+		}
+	},
+	"statusBar": {
+		"enhancing": "✨ Enhancing",
+		"enhancingWithProgress": "✨ Enhancing {{percent}}%"
+	},
 	"notices": {
 		"errorGenerating": "Error while generating text: {{message}}",
 		"errorProcessingRag": "Error processing related documents: {{message}}. Continuing with original text.",

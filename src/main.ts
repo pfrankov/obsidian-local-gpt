@@ -2,6 +2,11 @@ import { Editor, Menu, Notice, Plugin, requestUrl } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "./spinnerPlugin";
+import {
+	actionPalettePlugin,
+	showActionPalette,
+	hideActionPalette,
+} from "./ui/actionPalettePlugin";
 import { LocalGPTAction, LocalGPTSettings } from "./interfaces";
 
 import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
@@ -32,16 +37,16 @@ export default class LocalGPT extends Plugin {
 	abortControllers: AbortController[] = [];
 	updatingInterval: number;
 	private statusBarItem: HTMLElement;
-	private currentPercentage: number = 0;
-	private targetPercentage: number = 0;
+	private currentPercentage = 0;
+	private targetPercentage = 0;
 	private frameId: number | null = null;
 	private lastFrameTime: number | null = null;
-	private displayedPercentage: number = 0; // fractional internal value
-	private baseSpeed: number = 0; // percent per ms (smoothed)
+	private displayedPercentage = 0; // fractional internal value
+	private baseSpeed = 0; // percent per ms (smoothed)
 	private lastTargetUpdateTime: number | null = null;
-	private progressFinished: boolean = false; // controls when we can show 100%
-	private totalProgressSteps: number = 0;
-	private completedProgressSteps: number = 0;
+	private progressFinished = false; // controls when we can show 100%
+	private totalProgressSteps = 0;
+	private completedProgressSteps = 0;
 
 	async onload() {
 		initAI(this.app, this, async () => {
@@ -57,6 +62,7 @@ export default class LocalGPT extends Plugin {
 				}, 5000);
 			});
 			this.registerEditorExtension(spinnerPlugin);
+			this.registerEditorExtension(actionPalettePlugin);
 			this.initializeStatusBar();
 		});
 	}
@@ -123,9 +129,89 @@ export default class LocalGPT extends Plugin {
 				},
 			});
 		});
+
+		this.addCommand({
+			id: "local-gpt-action-palette",
+			name: I18n.t("commands.actionPalette.name"),
+			editorCallback: async (editor: Editor) => {
+				// @ts-expect-error, not typed
+				const editorView = editor.cm;
+				const cursorPositionFrom = editor.getCursor("from");
+				const insertPos = editor.posToOffset({
+					line: cursorPositionFrom.line,
+					ch: 0,
+				});
+
+				let modelLabel = "";
+				try {
+					const aiRequestWaiter = await waitForAI();
+					const aiProviders: IAIProvidersService =
+						await aiRequestWaiter.promise;
+					const provider = aiProviders.providers.find(
+						(p: IAIProvider) =>
+							p.id === this.settings.aiProviders.main,
+					);
+					if (provider) {
+						modelLabel = [provider.name, provider.model]
+							.filter(Boolean)
+							.join(" · ");
+					}
+				} catch (e) {
+					void e;
+				}
+
+				showActionPalette(editorView, insertPos, {
+					onSubmit: (text: string) => {
+						this.runFreeform(editor, text).finally(() => {});
+
+						hideActionPalette(editorView);
+						this.app.workspace.updateOptions();
+					},
+					onCancel: () => {
+						hideActionPalette(editorView);
+						this.app.workspace.updateOptions();
+					},
+					placeholder: I18n.t("commands.actionPalette.placeholder"),
+					modelLabel,
+				});
+			},
+		});
+	}
+
+	private async runFreeform(editor: Editor, userInput: string) {
+		return this.executeAction(
+			{
+				prompt: userInput,
+				system: undefined,
+				replace: false,
+			},
+			editor,
+		);
 	}
 
 	async runAction(action: LocalGPTAction, editor: Editor) {
+		return this.executeAction(
+			{
+				prompt: action.prompt,
+				system: action.system,
+				replace: !!action.replace,
+				temperature:
+					action.temperature ||
+					CREATIVITY[this.settings.defaults.creativity].temperature,
+			},
+			editor,
+		);
+	}
+
+	private async executeAction(
+		params: {
+			prompt: string;
+			system?: string;
+			replace?: boolean;
+			temperature?: number;
+		},
+		editor: Editor,
+	) {
 		// @ts-expect-error, not typed
 		const editorView = editor.cm;
 
@@ -235,12 +321,12 @@ export default class LocalGPT extends Plugin {
 		try {
 			fullText = await aiProviders.execute({
 				provider,
-				prompt: preparePrompt(action.prompt, selectedText, context),
+				prompt: preparePrompt(params.prompt, selectedText, context),
 				images: imagesInBase64,
-				systemPrompt: action.system,
+				systemPrompt: params.system,
 				options: {
 					temperature:
-						action.temperature ||
+						params.temperature ||
 						CREATIVITY[this.settings.defaults.creativity]
 							.temperature,
 				},
@@ -270,7 +356,7 @@ export default class LocalGPT extends Plugin {
 		// Remove any thinking tags from the final text
 		const finalText = removeThinkingTags(fullText).trim();
 
-		if (action.replace) {
+		if (params.replace) {
 			editor.replaceRange(
 				finalText,
 				cursorPositionFrom,
@@ -740,7 +826,11 @@ export default class LocalGPT extends Plugin {
 			: Math.min(this.currentPercentage, 99);
 		this.statusBarItem.setAttr(
 			"data-text",
-			shown ? `✨ Enhancing ${shown}%` : "✨ Enhancing",
+			shown
+				? I18n.t("statusBar.enhancingWithProgress", {
+						percent: String(shown),
+					})
+				: I18n.t("statusBar.enhancing"),
 		);
 		this.statusBarItem.setText(` `);
 	}

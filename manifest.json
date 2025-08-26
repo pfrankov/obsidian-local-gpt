@@ -6,5 +6,6 @@
 	"description": "Local GPT assistance for maximum privacy and offline access",
 	"author": "Pavel Frankov",
 	"authorUrl": "https://github.com/pfrankov",
-	"isDesktopOnly": false
+	"isDesktopOnly": false,
+	"css": ["styles.css"]
 }

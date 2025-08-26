@@ -2,6 +2,8 @@ import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
 import inlineWorkerPlugin from "esbuild-plugin-inline-worker";
+import sveltePlugin from "esbuild-svelte";
+import sveltePreprocess from "svelte-preprocess";
 import { copyFilesPlugin } from './copy-files-plugin.mjs';
 
 const banner =
@@ -52,6 +54,11 @@ const context = await esbuild.context({
 		".css": "css"
 	},
 	plugins: [
+		sveltePlugin({
+			preprocess: sveltePreprocess({
+				typescript: true
+			})
+		}),
 		inlineWorkerPlugin({
 			target: 'es2018',
 			format: 'cjs',
