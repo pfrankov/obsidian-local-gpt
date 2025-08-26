@@ -1,7 +1,7 @@
 {
 	"id": "local-gpt",
 	"name": "Local GPT",
-	"version": "3.2.0",
+	"version": "3.2.1",
 	"minAppVersion": "0.15.0",
 	"description": "Local GPT assistance for maximum privacy and offline access",
 	"author": "Pavel Frankov",
