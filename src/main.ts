@@ -174,6 +174,7 @@ export default class LocalGPT extends Plugin {
 					placeholder: I18n.t("commands.actionPalette.placeholder"),
 					modelLabel,
 				});
+				this.app.workspace.updateOptions();
 			},
 		});
 	}
