@@ -111,7 +111,18 @@
 .cm-editor .local-gpt-action-palette-container {
 	position: relative;
 	display: block;
-	margin: 0.3rem -10px 1.5rem;
+	/* Ensure palette ignores any surrounding list/text indentation */
+	padding: 0;
+	text-indent: 0;
+}
+
+/* Override Obsidian CM6 container resets for our block widget */
+.markdown-source-view.mod-cm6 .cm-content > .local-gpt-action-palette-container[contenteditable="false"] {
+	/* Allow elements to paint outside container (badge, shadows) */
+	contain: none !important;
+	overflow: visible;
+	/* Restore margins wiped by .cm-content > * { margin: 0 !important } */
+	margin: 0.3rem -10px 1.5rem !important;
 }
 
 .cm-editor .local-gpt-action-palette-shell {
