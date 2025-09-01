@@ -70,6 +70,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						.setValue(String(this.plugin.settings.aiProviders.main))
 						.onChange(async (value) => {
 							this.plugin.settings.aiProviders.main = value;
+							// Also update Action Palette override to follow new default
+							this.plugin.actionPaletteProviderId = value;
 							await this.plugin.saveSettings();
 							await this.display();
 						}),

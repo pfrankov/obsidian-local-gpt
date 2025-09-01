@@ -3,7 +3,9 @@
 		"showContextMenu": "Kontextmenü anzeigen",
 		"actionPalette": {
 			"name": "Aktionspalette",
-			"placeholder": "Ihr Prompt... | Enter: senden, Esc: abbrechen"
+			"placeholder": "Ihr Prompt... | Enter: senden, Esc: abbrechen",
+			"changeProvider": "KI‑Provider wechseln",
+			"changeModel": "Modell wechseln"
 		}
 	},
 	"statusBar": {

@@ -3,7 +3,9 @@
 		"showContextMenu": "Show context menu",
 		"actionPalette": {
 			"name": "Action Palette",
-			"placeholder": "Your prompt... | Enter: send, Esc: cancel"
+			"placeholder": "Your prompt... | Enter: send, Esc: cancel",
+			"changeProvider": "Change the AI provider",
+			"changeModel": "Change the model"
 		}
 	},
 	"statusBar": {

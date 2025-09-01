@@ -1,4 +1,4 @@
-import { Editor, Menu, Notice, Plugin, requestUrl } from "obsidian";
+import { Editor, Menu, Notice, Plugin, requestUrl, TFile } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "./spinnerPlugin";
@@ -34,6 +34,9 @@ function removeThinkingTags(text: string): string {
 
 export default class LocalGPT extends Plugin {
 	settings: LocalGPTSettings;
+	actionPaletteProviderId: string | null = null;
+	actionPaletteModel: string | null = null;
+	actionPaletteModelProviderId: string | null = null;
 	abortControllers: AbortController[] = [];
 	updatingInterval: number;
 	private statusBarItem: HTMLElement;
@@ -143,16 +146,24 @@ export default class LocalGPT extends Plugin {
 				});
 
 				let modelLabel = "";
+				let currentProviderId: string | undefined;
 				try {
 					const aiRequestWaiter = await waitForAI();
 					const aiProviders: IAIProvidersService =
 						await aiRequestWaiter.promise;
+					const selectedProviderId =
+						this.actionPaletteProviderId ||
+						this.settings.aiProviders.main;
 					const provider = aiProviders.providers.find(
-						(p: IAIProvider) =>
-							p.id === this.settings.aiProviders.main,
+						(p: IAIProvider) => p.id === selectedProviderId,
 					);
 					if (provider) {
-						modelLabel = [provider.name, provider.model]
+						currentProviderId = provider.id;
+						const modelToShow =
+							this.actionPaletteModelProviderId === provider.id
+								? this.actionPaletteModel || provider.model
+								: provider.model;
+						modelLabel = [provider.name, modelToShow]
 							.filter(Boolean)
 							.join(" · ");
 					}
@@ -161,8 +172,16 @@ export default class LocalGPT extends Plugin {
 				}
 
 				showActionPalette(editorView, insertPos, {
-					onSubmit: (text: string) => {
-						this.runFreeform(editor, text).finally(() => {});
+					onSubmit: (text: string, selectedFiles: string[] = []) => {
+						const overrideProviderId =
+							this.actionPaletteProviderId ||
+							this.settings.aiProviders.main;
+						this.runFreeform(
+							editor,
+							text,
+							selectedFiles,
+							overrideProviderId,
+						).finally(() => {});
 
 						hideActionPalette(editorView);
 						this.app.workspace.updateOptions();
@@ -172,19 +191,93 @@ export default class LocalGPT extends Plugin {
 						this.app.workspace.updateOptions();
 					},
 					placeholder: I18n.t("commands.actionPalette.placeholder"),
-					modelLabel,
+					modelLabel: modelLabel,
+					providerId: currentProviderId,
+					getFiles: () => {
+						return this.app.vault
+							.getMarkdownFiles()
+							.concat(
+								this.app.vault
+									.getFiles()
+									.filter((f) => f.extension === "pdf"),
+							)
+							.map((file) => ({
+								path: file.path,
+								basename: file.basename,
+								extension: file.extension,
+							}));
+					},
+					getProviders: async () => {
+						try {
+							const aiRequestWaiter = await waitForAI();
+							const aiProviders: IAIProvidersService =
+								await aiRequestWaiter.promise;
+
+							return aiProviders.providers
+								.filter((p) => Boolean(p.model))
+								.map((p) => ({
+									id: p.id,
+									name: p.model || "Unknown Model",
+									providerName: p.name,
+									providerUrl:
+										(p as unknown as { url?: string })
+											.url || "",
+								}));
+						} catch (error) {
+							console.error("Error fetching models:", error);
+							return [];
+						}
+					},
+					getModels: async (providerId: string) => {
+						try {
+							const aiRequestWaiter = await waitForAI();
+							const aiProviders: IAIProvidersService =
+								await aiRequestWaiter.promise;
+							const provider = aiProviders.providers.find(
+								(p: IAIProvider) => p.id === providerId,
+							);
+							if (!provider) return [];
+							const models =
+								provider.availableModels ||
+								(await aiProviders.fetchModels(provider));
+							return models.map((m) => ({ id: m, name: m }));
+						} catch (error) {
+							console.error("Error fetching models:", error);
+							return [];
+						}
+					},
+					onProviderChange: async (providerId: string) => {
+						// Only override Action Palette provider, keep settings unchanged
+						this.actionPaletteProviderId = providerId;
+						this.actionPaletteModel = null;
+						this.actionPaletteModelProviderId = null;
+					},
+					onModelChange: async (model: string) => {
+						const providerId =
+							this.actionPaletteProviderId ||
+							this.settings.aiProviders.main;
+						this.actionPaletteModel = model;
+						this.actionPaletteModelProviderId = providerId;
+					},
 				});
 				this.app.workspace.updateOptions();
 			},
 		});
 	}
 
-	private async runFreeform(editor: Editor, userInput: string) {
+	private async runFreeform(
+		editor: Editor,
+		userInput: string,
+		selectedFiles: string[] = [],
+		overrideProviderId?: string | null,
+	) {
 		return this.executeAction(
 			{
 				prompt: userInput,
 				system: undefined,
 				replace: false,
+				selectedFiles,
+				overrideProviderId: overrideProviderId || undefined,
 			},
 			editor,
 		);
@@ -210,6 +303,8 @@ export default class LocalGPT extends Plugin {
 			system?: string;
 			replace?: boolean;
 			temperature?: number;
+			selectedFiles?: string[];
+			overrideProviderId?: string | null;
 		},
 		editor: Editor,
 	) {
@@ -301,21 +396,34 @@ export default class LocalGPT extends Plugin {
 					provider.id === this.settings.aiProviders.embedding,
 			),
 			abortController,
+			params.selectedFiles,
 		);
 
-		let provider = aiProviders.providers.find(
-			(p: IAIProvider) => p.id === this.settings.aiProviders.main,
-		);
+		// Select provider: prefer vision when images are present; otherwise use override or default main
+		let provider: IAIProvider | undefined;
 		if (imagesInBase64.length) {
-			provider =
-				aiProviders.providers.find(
-					(p: IAIProvider) =>
-						p.id === this.settings.aiProviders.vision,
-				) || provider;
+			provider = aiProviders.providers.find(
+				(p: IAIProvider) => p.id === this.settings.aiProviders.vision,
+			);
+		}
+		if (!provider) {
+			const preferredProviderId =
+				params.overrideProviderId || this.settings.aiProviders.main;
+			provider = aiProviders.providers.find(
+				(p) => p.id === preferredProviderId,
+			);
 		}
 
 		if (!provider) {
 			throw new Error("No AI provider found");
+		}
+
+		if (
+			this.actionPaletteModel &&
+			params.overrideProviderId &&
+			this.actionPaletteModelProviderId === params.overrideProviderId
+		) {
+			provider = { ...provider, model: this.actionPaletteModel };
 		}
 
 		let fullText = "";
@@ -378,6 +486,7 @@ export default class LocalGPT extends Plugin {
 		aiProviders: IAIProvidersService,
 		aiProvider: IAIProvider | undefined,
 		abortController: AbortController,
+		selectedFiles?: string[],
 	): Promise<string> {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile || !aiProvider || abortController?.signal.aborted) {
@@ -390,7 +499,23 @@ export default class LocalGPT extends Plugin {
 			this.app.metadataCache,
 			activeFile.path,
 		);
-		if (linkedFiles.length === 0) {
+
+		// Add files selected via @ mention in Action Palette
+		const additionalFiles =
+			selectedFiles
+				?.map((filePath) =>
+					this.app.vault.getAbstractFileByPath(filePath),
+				)
+				.filter(
+					(file): file is TFile =>
+						file !== null &&
+						file instanceof TFile &&
+						(file.extension === "md" || file.extension === "pdf"),
+				) || [];
+
+		const allLinkedFiles = [...linkedFiles, ...additionalFiles];
+
+		if (allLinkedFiles.length === 0) {
 			return "";
 		}
 
@@ -398,7 +523,7 @@ export default class LocalGPT extends Plugin {
 			this.initializeProgress();
 
 			const processedDocs = await startProcessing(
-				linkedFiles,
+				allLinkedFiles,
 				this.app.vault,
 				this.app.metadataCache,
 				activeFile,

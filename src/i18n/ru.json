@@ -3,7 +3,9 @@
 		"showContextMenu": "Показать контекстное меню",
 		"actionPalette": {
 			"name": "Палитра действий",
-			"placeholder": "Ваш промпт... | Enter: отправить, Esc: отмена"
+			"placeholder": "Ваш промпт... | Enter: отправить, Esc: отмена",
+			"changeProvider": "Сменить AI‑провайдера",
+			"changeModel": "Сменить модель"
 		}
 	},
 	"statusBar": {

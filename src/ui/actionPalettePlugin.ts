@@ -13,13 +13,44 @@ import {
 import ActionPalette from "./ActionPalette.svelte";
 
 export interface ActionPaletteOptions {
-	onSubmit: (text: string) => void;
+	onSubmit: (text: string, selectedFiles?: string[]) => void;
 	onCancel?: () => void;
 	placeholder?: string;
 	/**
 	 * Optional label showing currently selected provider/model
 	 */
-	modelLabel?: string;
+	modelLabel?: string; // kept for backward compat mapping, passed to providerLabel
+	/**
+	 * Function to get available files for selection
+	 */
+	getFiles?: () => { path: string; basename: string; extension: string }[];
+	/**
+	 * Function to get available providers for selection
+	 */
+	getProviders?: () => Promise<
+		{
+			id: string;
+			name: string;
+			providerName: string;
+			providerUrl?: string;
+		}[]
+	>;
+	/**
+	 * Function to handle provider change
+	 */
+	onProviderChange?: (providerId: string) => Promise<void>;
+	/**
+	 * Currently selected provider id
+	 */
+	providerId?: string;
+	/**
+	 * Function to get models for current provider
+	 */
+	getModels?: (providerId: string) => Promise<{ id: string; name: string }[]>;
+	/**
+	 * Function to handle model change
+	 */
+	onModelChange?: (model: string) => Promise<void>;
 }
 
 class SvelteActionPaletteWidget extends WidgetType {
@@ -40,13 +71,22 @@ class SvelteActionPaletteWidget extends WidgetType {
 			target: mountTarget,
 			props: {
 				placeholder: this.options.placeholder || "Type…",
-				modelLabel: this.options.modelLabel || "",
+				providerLabel: this.options.modelLabel || "",
+				providerId: this.options.providerId,
+				getFiles: this.options.getFiles,
+				getProviders: this.options.getProviders,
+				onProviderChange: this.options.onProviderChange,
+				getModels: this.options.getModels,
+				onModelChange: this.options.onModelChange,
 			},
 		});
 
-		this.app.$on("submit", (e: CustomEvent<string>) => {
-			this.options.onSubmit?.(e.detail);
-		});
+		this.app.$on(
+			"submit",
+			(e: CustomEvent<{ text: string; selectedFiles: string[] }>) => {
+				this.options.onSubmit?.(e.detail.text, e.detail.selectedFiles);
+			},
+		);
 		this.app.$on("cancel", () => {
 			this.options.onCancel?.();
 		});
