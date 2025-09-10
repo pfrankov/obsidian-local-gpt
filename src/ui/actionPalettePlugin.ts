@@ -19,7 +19,7 @@ export interface ActionPaletteOptions {
 	/**
 	 * Optional label showing currently selected provider/model
 	 */
-	modelLabel?: string; // kept for backward compat mapping, passed to providerLabel
+	modelLabel?: string; // kept for backward compatibility mapping, passed to providerLabel
 	/**
 	 * Function to get available files for selection
 	 */
