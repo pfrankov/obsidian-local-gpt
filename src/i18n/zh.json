@@ -5,7 +5,8 @@
 			"name": "动作面板",
 			"placeholder": "您的提示... | Enter: 发送, Esc: 取消",
 			"changeProvider": "切换 AI 提供商",
-			"changeModel": "切换模型"
+			"changeModel": "切换模型",
+			"changeCreativity": "更改创造力"
 		}
 	},
 	"statusBar": {

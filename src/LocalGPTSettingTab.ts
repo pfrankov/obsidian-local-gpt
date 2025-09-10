@@ -1,9 +1,10 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction } from "./interfaces";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import { I18n } from "./i18n";
+import Sortable from "sortablejs";
 
 const SEPARATOR = "✂️";
 
@@ -369,6 +370,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h4", { text: I18n.t("settings.actionsList") });
 
+		const actionsContainer = containerEl.createDiv(
+			"local-gpt-actions-container",
+		);
+
 		this.plugin.settings.actions.forEach((action, actionIndex) => {
 			const sharingString = [
 				action.name && `${sharingActionsMapping.name}${action.name}`,
@@ -383,7 +388,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.join(` ${SEPARATOR}\n`);
 
 			if (!this.changingOrder) {
-				const actionRow = new Setting(containerEl)
+				const actionRow = new Setting(actionsContainer)
 					.setName(action.name)
 					.setDesc("")
 					.addButton((button) =>
@@ -420,38 +425,190 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					.filter(Boolean)
 					.join("<br/>\n");
 			} else {
-				const actionRow = new Setting(containerEl)
+				const actionRow = new Setting(actionsContainer)
 					.setName(action.name)
 					.setDesc("");
 
-				if (actionIndex > 0) {
-					actionRow.addButton((button) =>
-						button.setIcon("arrow-up").onClick(async () => {
-							const prev =
-								this.plugin.settings.actions[actionIndex - 1];
-							this.plugin.settings.actions[actionIndex - 1] =
-								action;
-							this.plugin.settings.actions[actionIndex] = prev;
-							await this.plugin.saveSettings();
-							this.display();
-						}),
-					);
-				}
-				if (actionIndex < this.plugin.settings.actions.length - 1) {
-					actionRow.addButton((button) =>
-						button.setIcon("arrow-down").onClick(async () => {
-							const next =
-								this.plugin.settings.actions[actionIndex + 1];
-							this.plugin.settings.actions[actionIndex + 1] =
-								action;
-							this.plugin.settings.actions[actionIndex] = next;
-							await this.plugin.saveSettings();
-							this.display();
-						}),
-					);
-				}
+				actionRow.settingEl.addClass("local-gpt-action-row");
+				const handle = actionRow.settingEl.createDiv(
+					"local-gpt-drag-handle",
+				);
+				setIcon(handle, "grip-vertical");
+				actionRow.settingEl.prepend(handle);
 			}
 		});
+
+		if (this.changingOrder) {
+			// Manual edge auto-scroll helpers
+			const getScrollableParent = (el: HTMLElement): HTMLElement => {
+				let node: HTMLElement | null = el.parentElement;
+				while (node) {
+					const style = getComputedStyle(node);
+					const overflowY = style.overflowY;
+					if (
+						node.scrollHeight > node.clientHeight &&
+						(overflowY === "auto" || overflowY === "scroll")
+					) {
+						return node;
+					}
+					node = node.parentElement;
+				}
+				return (document.scrollingElement ||
+					document.documentElement) as HTMLElement;
+			};
+
+			let autoScrollFrame: number | null = null;
+			let autoScrollDelta = 0;
+			let scrollEl: HTMLElement | null = null;
+
+			const stepScroll = () => {
+				if (!scrollEl) return;
+				if (autoScrollDelta !== 0) {
+					scrollEl.scrollTop += autoScrollDelta;
+					autoScrollFrame = requestAnimationFrame(stepScroll);
+				} else {
+					autoScrollFrame = null;
+				}
+			};
+
+			const handleEdgeScroll = (evt: any) => {
+				if (!scrollEl) return;
+				const clientY = evt?.clientY ?? evt?.touches?.[0]?.clientY ?? 0;
+				const rect = scrollEl.getBoundingClientRect();
+				const threshold = 48; // px from top/bottom edge
+				const maxStep = 18; // px per frame
+
+				if (clientY < rect.top + threshold) {
+					const dist = rect.top + threshold - clientY;
+					autoScrollDelta = -Math.min(maxStep, Math.ceil(dist / 4));
+				} else if (clientY > rect.bottom - threshold) {
+					const dist = clientY - (rect.bottom - threshold);
+					autoScrollDelta = Math.min(maxStep, Math.ceil(dist / 4));
+				} else {
+					autoScrollDelta = 0;
+				}
+
+				if (autoScrollDelta !== 0 && autoScrollFrame === null) {
+					autoScrollFrame = requestAnimationFrame(stepScroll);
+				}
+			};
+
+			const addEdgeScrollListeners = () => {
+				if (!scrollEl) return;
+				scrollEl.addEventListener("dragover", handleEdgeScroll);
+				scrollEl.addEventListener("pointermove", handleEdgeScroll, {
+					passive: true,
+				});
+				scrollEl.addEventListener("touchmove", handleEdgeScroll, {
+					passive: true,
+				});
+			};
+
+			const removeEdgeScrollListeners = () => {
+				if (!scrollEl) return;
+				scrollEl.removeEventListener("dragover", handleEdgeScroll);
+				scrollEl.removeEventListener(
+					"pointermove",
+					handleEdgeScroll as any,
+				);
+				scrollEl.removeEventListener(
+					"touchmove",
+					handleEdgeScroll as any,
+				);
+			};
+
+			Sortable.create(actionsContainer, {
+				animation: 150,
+				// Allow dragging by the whole item (not just the handle)
+				draggable: ".setting-item",
+				// We provide manual edge autoscroll for reliability in Obsidian's settings modal
+				ghostClass: "local-gpt-sortable-ghost",
+				chosenClass: "local-gpt-sortable-chosen",
+				dragClass: "local-gpt-sortable-drag",
+				onStart: (evt: any) => {
+					// Prepare autoscroll on drag start
+					scrollEl = getScrollableParent(actionsContainer);
+					addEdgeScrollListeners();
+				},
+				onEnd: async (evt: any) => {
+					// Cleanup autoscroll
+					removeEdgeScrollListeners();
+					if (autoScrollFrame !== null) {
+						cancelAnimationFrame(autoScrollFrame);
+						autoScrollFrame = null;
+					}
+					autoScrollDelta = 0;
+					scrollEl = null;
+					// Add a transient class to play a drop animation
+					const droppedEl: HTMLElement | undefined = evt?.item;
+					if (droppedEl) {
+						droppedEl.classList.add("local-gpt-drop-animate");
+						droppedEl.addEventListener(
+							"animationend",
+							() =>
+								droppedEl.classList.remove(
+									"local-gpt-drop-animate",
+								),
+							{ once: true },
+						);
+
+						// Nudge immediate siblings without affecting layout
+						const prevEl =
+							droppedEl.previousElementSibling as HTMLElement | null;
+						const nextEl =
+							droppedEl.nextElementSibling as HTMLElement | null;
+						if (
+							prevEl &&
+							prevEl.classList.contains("setting-item")
+						) {
+							prevEl.classList.add(
+								"local-gpt-drop-neighbor-prev",
+							);
+							prevEl.addEventListener(
+								"animationend",
+								() =>
+									prevEl.classList.remove(
+										"local-gpt-drop-neighbor-prev",
+									),
+								{ once: true },
+							);
+						}
+						if (
+							nextEl &&
+							nextEl.classList.contains("setting-item")
+						) {
+							nextEl.classList.add(
+								"local-gpt-drop-neighbor-next",
+							);
+							nextEl.addEventListener(
+								"animationend",
+								() =>
+									nextEl.classList.remove(
+										"local-gpt-drop-neighbor-next",
+									),
+								{ once: true },
+							);
+						}
+					}
+					if (
+						evt.oldIndex !== undefined &&
+						evt.newIndex !== undefined &&
+						evt.oldIndex !== evt.newIndex
+					) {
+						const [moved] = this.plugin.settings.actions.splice(
+							evt.oldIndex,
+							1,
+						);
+						this.plugin.settings.actions.splice(
+							evt.newIndex,
+							0,
+							moved,
+						);
+						await this.plugin.saveSettings();
+					}
+				},
+			});
+		}
 
 		if (this.plugin.settings.actions.length) {
 			new Setting(containerEl).setName("").addButton((button) => {

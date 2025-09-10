@@ -3,8 +3,8 @@
 ![demo](https://github.com/pfrankov/obsidian-local-gpt/assets/584632/724d4399-cb6c-4531-9f04-a1e5df2e3dad)  
 _No speedup. MacBook Pro 13, M1, 16GB, Ollama, orca-mini._ 
 
-The plugin allows you to open a context menu on selected text to pick an AI-assistant's action or open Action Palette to run one-time action.  
-The most casual AI-assistant for Obsidian.
+The plugin allows you to open a context menu on selected text to pick an AI assistant action or open the Action Palette to run a one-time action.
+The most casual AI assistant for Obsidian.
 
 <img width="600" alt="" src="https://github.com/user-attachments/assets/8d32dc1d-9431-4a16-9336-c45e853a3242">  
 
@@ -16,7 +16,7 @@ _Action Palette_
 
 _No speedup. MacBook Pro 13, M1, 16GB, Ollama, bakllava._
 
-### Can use context from links, backlinks and even PDF files (RAG)  
+### Can use context from links, backlinks, and even PDF files (RAG)
 <img width="450" alt="Enhanced Actions" src="https://github.com/user-attachments/assets/5fa2ed36-0ef5-43b0-8f16-07588f76d780">
 <details>
   <summary>How to use (Ollama)</summary>
@@ -40,7 +40,7 @@ _No speedup. MacBook Pro 13, M1, 16GB, Ollama, bakllava._
 - General help (just use selected text as a prompt for any purpose)
 - New System Prompt to create actions for your needs
 
-You can also add yours, share the best actions or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2).
+You can also add your own, share the best actions, or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2).
 
 <img width="479" alt="Settings" src="https://github.com/user-attachments/assets/5337e74c-864b-45cb-82e0-2c32bbbfa3ed" />
 
@@ -59,18 +59,18 @@ This plugin is available in the Obsidian community plugin store https://obsidian
 You can also install this plugin via [BRAT](https://obsidian.md/plugins?id=obsidian42-brat): `pfrankov/obsidian-local-gpt`
 
 ### 2. Install AI Providers Plugin
-You also need to install AI Providers plugin to configure AI providers from plugin store https://obsidian.md/plugins?id=ai-providers
+You also need to install the AI Providers plugin from the plugin store to configure AI providers: https://obsidian.md/plugins?id=ai-providers
 
 ### 3. Configure AI Providers
 Follow the instructions in [AI Providers](https://github.com/pfrankov/obsidian-ai-providers#create-ai-provider) plugin.
 
-### Configure Obsidian hotkey
+### Configure Obsidian hotkeys
 1. Open Obsidian Settings
 2. Go to Hotkeys
 3. Filter "Local" and you should see "Local GPT: Show context menu"
 4. Click on `+` icon and press hotkey (e.g. `⌘ + M`)
 5. Filter "Local" again and you should see "Local GPT: Action Palette"
-4. Click on `+` icon and press hotkey (e.g. `⌘ + J`)
+6. Click on `+` icon and press hotkey (e.g. `⌘ + J`)
 
 ## My other Obsidian plugins
 - [Colored Tags](https://github.com/pfrankov/obsidian-colored-tags) that colorizes tags in distinguishable colors. 

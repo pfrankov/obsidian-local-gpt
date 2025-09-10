@@ -5,7 +5,8 @@
 			"name": "Aktionspalette",
 			"placeholder": "Ihr Prompt... | Enter: senden, Esc: abbrechen",
 			"changeProvider": "KI‑Provider wechseln",
-			"changeModel": "Modell wechseln"
+			"changeModel": "Modell wechseln",
+			"changeCreativity": "Kreativität ändern"
 		}
 	},
 	"statusBar": {

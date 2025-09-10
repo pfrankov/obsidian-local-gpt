@@ -36,6 +36,11 @@
     name: string;
   }
 
+  interface CreativityReference {
+    id: string; // "", "low", "medium", "high"
+    name: string; // localized label from settings.creativity*
+  }
+
   interface TextToken {
     type: 'text' | 'file' | 'command';
     content: string;
@@ -60,6 +65,7 @@
   export let onProviderChange: ((providerId: string) => Promise<void>) | undefined = undefined;
   export let getModels: ((providerId: string) => Promise<ModelReference[]>) | undefined = undefined;
   export let onModelChange: ((model: string) => Promise<void>) | undefined = undefined;
+  export let onCreativityChange: ((creativityKey: string) => Promise<void> | void) | undefined = undefined;
 
   // Event dispatcher
   const dispatch = createEventDispatcher<{ 
@@ -73,22 +79,27 @@
   let commandDropdownElement: HTMLDivElement | null = null;
   let providerDropdownElement: HTMLDivElement | null = null;
   let modelDropdownElement: HTMLDivElement | null = null;
+  let creativityDropdownElement: HTMLDivElement | null = null;
   
   // Dropdown state
   let isDropdownVisible = false;
   let isCommandDropdownVisible = false;
   let isProviderDropdownVisible = false;
   let isModelDropdownVisible = false;
+  let isCreativityDropdownVisible = false;
   let filteredFiles: FileReference[] = [];
   let filteredCommands: CommandReference[] = [];
   let filteredProviders: ProviderReference[] = [];
   let filteredModels: ModelReference[] = [];
+  let filteredCreativities: CreativityReference[] = [];
   let allProviders: ProviderReference[] = [];
   let allModels: ModelReference[] = [];
+  let allCreativities: CreativityReference[] = [];
   let selectedDropdownIndex = -1;
   let selectedCommandIndex = -1;
   let selectedProviderIndex = -1;
   let selectedModelIndex = -1;
+  let selectedCreativityIndex = -1;
   let badgeHighlight = false;
   
   // File and content state
@@ -102,6 +113,17 @@
   let textTokens: TextToken[] = [];
 
   let providerName = providerLabel.split(' · ')[0] || '';
+  let modelName = (providerLabel.split(' · ')[1] || '').trim();
+  let creativityBadge = (providerLabel.split(' · ')[2] || '').trim();
+
+  function getCreativityOptions(): CreativityReference[] {
+    return [
+      { id: '', name: I18n.t('settings.creativityNone') },
+      { id: 'low', name: I18n.t('settings.creativityLow') },
+      { id: 'medium', name: I18n.t('settings.creativityMedium') },
+      { id: 'high', name: I18n.t('settings.creativityHigh') },
+    ];
+  }
 
   function findMatchingFile(fileName: string, availableFiles: FileReference[]): FileReference | undefined {
     const normalizedFileName = fileName.toLowerCase();
@@ -138,7 +160,8 @@
   function getAvailableCommands(): CommandReference[] {
     return [
       { name: 'provider', description: I18n.t('commands.actionPalette.changeProvider') },
-      { name: 'model', description: I18n.t('commands.actionPalette.changeModel') }
+      { name: 'model', description: I18n.t('commands.actionPalette.changeModel') },
+      { name: 'creativity', description: I18n.t('commands.actionPalette.changeCreativity') },
     ];
   }
 
@@ -351,6 +374,13 @@
     });
   }
 
+  function setProviderBadgeLabel(pName: string, mName: string): void {
+    providerName = pName;
+    modelName = mName;
+    const base = [providerName, modelName].filter(Boolean).join(' · ');
+    providerLabel = creativityBadge ? `${base} · ${creativityBadge}` : base;
+  }
+
   onMount(() => {
     // Auto-focus the content element
     queueMicrotask(() => {
@@ -503,6 +533,41 @@
     return false;
   }
 
+  function handleCreativityDropdownNavigation(event: KeyboardEvent): boolean {
+    if (isCreativityDropdownVisible) {
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          selectedCreativityIndex = Math.min(selectedCreativityIndex + 1, filteredCreativities.length - 1);
+          scrollSelectedIntoView(creativityDropdownElement, selectedCreativityIndex);
+          return true;
+
+        case 'ArrowUp':
+          event.preventDefault();
+          selectedCreativityIndex = Math.max(selectedCreativityIndex - 1, -1);
+          scrollSelectedIntoView(creativityDropdownElement, selectedCreativityIndex);
+          return true;
+
+        case 'Enter':
+        case 'Tab':
+          event.preventDefault();
+          if (selectedCreativityIndex >= 0 && filteredCreativities[selectedCreativityIndex]) {
+            selectCreativity(filteredCreativities[selectedCreativityIndex]);
+          }
+          return true;
+
+        case 'Escape':
+          event.preventDefault();
+          hideCreativityDropdown();
+          return true;
+
+        default:
+          return false;
+      }
+    }
+    return false;
+  }
+
   function handleGeneralNavigation(event: KeyboardEvent): void {
     switch (event.key) {
       case 'Enter':
@@ -527,6 +592,10 @@
     }
 
     if (handleModelDropdownNavigation(event)) {
+      return;
+    }
+
+    if (handleCreativityDropdownNavigation(event)) {
       return;
     }
 
@@ -780,10 +849,24 @@
       hideProviderDropdown();
       return;
     }
+
+    // Special handling for '/creativity'
+    if (commandName === 'creativity') {
+      if (!isCreativityDropdownVisible) {
+        void showCreativityDropdown();
+      } else {
+        applyCreativityFilter();
+      }
+      hideCommandDropdown();
+      hideProviderDropdown();
+      hideModelDropdown();
+      return;
+    }
     
     // Otherwise, no exact command match: close provider/model dropdowns
     hideProviderDropdown();
     hideModelDropdown();
+    hideCreativityDropdown();
 
     // Show command picker for partial commands (including bare '/')
     filteredCommands = filterAvailableCommands(textAfterCommand);
@@ -837,6 +920,24 @@
       showModelDropdown();
       return;
     }
+
+    if (command.name === 'creativity') {
+      const newText = beforeCommand + COMMAND_PREFIX + command.name + SPACE_AFTER_COMMAND + afterCursor;
+      textContent = newText;
+      textTokens = parseTextToTokens(textContent);
+      hideCommandDropdown();
+
+      if (contentElement) {
+        updateContentDisplay();
+        tick().then(() => {
+          const newCursorPosition = beforeCommand.length + command.name.length + 2; // / + space
+          setCursorPosition(newCursorPosition);
+        });
+      }
+
+      showCreativityDropdown();
+      return;
+    }
     
     // For other commands (if any), insert and then remove the command token
     const newText = beforeCommand + COMMAND_PREFIX + command.name + SPACE_AFTER_COMMAND + afterCursor;
@@ -863,7 +964,7 @@
       }
 
       // Update provider label (shows provider and model) and highlight it
-      providerLabel = `${provider.providerName} · ${provider.name}`;
+      setProviderBadgeLabel(provider.providerName, provider.name);
       providerId = provider.id;
       providerName = provider.providerName;
       badgeHighlight = true;
@@ -889,7 +990,7 @@
         await onModelChange(model.name);
       }
 
-      providerLabel = `${providerName} · ${model.name}`;
+      setProviderBadgeLabel(providerName, model.name);
       badgeHighlight = true;
       setTimeout(() => {
         badgeHighlight = false;
@@ -900,6 +1001,111 @@
     } catch (error) {
       console.error('Error selecting model:', error);
       hideModelDropdown();
+    }
+  }
+
+  function getCreativityQuery(): string {
+    const beforeCursor = textContent.substring(0, cursorPosition);
+    const token = `${COMMAND_PREFIX}creativity`;
+    const foundIndex = beforeCursor.lastIndexOf(token);
+    if (foundIndex === -1) return '';
+    const charBefore = foundIndex > 0 ? beforeCursor[foundIndex - 1] : ' ';
+    if (foundIndex > 0 && !isCharacterWhitespace(charBefore)) return '';
+    const afterNameIndex = foundIndex + token.length;
+    const afterName = textContent.substring(afterNameIndex);
+    const hasSpace = afterName.startsWith(SPACE_AFTER_COMMAND);
+    const queryStart = hasSpace ? afterNameIndex + SPACE_AFTER_COMMAND.length : afterNameIndex;
+    const query = textContent.substring(queryStart, cursorPosition);
+    return query.trim().toLowerCase();
+  }
+
+  function applyCreativityFilter(): void {
+    if (!allCreativities || allCreativities.length === 0) return;
+    const q = getCreativityQuery();
+    filteredCreativities = allCreativities
+      .filter(c => fuzzyMatch(c.name, q))
+      .slice(0, MAX_DROPDOWN_RESULTS);
+    if (filteredCreativities.length === 0) {
+      selectedCreativityIndex = -1;
+    } else if (selectedCreativityIndex < 0 || selectedCreativityIndex >= filteredCreativities.length) {
+      selectedCreativityIndex = 0;
+    }
+    if (q) {
+      // Try to auto-select when exact match ignoring case and emojis
+      const norm = (s: string) => s.toLowerCase();
+      const exact = filteredCreativities.find(c => norm(c.name) === norm(q));
+      if (exact) {
+        void selectCreativity(exact);
+      }
+    }
+  }
+
+  function removeCreativityCommandAndQuery(): void {
+    const token = `${COMMAND_PREFIX}creativity`;
+    const foundIndex = textContent.lastIndexOf(token);
+    if (foundIndex === -1) return;
+    const charBefore = foundIndex > 0 ? textContent[foundIndex - 1] : ' ';
+    if (foundIndex > 0 && !isCharacterWhitespace(charBefore)) return;
+
+    let removalStart = foundIndex;
+    let idx = foundIndex + token.length;
+    if (textContent[idx] === SPACE_AFTER_COMMAND) {
+      idx += SPACE_AFTER_COMMAND.length;
+    }
+    while (idx < textContent.length) {
+      const ch = textContent[idx];
+      if (isCharacterWhitespace(ch) || ch === '/' || ch === '@') break;
+      idx++;
+    }
+    const removalEnd = idx;
+    const before = textContent.substring(0, removalStart);
+    const after = textContent.substring(removalEnd);
+    textContent = before + after;
+    textTokens = parseTextToTokens(textContent);
+    if (contentElement) {
+      updateContentDisplay();
+      tick().then(() => {
+        setCursorPosition(before.length);
+      });
+    }
+  }
+
+  async function showCreativityDropdown(): Promise<void> {
+    try {
+      allCreativities = getCreativityOptions();
+      applyCreativityFilter();
+      if (filteredCreativities.length > 0) {
+        isCreativityDropdownVisible = true;
+        selectedCreativityIndex = 0;
+      }
+    } catch (error) {
+      console.error('Error showing creativity dropdown:', error);
+    }
+  }
+
+  function hideCreativityDropdown(): void {
+    isCreativityDropdownVisible = false;
+    filteredCreativities = [];
+    selectedCreativityIndex = -1;
+    allCreativities = [];
+  }
+
+  async function selectCreativity(option: CreativityReference): Promise<void> {
+    try {
+      if (onCreativityChange) {
+        await onCreativityChange(option.id);
+      }
+      creativityBadge = option.name;
+      setProviderBadgeLabel(providerName, modelName);
+      badgeHighlight = true;
+      setTimeout(() => {
+        badgeHighlight = false;
+      }, 900);
+      removeCreativityCommandAndQuery();
+      hideCreativityDropdown();
+    } catch (error) {
+      console.error('Error selecting creativity:', error);
+      hideCreativityDropdown();
     }
   }
 
@@ -1227,6 +1433,28 @@
           }}
         >
           <span class="local-gpt-provider-name">{model.name}</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  {#if isCreativityDropdownVisible && filteredCreativities.length > 0}
+    <div bind:this={creativityDropdownElement} class="local-gpt-dropdown">
+      {#each filteredCreativities as item, index}
+        <div
+          class="local-gpt-dropdown-item {index === selectedCreativityIndex ? 'local-gpt-selected' : ''}"
+          role="option"
+          tabindex="0"
+          aria-selected={index === selectedCreativityIndex}
+          on:click={() => selectCreativity(item)}
+          on:keydown={(event) => {
+            if (event.key === 'Enter' || event.key === 'Tab') {
+              event.preventDefault();
+              selectCreativity(item);
+            }
+          }}
+        >
+          <span class="local-gpt-provider-name">{item.name}</span>
         </div>
       {/each}
     </div>

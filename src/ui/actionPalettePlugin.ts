@@ -51,6 +51,11 @@ export interface ActionPaletteOptions {
 	 * Function to handle model change
 	 */
 	onModelChange?: (model: string) => Promise<void>;
+	/**
+	 * Function to handle creativity change (palette-only)
+	 * Accepts a key: "", "low", "medium", "high"
+	 */
+	onCreativityChange?: (creativityKey: string) => Promise<void> | void;
 }
 
 class SvelteActionPaletteWidget extends WidgetType {
@@ -78,6 +83,7 @@ class SvelteActionPaletteWidget extends WidgetType {
 				onProviderChange: this.options.onProviderChange,
 				getModels: this.options.getModels,
 				onModelChange: this.options.onModelChange,
+				onCreativityChange: this.options.onCreativityChange,
 			},
 		});
 

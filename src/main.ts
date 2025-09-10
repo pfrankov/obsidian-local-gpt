@@ -37,6 +37,7 @@ export default class LocalGPT extends Plugin {
 	actionPaletteProviderId: string | null = null;
 	actionPaletteModel: string | null = null;
 	actionPaletteModelProviderId: string | null = null;
+	actionPaletteCreativityKey: string | null = null; // "", "low", "medium", "high"
 	abortControllers: AbortController[] = [];
 	updatingInterval: number;
 	private statusBarItem: HTMLElement;
@@ -163,7 +164,25 @@ export default class LocalGPT extends Plugin {
 							this.actionPaletteModelProviderId === provider.id
 								? this.actionPaletteModel || provider.model
 								: provider.model;
-						modelLabel = [provider.name, modelToShow]
+						// Compose creativity label for badge
+						const creativityKey =
+							this.actionPaletteCreativityKey ??
+							this.settings.defaults.creativity ??
+							"";
+						const creativityLabelMap: Record<string, string> = {
+							"": I18n.t("settings.creativityNone"),
+							low: I18n.t("settings.creativityLow"),
+							medium: I18n.t("settings.creativityMedium"),
+							high: I18n.t("settings.creativityHigh"),
+						};
+						const creativityLabel =
+							creativityLabelMap[creativityKey] || "";
+
+						modelLabel = [
+							provider.name,
+							modelToShow,
+							creativityLabel,
+						]
 							.filter(Boolean)
 							.join(" · ");
 					}
@@ -176,11 +195,21 @@ export default class LocalGPT extends Plugin {
 						const overrideProviderId =
 							this.actionPaletteProviderId ||
 							this.settings.aiProviders.main;
+						// Palette-only creativity override
+						const creativityKey =
+							this.actionPaletteCreativityKey ??
+							this.settings.defaults.creativity ??
+							"";
+						const temperatureOverride = (CREATIVITY as any)[
+							creativityKey
+						]?.temperature as number | undefined;
+
 						this.runFreeform(
 							editor,
 							text,
 							selectedFiles,
 							overrideProviderId,
+							temperatureOverride,
 						).finally(() => {});
 
 						hideActionPalette(editorView);
@@ -259,6 +288,10 @@ export default class LocalGPT extends Plugin {
 						this.actionPaletteModel = model;
 						this.actionPaletteModelProviderId = providerId;
 					},
+					onCreativityChange: async (creativityKey: string) => {
+						// Only override Action Palette creativity, keep settings unchanged
+						this.actionPaletteCreativityKey = creativityKey;
+					},
 				});
 				this.app.workspace.updateOptions();
 			},
@@ -270,6 +303,7 @@ export default class LocalGPT extends Plugin {
 		userInput: string,
 		selectedFiles: string[] = [],
 		overrideProviderId?: string | null,
+		customTemperature?: number,
 	) {
 		return this.executeAction(
 			{
@@ -278,6 +312,7 @@ export default class LocalGPT extends Plugin {
 				replace: false,
 				selectedFiles,
 				overrideProviderId: overrideProviderId || undefined,
+				temperature: customTemperature,
 			},
 			editor,
 		);
