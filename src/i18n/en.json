@@ -6,7 +6,9 @@
 			"placeholder": "Your prompt... | Enter: send, Esc: cancel",
 			"changeProvider": "Change the AI provider",
 			"changeModel": "Change the model",
-			"changeCreativity": "Change creativity"
+			"changeCreativity": "Change creativity",
+			"changeSystemPrompt": "Change system prompt",
+			"unknownModel": "Unknown model"
 		}
 	},
 	"statusBar": {

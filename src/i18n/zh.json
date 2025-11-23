@@ -6,7 +6,9 @@
 			"placeholder": "您的提示... | Enter: 发送, Esc: 取消",
 			"changeProvider": "切换 AI 提供商",
 			"changeModel": "切换模型",
-			"changeCreativity": "更改创造力"
+			"changeCreativity": "更改创造力",
+			"changeSystemPrompt": "更改系统提示",
+			"unknownModel": "未知模型"
 		}
 	},
 	"statusBar": {

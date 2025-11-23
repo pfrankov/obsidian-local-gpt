@@ -10,22 +10,32 @@ export function preparePrompt(
 	selectedText: string,
 	context: string,
 ) {
+	const withSelection = mergeSelection(prompt, selectedText);
+	const withContext = injectContext(withSelection, context);
+	return resolveConditionalContext(withContext, context);
+}
+
+function mergeSelection(prompt: string, selectedText: string): string {
 	if (prompt.includes(SELECTION_KEYWORD)) {
-		prompt = prompt.replace(SELECTION_KEYWORD, selectedText || "");
-	} else {
-		prompt = [prompt, selectedText].filter(Boolean).join("\n\n");
+		return prompt.replace(SELECTION_KEYWORD, selectedText || "");
 	}
 
+	return [prompt, selectedText].filter(Boolean).join("\n\n");
+}
+
+function injectContext(prompt: string, context: string): string {
 	if (prompt.includes(CONTEXT_KEYWORD)) {
-		prompt = prompt.replace(CONTEXT_KEYWORD, context || "");
-	} else {
-		if (context.trim()) {
-			prompt = [prompt, "Context:\n" + context]
-				.filter(Boolean)
-				.join("\n\n");
-		}
+		return prompt.replace(CONTEXT_KEYWORD, context || "");
 	}
 
+	if (context.trim()) {
+		return [prompt, "Context:\n" + context].filter(Boolean).join("\n\n");
+	}
+
+	return prompt;
+}
+
+function resolveConditionalContext(prompt: string, context: string): string {
 	if (
 		prompt.includes(CONTEXT_CONDITION_START) &&
 		prompt.includes(CONTEXT_CONDITION_END)

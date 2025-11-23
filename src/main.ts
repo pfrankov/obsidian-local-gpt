@@ -191,7 +191,11 @@ export default class LocalGPT extends Plugin {
 				}
 
 				showActionPalette(editorView, insertPos, {
-					onSubmit: (text: string, selectedFiles: string[] = []) => {
+					onSubmit: (
+						text: string,
+						selectedFiles: string[] = [],
+						systemPrompt?: string,
+					) => {
 						const overrideProviderId =
 							this.actionPaletteProviderId ||
 							this.settings.aiProviders.main;
@@ -210,6 +214,7 @@ export default class LocalGPT extends Plugin {
 							selectedFiles,
 							overrideProviderId,
 							temperatureOverride,
+							systemPrompt,
 						).finally(() => {});
 
 						hideActionPalette(editorView);
@@ -246,7 +251,11 @@ export default class LocalGPT extends Plugin {
 								.filter((p) => Boolean(p.model))
 								.map((p) => ({
 									id: p.id,
-									name: p.model || "Unknown Model",
+									name:
+										p.model ||
+										I18n.t(
+											"commands.actionPalette.unknownModel",
+										),
 									providerName: p.name,
 									providerUrl:
 										(p as unknown as { url?: string })
@@ -292,6 +301,14 @@ export default class LocalGPT extends Plugin {
 						// Only override Action Palette creativity, keep settings unchanged
 						this.actionPaletteCreativityKey = creativityKey;
 					},
+					getSystemPrompts: () => {
+						return this.settings.actions
+							.filter((action) => action.system)
+							.map((action) => ({
+								name: action.name,
+								system: action.system!,
+							}));
+					},
 				});
 				this.app.workspace.updateOptions();
 			},
@@ -304,11 +321,12 @@ export default class LocalGPT extends Plugin {
 		selectedFiles: string[] = [],
 		overrideProviderId?: string | null,
 		customTemperature?: number,
+		systemPrompt?: string,
 	) {
 		return this.executeAction(
 			{
 				prompt: userInput,
-				system: undefined,
+				system: systemPrompt,
 				replace: false,
 				selectedFiles,
 				overrideProviderId: overrideProviderId || undefined,

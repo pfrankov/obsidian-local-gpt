@@ -6,7 +6,9 @@
 			"placeholder": "Ваш промпт... | Enter: отправить, Esc: отмена",
 			"changeProvider": "Сменить AI‑провайдера",
 			"changeModel": "Сменить модель",
-			"changeCreativity": "Сменить креативность"
+			"changeCreativity": "Сменить креативность",
+			"changeSystemPrompt": "Сменить системную инструкцию",
+			"unknownModel": "Неизвестная модель"
 		}
 	},
 	"statusBar": {

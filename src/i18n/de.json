@@ -6,7 +6,9 @@
 			"placeholder": "Ihr Prompt... | Enter: senden, Esc: abbrechen",
 			"changeProvider": "KI‑Provider wechseln",
 			"changeModel": "Modell wechseln",
-			"changeCreativity": "Kreativität ändern"
+			"changeCreativity": "Kreativität ändern",
+			"changeSystemPrompt": "System-Prompt wechseln",
+			"unknownModel": "Unbekanntes Modell"
 		}
 	},
 	"statusBar": {

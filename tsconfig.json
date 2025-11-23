@@ -9,6 +9,7 @@
     "allowJs": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
+    "skipLibCheck": true,
     "importHelpers": true,
     "isolatedModules": true,
 	"strictNullChecks": true,
@@ -16,12 +17,14 @@
     "resolveJsonModule": true,
     "lib": [
       "DOM",
-      "ES2020"
+      "ES2020",
+      "ES2021.WeakRef"
     ],
     "types": [
       "svelte",
       "node",
-      "jest"
+      "jest",
+      "@testing-library/jest-dom"
     ]
   },
   "include": ["src/**/*.ts", "src/**/*.svelte", "src/types/**/*.d.ts"]

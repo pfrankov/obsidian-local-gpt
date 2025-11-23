@@ -10,10 +10,15 @@ import {
 	EditorView,
 	WidgetType,
 } from "@codemirror/view";
+import { I18n } from "../i18n";
 import ActionPalette from "./ActionPalette.svelte";
 
 export interface ActionPaletteOptions {
-	onSubmit: (text: string, selectedFiles?: string[]) => void;
+	onSubmit: (
+		text: string,
+		selectedFiles?: string[],
+		systemPrompt?: string,
+	) => void;
 	onCancel?: () => void;
 	placeholder?: string;
 	/**
@@ -56,6 +61,10 @@ export interface ActionPaletteOptions {
 	 * Accepts a key: "", "low", "medium", "high"
 	 */
 	onCreativityChange?: (creativityKey: string) => Promise<void> | void;
+	/**
+	 * Function to get available system prompts
+	 */
+	getSystemPrompts?: () => { name: string; system: string }[];
 }
 
 class SvelteActionPaletteWidget extends WidgetType {
@@ -75,7 +84,9 @@ class SvelteActionPaletteWidget extends WidgetType {
 		this.app = new ActionPalette({
 			target: mountTarget,
 			props: {
-				placeholder: this.options.placeholder || "Type…",
+				placeholder:
+					this.options.placeholder ||
+					I18n.t("commands.actionPalette.placeholder"),
 				providerLabel: this.options.modelLabel || "",
 				providerId: this.options.providerId,
 				getFiles: this.options.getFiles,
@@ -84,13 +95,24 @@ class SvelteActionPaletteWidget extends WidgetType {
 				getModels: this.options.getModels,
 				onModelChange: this.options.onModelChange,
 				onCreativityChange: this.options.onCreativityChange,
+				getSystemPrompts: this.options.getSystemPrompts,
 			},
 		});
 
 		this.app.$on(
 			"submit",
-			(e: CustomEvent<{ text: string; selectedFiles: string[] }>) => {
-				this.options.onSubmit?.(e.detail.text, e.detail.selectedFiles);
+			(
+				e: CustomEvent<{
+					text: string;
+					selectedFiles: string[];
+					systemPrompt?: string;
+				}>,
+			) => {
+				this.options.onSubmit?.(
+					e.detail.text,
+					e.detail.selectedFiles,
+					e.detail.systemPrompt,
+				);
 			},
 		);
 		this.app.$on("cancel", () => {
