@@ -471,7 +471,7 @@
 	bottom: calc(var(--line-height-normal) * -1em);
 	padding: var(--size-2-1) var(--size-4-2);
 	border-radius: var(--radius-m);
-	color: var(--text-faint);
+	color: var(--text-muted);
 	background: var(--background-secondary);
 	border: var(--border-width) solid var(--background-modifier-border);
 	font-size: var(--font-ui-medium);

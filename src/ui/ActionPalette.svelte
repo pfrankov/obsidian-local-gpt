@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { onMount, createEventDispatcher, tick } from "svelte";
 	import { I18n } from "../i18n";
+	import {
+		addToPromptHistory,
+		getPromptHistoryEntry,
+		getPromptHistoryLength,
+	} from "./actionPaletteHistory";
 	import type {
 		ActionPaletteSubmitEvent,
 		CommandReference,
@@ -126,9 +131,54 @@
 	let allCreativities: CreativityReference[] = [];
 	let allSystemPrompts: SystemPromptReference[] = [];
 
+	function updateFilteredDropdownItems(matches: DropdownItem[]) {
+		filteredItems = matches;
+		if (matches.length === 0) {
+			selectedIndex = -1;
+			return;
+		}
+		if (selectedIndex < 0 || selectedIndex >= matches.length) {
+			selectedIndex = 0;
+		}
+	}
+
+	type DropdownController = {
+		kind: DropdownKind;
+		show: () => void | Promise<void>;
+		refresh: () => void;
+	};
+
+	const dropdownControllers: Record<
+		"provider" | "model" | "creativity" | "system",
+		DropdownController
+	> = {
+		provider: {
+			kind: "provider",
+			show: () => showProviderDropdown(),
+			refresh: () => applyProviderFilter(),
+		},
+		model: {
+			kind: "model",
+			show: () => showModelDropdown(),
+			refresh: () => applyModelFilter(),
+		},
+		creativity: {
+			kind: "creativity",
+			show: () => showCreativityDropdown(),
+			refresh: () => applyCreativityFilter(),
+		},
+		system: {
+			kind: "system",
+			show: () => showSystemDropdown(),
+			refresh: () => applySystemFilter(),
+		},
+	};
+
 	let selectedIndex = -1;
 	let badgeHighlight = false;
 	let selectedSystemPromptValue: string | undefined = undefined;
+	let historyIndex = getPromptHistoryLength();
+	let draftBeforeHistory = value;
 
 	// File and content state
 	let selectedFiles: string[] = [];
@@ -451,6 +501,18 @@
 		}, 900);
 	}
 
+	function applyHistoryEntry(text: string) {
+		textContent = text;
+		cursorPosition = textContent.length;
+		selectedFiles = [];
+		textTokens = parseTextToTokens(textContent);
+		hideDropdown();
+		updateContentDisplay();
+		tick().then(() => {
+			setCursorPosition(textContent.length);
+		});
+	}
+
 	onMount(() => {
 		// Auto-focus the content element
 		queueMicrotask(() => {
@@ -467,29 +529,30 @@
 		if (activeDropdown === "none" || filteredItems.length === 0)
 			return false;
 
+		function moveSelection(delta: number) {
+			selectedIndex = Math.min(
+				Math.max(selectedIndex + delta, -1),
+				filteredItems.length - 1,
+			);
+			scrollSelectedIntoView(
+				getDropdownElementForActiveType(),
+				selectedIndex,
+			);
+		}
+
 		switch (event.key) {
 			case "ArrowDown":
 				event.preventDefault();
-				selectedIndex = Math.min(
-					selectedIndex + 1,
-					filteredItems.length - 1,
-				);
-				scrollSelectedIntoView(
-					getDropdownElementForActiveType(),
-					selectedIndex,
-				);
+				moveSelection(1);
 				return true;
 
 			case "ArrowUp":
 				event.preventDefault();
-				selectedIndex = Math.max(selectedIndex - 1, -1);
-				scrollSelectedIntoView(
-					getDropdownElementForActiveType(),
-					selectedIndex,
-				);
+				moveSelection(-1);
 				return true;
 
 			case "Enter":
+				if (event.shiftKey) return false;
 			case "Tab":
 				event.preventDefault();
 				if (selectedIndex >= 0 && filteredItems[selectedIndex]) {
@@ -529,6 +592,7 @@
 	function handleGeneralNavigation(event: KeyboardEvent) {
 		switch (event.key) {
 			case "Enter":
+				if (event.shiftKey) return;
 				event.preventDefault();
 				submitAction();
 				break;
@@ -545,7 +609,70 @@
 			return;
 		}
 
+		if (handleHistoryNavigation(event)) {
+			return;
+		}
+
 		handleGeneralNavigation(event);
+	}
+
+	function handleHistoryNavigation(event: KeyboardEvent) {
+		const isHistoryKey =
+			event.key === "ArrowUp" || event.key === "ArrowDown";
+		if (!isHistoryKey || activeDropdown !== "none") {
+			return false;
+		}
+
+		const currentPosition = getCurrentCursorPosition();
+		cursorPosition = currentPosition;
+
+		if (
+			event.key === "ArrowUp" &&
+			!isCursorOnFirstLine(currentPosition)
+		) {
+			return false;
+		}
+
+		if (
+			event.key === "ArrowDown" &&
+			!isCursorOnLastLine(currentPosition)
+		) {
+			return false;
+		}
+
+		const historyLength = getPromptHistoryLength();
+		if (historyLength === 0) return false;
+
+		if (historyIndex === historyLength) {
+			draftBeforeHistory = textContent;
+		}
+
+		if (event.key === "ArrowUp") {
+			if (historyIndex > 0) {
+				historyIndex -= 1;
+			}
+		} else if (event.key === "ArrowDown") {
+			if (historyIndex < historyLength) {
+				historyIndex += 1;
+			}
+		}
+
+		const entry =
+			historyIndex >= 0 && historyIndex < historyLength
+				? getPromptHistoryEntry(historyIndex)
+				: draftBeforeHistory;
+		event.preventDefault();
+		applyHistoryEntry(entry || "");
+		return true;
+	}
+
+	function isCursorOnFirstLine(position: number) {
+		const index = Math.max(position - 1, 0);
+		return textContent.lastIndexOf("\n", index) === -1;
+	}
+
+	function isCursorOnLastLine(position: number) {
+		return textContent.indexOf("\n", position) === -1;
 	}
 
 	function handleInput(
@@ -557,6 +684,8 @@
 		// Update content state
 		textContent = newTextContent;
 		cursorPosition = getCurrentCursorPosition();
+		historyIndex = getPromptHistoryLength();
+		draftBeforeHistory = textContent;
 
 		// Rebuild token structure
 		textTokens = parseTextToTokens(textContent);
@@ -799,42 +928,16 @@
 
 		commandStartIndex = commandIndex;
 
-		// Special handling for '/provider' even if followed by a query (paste or typing)
-		if (commandName === "provider") {
-			// Ensure provider dropdown is shown and filtered
-			if (activeDropdown !== "provider") {
-				void showProviderDropdown();
-			} else {
-				applyProviderFilter();
-			}
-			return;
-		}
+		const dropdownController =
+			dropdownControllers[
+				commandName as keyof typeof dropdownControllers
+			];
 
-		// Special handling for '/model'
-		if (commandName === "model") {
-			if (activeDropdown !== "model") {
-				void showModelDropdown();
+		if (dropdownController) {
+			if (activeDropdown !== dropdownController.kind) {
+				void dropdownController.show();
 			} else {
-				applyModelFilter();
-			}
-			return;
-		}
-
-		// Special handling for '/creativity'
-		if (commandName === "creativity") {
-			if (activeDropdown !== "creativity") {
-				void showCreativityDropdown();
-			} else {
-				applyCreativityFilter();
-			}
-			return;
-		}
-
-		if (commandName === "system") {
-			if (activeDropdown !== "system") {
-				void showSystemDropdown();
-			} else {
-				applySystemFilter();
+				dropdownController.refresh();
 			}
 			return;
 		}
@@ -861,27 +964,13 @@
 	function insertCommandAtCursor(command: CommandReference) {
 		if (commandStartIndex === -1) return;
 
-		if (command.name === "provider") {
-			insertCommand("provider");
-			void showProviderDropdown();
-			return;
-		}
-
-		if (command.name === "model") {
-			insertCommand("model");
-			void showModelDropdown();
-			return;
-		}
-
-		if (command.name === "creativity") {
-			insertCommand("creativity");
-			void showCreativityDropdown();
-			return;
-		}
-
-		if (command.name === "system") {
-			insertCommand("system");
-			void showSystemDropdown();
+		const dropdownController =
+			dropdownControllers[
+				command.name as keyof typeof dropdownControllers
+			];
+		if (dropdownController) {
+			insertCommand(command.name);
+			void dropdownController.show();
 			return;
 		}
 
@@ -948,7 +1037,7 @@
 			highlightBadgeTemporarily();
 
 			// Remove the /provider command and any typed query after it (mouse or keyboard)
-			removeProviderCommandAndQuery();
+			removeCommandAndQuery("provider");
 
 			// Hide dropdown
 			hideDropdown();
@@ -967,7 +1056,7 @@
 			setProviderBadgeLabel(providerName, model.name);
 			highlightBadgeTemporarily();
 
-			removeModelCommandAndQuery();
+			removeCommandAndQuery("model");
 			hideDropdown();
 		} catch (error) {
 			console.error("Error selecting model:", error);
@@ -981,12 +1070,7 @@
 		const matches = allCreativities
 			.filter((c) => fuzzyMatch(c.name, q))
 			.slice(0, MAX_DROPDOWN_RESULTS);
-		filteredItems = matches;
-		if (matches.length === 0) {
-			selectedIndex = -1;
-		} else if (selectedIndex < 0 || selectedIndex >= matches.length) {
-			selectedIndex = 0;
-		}
+		updateFilteredDropdownItems(matches);
 		if (q) {
 			// Try to auto-select when exact match ignoring case and emojis
 			const norm = (s: string) => s.toLowerCase();
@@ -995,10 +1079,6 @@
 				void selectCreativity(exact);
 			}
 		}
-	}
-
-	function removeCreativityCommandAndQuery() {
-		removeCommandAndQuery("creativity");
 	}
 
 	async function showCreativityDropdown() {
@@ -1022,7 +1102,7 @@
 			creativityBadge = option.name;
 			setProviderBadgeLabel(providerName, modelName);
 			highlightBadgeTemporarily();
-			removeCreativityCommandAndQuery();
+			removeCommandAndQuery("creativity");
 			hideDropdown();
 		} catch (error) {
 			console.error("Error selecting creativity:", error);
@@ -1042,12 +1122,7 @@
 			)
 			.sort((a, b) => a.name.localeCompare(b.name))
 			.slice(0, MAX_DROPDOWN_RESULTS);
-		filteredItems = matches;
-		if (matches.length === 0) {
-			selectedIndex = -1;
-		} else if (selectedIndex < 0 || selectedIndex >= matches.length) {
-			selectedIndex = 0;
-		}
+		updateFilteredDropdownItems(matches);
 		if (q) {
 			const norm = (s: string) => s.toLowerCase();
 			const exact = matches.find((s) => norm(s.name) === norm(q));
@@ -1055,10 +1130,6 @@
 				void selectSystemPrompt(exact);
 			}
 		}
-	}
-
-	function removeSystemCommandAndQuery() {
-		removeCommandAndQuery("system");
 	}
 
 	async function showSystemDropdown() {
@@ -1081,7 +1152,7 @@
 			systemPromptBadge = option.name;
 			setProviderBadgeLabel(providerName, modelName);
 			highlightBadgeTemporarily();
-			removeSystemCommandAndQuery();
+			removeCommandAndQuery("system");
 			hideDropdown();
 		} catch (error) {
 			console.error("Error selecting system prompt:", error);
@@ -1115,12 +1186,7 @@
 				(p) => fuzzyMatch(p.name, q) || fuzzyMatch(p.providerName, q),
 			)
 			.slice(0, MAX_DROPDOWN_RESULTS);
-		filteredItems = matches;
-		if (matches.length === 0) {
-			selectedIndex = -1;
-		} else if (selectedIndex < 0 || selectedIndex >= matches.length) {
-			selectedIndex = 0;
-		}
+		updateFilteredDropdownItems(matches);
 		// Auto-select when there is a single exact name match (paste convenience)
 		if (
 			q &&
@@ -1161,10 +1227,6 @@
 		}
 	}
 
-	function removeProviderCommandAndQuery() {
-		removeCommandAndQuery("provider");
-	}
-
 	async function showProviderDropdown() {
 		if (!getProviders) return;
 
@@ -1191,12 +1253,7 @@
 		const matches = allModels
 			.filter((m) => fuzzyMatch(m.name, q))
 			.slice(0, MAX_DROPDOWN_RESULTS);
-		filteredItems = matches;
-		if (matches.length === 0) {
-			selectedIndex = -1;
-		} else if (selectedIndex < 0 || selectedIndex >= matches.length) {
-			selectedIndex = 0;
-		}
+		updateFilteredDropdownItems(matches);
 		if (
 			q &&
 			matches.length === 1 &&
@@ -1204,10 +1261,6 @@
 		) {
 			void selectModel(matches[0]);
 		}
-	}
-
-	function removeModelCommandAndQuery() {
-		removeCommandAndQuery("model");
 	}
 
 	async function showModelDropdown() {
@@ -1288,6 +1341,9 @@
 	}
 
 	function submitAction() {
+		addToPromptHistory(textContent);
+		historyIndex = getPromptHistoryLength();
+		draftBeforeHistory = textContent;
 		dispatch("submit", {
 			text: textContent,
 			selectedFiles,
