@@ -20,12 +20,12 @@
       "ES2020",
       "ES2021.WeakRef"
     ],
-    "types": [
-      "svelte",
-      "node",
-      "jest",
-      "@testing-library/jest-dom"
-    ]
+	"types": [
+		"svelte",
+		"node",
+		"vitest/globals",
+		"@testing-library/jest-dom"
+	]
   },
   "include": ["src/**/*.ts", "src/**/*.svelte", "src/types/**/*.d.ts"]
 }

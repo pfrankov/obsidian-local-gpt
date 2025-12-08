@@ -152,17 +152,22 @@ export function getBacklinkFiles(
 	context: ProcessingContext,
 	processedDocs: Map<string, IAIDocument>,
 ): TFile[] {
-	return Object.entries(context.metadataCache.resolvedLinks)
-		.filter(
-			([sourcePath, links]) =>
-				links[file.path] && !processedDocs.has(sourcePath),
-		)
-		.map(([sourcePath]) => context.vault.getAbstractFileByPath(sourcePath))
-		.filter(
-			(backlinkFile): backlinkFile is TFile =>
-				backlinkFile instanceof TFile &&
-				backlinkFile.extension === "md",
-		);
+	const resolvedLinks = context.metadataCache.resolvedLinks || {};
+	const backlinks: TFile[] = [];
+
+	for (const [sourcePath, links] of Object.entries(resolvedLinks)) {
+		if (processedDocs.has(sourcePath) || !links?.[file.path]) {
+			continue;
+		}
+		const backlinkFile = context.vault.getAbstractFileByPath(
+			sourcePath,
+		) as TFile | null;
+		if (backlinkFile?.extension === "md") {
+			backlinks.push(backlinkFile);
+		}
+	}
+
+	return backlinks;
 }
 
 export async function searchDocuments(
@@ -222,42 +227,80 @@ function formatResults(
 ): string {
 	if (!results?.length) return "";
 
-	const groupedResults = new Map<string, IAIProvidersRetrievalResult[]>();
+	const groupedResults = groupResultsByBasename(results);
+	const sortedGroups = sortResultGroups(groupedResults);
+	const { text, length } = formatGroupedResults(sortedGroups, contextLimit);
 
-	for (const result of results) {
+	logger.info("Total length of context", length);
+
+	return text;
+}
+
+function groupResultsByBasename(
+	results: IAIProvidersRetrievalResult[],
+): Map<string, IAIProvidersRetrievalResult[]> {
+	return results.reduce((map, result) => {
 		const basename = result.document.meta?.basename;
-		if (!groupedResults.has(basename)) {
-			groupedResults.set(basename, []);
-		}
-		groupedResults.get(basename)!.push(result);
-	}
+		const existing = map.get(basename) || [];
+		existing.push(result);
+		map.set(basename, existing);
+		return map;
+	}, new Map<string, IAIProvidersRetrievalResult[]>());
+}
 
-	const sortedGroups = Array.from(groupedResults.entries()).sort(
+function sortResultGroups(
+	groupedResults: Map<string, IAIProvidersRetrievalResult[]>,
+): Array<[string, IAIProvidersRetrievalResult[]]> {
+	return Array.from(groupedResults.entries()).sort(
 		(a, b) =>
 			(b[1][0]?.document.meta?.stat?.ctime || 0) -
 			(a[1][0]?.document.meta?.stat?.ctime || 0),
 	);
+}
 
+function formatGroupedResults(
+	groups: Array<[string, IAIProvidersRetrievalResult[]]>,
+	contextLimit: number,
+): { text: string; length: number } {
 	let formattedResults = "";
 	let totalLength = 0;
 
-	for (const [basename, groupResults] of sortedGroups) {
+	for (const [basename, groupResults] of groups) {
 		if (totalLength >= contextLimit) break;
 
 		formattedResults += `[[${basename}]]\n`;
-
-		const sortedResults = groupResults.sort((a, b) => b.score - a.score);
-		for (const result of sortedResults) {
-			const content = result.content.trim();
-			if (content && totalLength + content.length < contextLimit) {
-				formattedResults += `${content}\n\n`;
-				totalLength += content.length + 2;
-			}
-		}
+		const { text, length } = formatSingleGroup(
+			groupResults,
+			contextLimit,
+			totalLength,
+		);
+		formattedResults += text;
+		totalLength += length;
 	}
 
-	formattedResults = formattedResults.trim();
-	logger.info("Total length of context", formattedResults.length);
+	const trimmed = formattedResults.trim();
+	return { text: trimmed, length: trimmed.length };
+}
 
-	return formattedResults;
+function formatSingleGroup(
+	groupResults: IAIProvidersRetrievalResult[],
+	contextLimit: number,
+	currentLength: number,
+): { text: string; length: number } {
+	let groupText = "";
+	let addedLength = 0;
+	const sortedResults = [...groupResults].sort((a, b) => b.score - a.score);
+
+	for (const result of sortedResults) {
+		const content = result.content.trim();
+		const projectedLength =
+			currentLength + addedLength + content.length + 2;
+		if (!content || projectedLength >= contextLimit) {
+			continue;
+		}
+		groupText += `${content}\n\n`;
+		addedLength += content.length + 2;
+	}
+
+	return { text: groupText, length: addedLength };
 }

@@ -1,27 +1,28 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import LocalGPT from "../src/main";
 import { App, PluginManifest } from "obsidian";
 
-jest.mock("obsidian");
-jest.mock("../src/spinnerPlugin", () => ({
+vi.mock("obsidian");
+vi.mock("../src/spinnerPlugin", () => ({
 	spinnerPlugin: {},
 }));
-jest.mock("../src/logger");
-jest.mock("../src/ui/actionPalettePlugin", () => ({
+vi.mock("../src/logger");
+vi.mock("../src/ui/actionPalettePlugin", () => ({
 	actionPalettePlugin: [],
-	showActionPalette: jest.fn(),
-	hideActionPalette: jest.fn(),
+	showActionPalette: vi.fn(),
+	hideActionPalette: vi.fn(),
 }));
 
-describe("LocalGPT", () => {
-	let plugin: LocalGPT;
+	describe("LocalGPT", () => {
+		let plugin: LocalGPT;
 
-	beforeEach(() => {
-		jest.clearAllMocks();
-		const app = { workspace: { updateOptions: jest.fn() } } as unknown as App;
-		plugin = new LocalGPT(app, {} as PluginManifest);
-	});
+		beforeEach(() => {
+			vi.clearAllMocks();
+			const app = { workspace: { updateOptions: vi.fn() } } as unknown as App;
+			plugin = new LocalGPT(app, {} as PluginManifest);
+		});
 
-	it("processText strips thinking tags and the selected text", () => {
+		it("processText strips thinking tags and the selected text", () => {
 		const selection = "{{SELECTION}}";
 		const result = plugin.processText(
 			`<think>internal</think>Final ${selection}`,
@@ -29,12 +30,12 @@ describe("LocalGPT", () => {
 		);
 
 		expect(result).toBe("\nFinal\n");
-	});
+		});
 
-	it("runFreeform forwards system prompt to executeAction", async () => {
-		const executeAction = jest
-			.spyOn(plugin as any, "executeAction")
-			.mockResolvedValue(undefined);
+		it("runFreeform forwards system prompt to executeAction", async () => {
+			const executeAction = vi
+				.spyOn(plugin as any, "executeAction")
+				.mockResolvedValue(undefined);
 		const editor = {} as any;
 
 		await (plugin as any).runFreeform(

@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	startProcessing,
 	getLinkedFiles,
@@ -12,12 +13,12 @@ import { fileCache } from '../src/indexedDB';
 import { TFile, Vault, MetadataCache } from 'obsidian';
 import * as ragModule from '../src/rag';
 
-jest.mock('obsidian');
-jest.mock('../src/processors/pdf');
-jest.mock('../src/indexedDB');
-jest.mock('../src/logger');
-jest.mock('pdfjs-dist', () => ({
-	getDocument: jest.fn(),
+vi.mock('obsidian');
+vi.mock('../src/processors/pdf');
+vi.mock('../src/indexedDB');
+vi.mock('../src/logger');
+vi.mock('pdfjs-dist', () => ({
+	getDocument: vi.fn(),
 	GlobalWorkerOptions: {
 		workerPort: null
 	}
@@ -25,7 +26,7 @@ jest.mock('pdfjs-dist', () => ({
 
 // Mock AI Providers SDK types and methods
 const mockAIProviders = {
-	retrieve: jest.fn()
+	retrieve: vi.fn()
 };
 
 const mockEmbeddingProvider = {
@@ -35,14 +36,14 @@ const mockEmbeddingProvider = {
 
 describe('RAG Functions', () => {
 	beforeEach(() => {
-		jest.clearAllMocks();
+		vi.clearAllMocks();
 		mockAIProviders.retrieve.mockReset();
 	});
 
 	describe('getFileContent', () => {
 		it('should read MD files using vault.cachedRead', async () => {
 			const mockFile = { extension: 'md' } as TFile;
-			const mockVault = { cachedRead: jest.fn().mockResolvedValue('Markdown content') } as unknown as Vault;
+			const mockVault = { cachedRead: vi.fn().mockResolvedValue('Markdown content') } as unknown as Vault;
 
 			const content = await getFileContent(mockFile, mockVault);
 
@@ -52,9 +53,9 @@ describe('RAG Functions', () => {
 
 		it('should extract text from PDF files', async () => {
 			const mockFile = { extension: 'pdf', path: 'test.pdf', stat: { mtime: 1000 } } as TFile;
-			const mockVault = { readBinary: jest.fn().mockResolvedValue(new ArrayBuffer(8)) } as unknown as Vault;
-			(extractTextFromPDF as jest.Mock).mockResolvedValue('PDF content');
-			(fileCache.getContent as jest.Mock).mockResolvedValue(null);
+			const mockVault = { readBinary: vi.fn().mockResolvedValue(new ArrayBuffer(8)) } as unknown as Vault;
+			(extractTextFromPDF as vi.Mock).mockResolvedValue('PDF content');
+			(fileCache.getContent as vi.Mock).mockResolvedValue(null);
 
 			const content = await getFileContent(mockFile, mockVault);
 
@@ -69,8 +70,8 @@ describe('RAG Functions', () => {
 
 		it('should use cached PDF content when available and up to date', async () => {
 			const mockFile = { extension: 'pdf', path: 'test.pdf', stat: { mtime: 1000 } } as TFile;
-			const mockVault = { readBinary: jest.fn() } as unknown as Vault;
-			(fileCache.getContent as jest.Mock).mockResolvedValue({
+			const mockVault = { readBinary: vi.fn() } as unknown as Vault;
+			(fileCache.getContent as vi.Mock).mockResolvedValue({
 				mtime: 1000,
 				content: 'Cached PDF content'
 			});
@@ -84,7 +85,7 @@ describe('RAG Functions', () => {
 
 		it('should handle default case for MD files', async () => {
 			const mockFile = { extension: 'txt' } as TFile;
-			const mockVault = { cachedRead: jest.fn().mockResolvedValue('Text content') } as unknown as Vault;
+			const mockVault = { cachedRead: vi.fn().mockResolvedValue('Text content') } as unknown as Vault;
 
 			const content = await getFileContent(mockFile, mockVault);
 
@@ -111,7 +112,7 @@ describe('RAG Functions', () => {
 			mockFile3.extension = 'txt';
 			
 			const mockVault = {
-				getAbstractFileByPath: jest.fn()
+				getAbstractFileByPath: vi.fn()
 					.mockImplementation((path: string) => {
 						if (path === 'File1.md') return mockFile1;
 						if (path === 'File2.pdf') return mockFile2;
@@ -121,7 +122,7 @@ describe('RAG Functions', () => {
 			} as unknown as Vault;
 			
 			const mockMetadataCache = {
-				getFirstLinkpathDest: jest.fn()
+				getFirstLinkpathDest: vi.fn()
 					.mockImplementation((linkText: string) => {
 						if (linkText === 'File1.md') return { path: 'File1.md' };
 						if (linkText === 'File2.pdf') return { path: 'File2.pdf' };
@@ -141,10 +142,10 @@ describe('RAG Functions', () => {
 		it('should handle files with unsupported extensions', () => {
 			const content = '[[Unsupported.txt]]';
 			const mockVault = {
-				getAbstractFileByPath: jest.fn().mockReturnValue({ path: 'Unsupported.txt', extension: 'txt' })
+				getAbstractFileByPath: vi.fn().mockReturnValue({ path: 'Unsupported.txt', extension: 'txt' })
 			} as unknown as Vault;
 			const mockMetadataCache = {
-				getFirstLinkpathDest: jest.fn().mockReturnValue({ path: 'Unsupported.txt' }),
+				getFirstLinkpathDest: vi.fn().mockReturnValue({ path: 'Unsupported.txt' }),
 			} as unknown as MetadataCache;
 			const currentFilePath = 'current.md';
 
@@ -161,13 +162,13 @@ describe('RAG Functions', () => {
 			mockFile1.extension = 'md';
 			
 			const mockVault = {
-				getAbstractFileByPath: jest.fn().mockImplementation((path: string) => {
+				getAbstractFileByPath: vi.fn().mockImplementation((path: string) => {
 					if (path === 'File1.md') return mockFile1;
 					return null;
 				})
 			} as unknown as Vault;
 			const mockMetadataCache = {
-				getFirstLinkpathDest: jest.fn().mockImplementation((linkText: string) => {
+				getFirstLinkpathDest: vi.fn().mockImplementation((linkText: string) => {
 					if (linkText === 'File1.md') return { path: 'File1.md' };
 					return null;
 				})
@@ -179,6 +180,21 @@ describe('RAG Functions', () => {
 			expect(linkedFiles).toHaveLength(1);
 			expect(mockMetadataCache.getFirstLinkpathDest).toHaveBeenCalledWith('File1.md', currentFilePath);
 		});
+
+		it('ignores unresolved links', () => {
+			const content = '[[Missing.md]]';
+			const mockVault = {
+				getAbstractFileByPath: vi.fn(),
+			} as unknown as Vault;
+			const mockMetadataCache = {
+				getFirstLinkpathDest: vi.fn().mockReturnValue(null),
+			} as unknown as MetadataCache;
+
+			const linkedFiles = getLinkedFiles(content, mockVault, mockMetadataCache, 'current.md');
+
+			expect(linkedFiles).toHaveLength(0);
+			expect(mockVault.getAbstractFileByPath).not.toHaveBeenCalled();
+		});
 	});
 
 
@@ -188,12 +204,12 @@ describe('RAG Functions', () => {
 				{ path: 'file1.md', extension: 'md', basename: 'file1', stat: { ctime: 1000 } } as TFile,
 				{ path: 'file2.md', extension: 'md', basename: 'file2', stat: { ctime: 2000 } } as TFile,
 			];
-			const mockVault = { cachedRead: jest.fn().mockResolvedValue('Mock content') } as unknown as Vault;
+			const mockVault = { cachedRead: vi.fn().mockResolvedValue('Mock content') } as unknown as Vault;
 			const mockMetadataCache = new MetadataCache();
 			const mockActiveFile = { path: 'active.md' } as TFile;
 
-			jest.spyOn(ragModule, 'getLinkedFiles').mockReturnValue([]);
-			jest.spyOn(ragModule, 'getBacklinkFiles').mockReturnValue([]);
+			vi.spyOn(ragModule, 'getLinkedFiles').mockReturnValue([]);
+			vi.spyOn(ragModule, 'getBacklinkFiles').mockReturnValue([]);
 
 			const result = await startProcessing(mockLinkedFiles, mockVault, mockMetadataCache, mockActiveFile);
 
@@ -255,6 +271,88 @@ describe('RAG Functions', () => {
 
 			expect(result.size).toBe(1); // Still has the original document
 		});
+
+		it('handles file processing errors gracefully', async () => {
+			const mockFile = { path: 'error.md', extension: 'md' } as TFile;
+			const mockContext: ProcessingContext = {
+				vault: new Vault(),
+				metadataCache: new MetadataCache(),
+				activeFile: { path: 'active.md' } as TFile,
+			};
+			const processedDocs = new Map<string, IAIDocument>();
+			const getFileContentSpy = vi
+				.spyOn(ragModule, 'getFileContent')
+				.mockRejectedValue(new Error('boom'));
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+			const result = await processDocumentForRAG(
+				mockFile,
+				mockContext,
+				processedDocs,
+				0,
+				false,
+			);
+
+			expect(result.size).toBe(0);
+			expect(consoleSpy).toHaveBeenCalled();
+			getFileContentSpy.mockRestore();
+			consoleSpy.mockRestore();
+		});
+
+		it('processes linked and backlink files recursively', async () => {
+			const rootFile = new TFile();
+			rootFile.path = 'root.md';
+			rootFile.extension = 'md';
+			rootFile.basename = 'root';
+			rootFile.stat = { ctime: 0 } as any;
+
+			const linkedFile = new TFile();
+			linkedFile.path = 'linked.md';
+			linkedFile.extension = 'md';
+			linkedFile.basename = 'linked';
+			linkedFile.stat = { ctime: 1 } as any;
+
+			const backlinkFile = new TFile();
+			backlinkFile.path = 'back.md';
+			backlinkFile.extension = 'md';
+			backlinkFile.basename = 'back';
+			backlinkFile.stat = { ctime: 2 } as any;
+			const processedDocs = new Map<string, IAIDocument>();
+			const mockContext: ProcessingContext = {
+				vault: {
+					cachedRead: vi.fn().mockResolvedValue('[[linked.md]]'),
+					readBinary: vi.fn(),
+					getAbstractFileByPath: vi.fn().mockImplementation((path: string) => {
+						if (path === 'linked.md') return linkedFile;
+						if (path === 'back.md') return backlinkFile;
+						return null;
+					}),
+				} as unknown as Vault,
+				metadataCache: {
+					getFirstLinkpathDest: vi
+						.fn()
+						.mockImplementation((linkText: string) =>
+							linkText === 'linked.md' ? { path: 'linked.md' } : null,
+						),
+					resolvedLinks: {
+						'back.md': { 'root.md': 1 },
+					},
+				} as unknown as MetadataCache,
+				activeFile: { path: 'active.md' } as TFile,
+			};
+
+			const result = await processDocumentForRAG(
+				rootFile,
+				mockContext,
+				processedDocs,
+				0,
+				false,
+			);
+
+			expect(result.size).toBe(3);
+			expect(result.get('linked.md')?.meta.isBacklink).toBe(false);
+			expect(result.get('back.md')?.meta.isBacklink).toBe(true);
+		});
 	});
 
 
@@ -286,7 +384,7 @@ describe('RAG Functions', () => {
 			];
 
 			mockAIProviders.retrieve.mockResolvedValue(mockResults);
-			const mockUpdateCompletedSteps = jest.fn();
+			const mockUpdateCompletedSteps = vi.fn();
 			const abortController = new AbortController();
 
 			const result = await searchDocuments(
@@ -296,7 +394,7 @@ describe('RAG Functions', () => {
 				mockEmbeddingProvider,
 				abortController,
 				mockUpdateCompletedSteps,
-				jest.fn(),
+				vi.fn(),
 				10000
 			);
 
@@ -322,8 +420,8 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				abortController,
-				jest.fn(),
-				jest.fn(),
+				vi.fn(),
+				vi.fn(),
 				10000
 			);
 
@@ -334,7 +432,7 @@ describe('RAG Functions', () => {
 		it('should handle errors gracefully', async () => {
 			mockAIProviders.retrieve.mockRejectedValue(new Error('Retrieval failed'));
 			const abortController = new AbortController();
-			const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
 
 			const result = await searchDocuments(
 				'query',
@@ -342,8 +440,8 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				abortController,
-				jest.fn(),
-				jest.fn(),
+				vi.fn(),
+				vi.fn(),
 				10000
 			);
 
@@ -365,8 +463,8 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				abortController,
-				jest.fn(),
-				jest.fn(),
+				vi.fn(),
+				vi.fn(),
 				10000
 			);
 
@@ -414,8 +512,8 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				new AbortController(),
-				jest.fn(),
-				jest.fn(),
+				vi.fn(),
+				vi.fn(),
 				10000
 			);
 
@@ -470,8 +568,8 @@ describe('RAG Functions', () => {
 						mockAIProviders,
 						mockEmbeddingProvider,
 						new AbortController(),
-						jest.fn(),
-						jest.fn(),
+						vi.fn(),
+						vi.fn(),
 						limit,
 					);
 
@@ -492,8 +590,8 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				new AbortController(),
-				jest.fn(),
-				jest.fn(),
+				vi.fn(),
+				vi.fn(),
 				10000
 			);
 
@@ -530,112 +628,253 @@ describe('RAG Functions', () => {
 				mockAIProviders,
 				mockEmbeddingProvider,
 				new AbortController(),
-				jest.fn(),
-				jest.fn(),
+				vi.fn(),
+				vi.fn(),
 				10000
 			);
 
 			// Should not exceed reasonable length due to context limit
 			expect(result.length).toBeLessThan(15000); // Some buffer for formatting
 		});
+
+		it('handles zero context limit with missing timestamps', async () => {
+			const documents: IAIDocument[] = [
+				{ content: 'Doc body', meta: { basename: 'first', stat: {} } },
+				{ content: 'Other doc', meta: { basename: 'second', stat: {} } },
+			];
+
+			mockAIProviders.retrieve.mockResolvedValue([
+				{ content: 'One', score: 0.9, document: documents[0] },
+				{ content: 'Two', score: 0.8, document: documents[1] },
+			] as unknown as IAIProvidersRetrievalResult[]);
+
+			const result = await searchDocuments(
+				'query',
+				documents,
+				mockAIProviders,
+				mockEmbeddingProvider,
+				new AbortController(),
+				vi.fn(),
+				vi.fn(),
+				0,
+			);
+
+			expect(result).toBe('');
+		});
+
+		it('tracks progress updates during searchDocuments', async () => {
+			const documents: IAIDocument[] = [
+				{
+					content: 'Doc body',
+					meta: { basename: 'file-track', stat: { ctime: 1 } },
+				},
+			];
+			const mockUpdate = vi.fn();
+			const mockAddTotal = vi.fn();
+
+			mockAIProviders.retrieve.mockImplementation(async ({ onProgress }) => {
+				onProgress({ totalChunks: 2, processedChunks: [1] });
+				onProgress({ totalChunks: 2, processedChunks: [1, 2] });
+				return [
+					{
+						content: 'Snippet',
+						score: 0.9,
+						document: documents[0],
+					},
+				];
+			});
+
+			const result = await searchDocuments(
+				'query',
+				documents,
+				mockAIProviders,
+				mockEmbeddingProvider,
+				new AbortController(),
+				mockUpdate,
+				mockAddTotal,
+				10000,
+			);
+
+			expect(mockAddTotal).toHaveBeenCalledWith(2);
+			expect(mockUpdate).toHaveBeenCalledWith(1);
+			expect(result).toContain('[[file-track]]');
+		});
+
+		it('stops processing progress updates after abort', async () => {
+			const documents: IAIDocument[] = [
+				{
+					content: 'Doc body',
+					meta: { basename: 'file-track', stat: { ctime: 1 } },
+				},
+			];
+			const mockUpdate = vi.fn();
+			const abortController = new AbortController();
+
+			mockAIProviders.retrieve.mockImplementation(async ({ onProgress }) => {
+				onProgress({ totalChunks: 2, processedChunks: [1] });
+				onProgress({ totalChunks: 2, processedChunks: [1] });
+				abortController.abort();
+				onProgress({ totalChunks: 2, processedChunks: [1, 2] });
+				return [
+					{
+						content: 'Snippet',
+						score: 0.9,
+						document: documents[0],
+					},
+				];
+			});
+
+			const result = await searchDocuments(
+				'query',
+				documents,
+				mockAIProviders,
+				mockEmbeddingProvider,
+				abortController,
+				mockUpdate,
+				undefined as any,
+				10000,
+			);
+
+			expect(mockUpdate).toHaveBeenCalledTimes(1);
+			expect(result).toContain('[[file-track]]');
+		});
+
+		it('handles progress events without totals or new chunks', async () => {
+			const documents: IAIDocument[] = [
+				{ content: 'Doc body', meta: { basename: 'file-zero', stat: {} } },
+			];
+			const mockUpdate = vi.fn();
+			const mockAddTotal = vi.fn();
+
+			mockAIProviders.retrieve.mockImplementation(async ({ onProgress }) => {
+				onProgress({ processedChunks: [] });
+				return [
+					{
+						content: 'Snippet',
+						score: 0.9,
+						document: documents[0],
+					},
+				];
+			});
+
+			const result = await searchDocuments(
+				'query',
+				documents,
+				mockAIProviders,
+				mockEmbeddingProvider,
+				new AbortController(),
+				mockUpdate,
+				mockAddTotal,
+				10000,
+			);
+
+			expect(mockAddTotal).toHaveBeenCalledWith(0);
+			expect(mockUpdate).not.toHaveBeenCalled();
+			expect(result).toContain('[[file-zero]]');
+		});
 	});
 
 	describe('getBacklinkFiles', () => {
 		beforeEach(() => {
-			jest.clearAllMocks();
-			jest.resetModules();
+			vi.restoreAllMocks();
+			vi.clearAllMocks();
+			vi.resetModules();
 		});
 
 		it('should find backlink files from resolved links', () => {
-			jest.isolateModules(() => {
-				// Import fresh modules for this test
-				const { TFile } = require('obsidian');
-				const ragModule = require('../src/rag');
-				
-				// Test the function directly with a simple implementation
-				const mockFile = { path: 'target.md', extension: 'md' } as TFile;
-				
-				const mockBacklink1 = { path: 'backlink1.md', extension: 'md' } as TFile;
-				const mockBacklink2 = { path: 'backlink2.md', extension: 'md' } as TFile;
-				
-				// Mock the instanceof check by creating objects that will pass the filter
-				Object.setPrototypeOf(mockBacklink1, TFile.prototype);
-				Object.setPrototypeOf(mockBacklink2, TFile.prototype);
-				
-				const mockContext = {
-					vault: {
-						getAbstractFileByPath: jest.fn().mockImplementation((path: string) => {
-							if (path === 'backlink1.md') return mockBacklink1;
-							if (path === 'backlink2.md') return mockBacklink2;
-							return null;
-						})
-					} as unknown as Vault,
-					metadataCache: {
-						resolvedLinks: {
-							'backlink1.md': { 'target.md': 1 },
-							'backlink2.md': { 'target.md': 1 },
-							'other.md': { 'different.md': 1 }
-						}
-					} as unknown as MetadataCache,
-					activeFile: { path: 'active.md' } as TFile
-				} as ProcessingContext;
-				
-				const processedDocs = new Map<string, IAIDocument>();
+			const mockFile = new TFile();
+			mockFile.path = 'target.md';
+			mockFile.extension = 'md';
 
-				const backlinkFiles = ragModule.getBacklinkFiles(mockFile, mockContext, processedDocs);
+			const mockBacklink1 = new TFile();
+			mockBacklink1.path = 'backlink1.md';
+			mockBacklink1.extension = 'md';
+			const mockBacklink2 = new TFile();
+			mockBacklink2.path = 'backlink2.md';
+			mockBacklink2.extension = 'md';
 
-				expect(backlinkFiles).toHaveLength(2);
-				expect(backlinkFiles.map((f: any) => f.path)).toContain('backlink1.md');
-				expect(backlinkFiles.map((f: any) => f.path)).toContain('backlink2.md');
+			const getAbstractFileByPath = vi.fn().mockImplementation((path: string) => {
+				if (path === 'backlink1.md') return mockBacklink1;
+				if (path === 'backlink2.md') return mockBacklink2;
+				return null;
 			});
+			const mockContext = {
+				vault: {
+					getAbstractFileByPath,
+				} as unknown as Vault,
+				metadataCache: Object.assign(new MetadataCache(), {
+					resolvedLinks: {
+						'backlink1.md': { 'target.md': 1 },
+						'backlink2.md': { 'target.md': 1 },
+						'other.md': { 'different.md': 1 }
+					},
+				}),
+				activeFile: { path: 'active.md' } as TFile
+			} as ProcessingContext;
+
+			const processedDocs = new Map<string, IAIDocument>();
+
+			const backlinkFiles = ragModule.getBacklinkFiles(
+				mockFile,
+				mockContext,
+				processedDocs,
+			);
+
+			expect(backlinkFiles.map((f: any) => f.path)).toEqual([
+				'backlink1.md',
+				'backlink2.md',
+			]);
+			expect(getAbstractFileByPath).toHaveBeenCalledTimes(2);
 		});
 
 		it('should exclude already processed documents', () => {
-			jest.isolateModules(() => {
-				// Import fresh modules for this test
-				const { TFile } = require('obsidian');
-				const ragModule = require('../src/rag');
-				
-				const mockFile = { path: 'target.md', extension: 'md' } as TFile;
-				
-				const mockBacklink1 = { path: 'backlink1.md', extension: 'md' } as TFile;
-				
-				// Mock the instanceof check by creating objects that will pass the filter
-				Object.setPrototypeOf(mockBacklink1, TFile.prototype);
-				
-				const mockContext = {
-					vault: {
-						getAbstractFileByPath: jest.fn().mockImplementation((path: string) => {
-							if (path === 'backlink1.md') return mockBacklink1;
-							return null;
-						})
-					} as unknown as Vault,
-					metadataCache: {
-						resolvedLinks: {
-							'backlink1.md': { 'target.md': 1 },
-							'backlink2.md': { 'target.md': 1 }
-						}
-					} as unknown as MetadataCache,
-					activeFile: { path: 'active.md' } as TFile
-				} as ProcessingContext;
-				
-				const processedDocs = new Map();
-				processedDocs.set('backlink2.md', {
-					content: 'Already processed',
-					meta: {
-						source: 'backlink2.md',
-						basename: 'backlink2',
-						stat: { ctime: 1000 },
-						depth: 0,
-						isBacklink: false
-					}
-				});
+			const mockFile = new TFile();
+			mockFile.path = 'target.md';
+			mockFile.extension = 'md';
 
-				const backlinkFiles = ragModule.getBacklinkFiles(mockFile, mockContext, processedDocs);
+			const mockBacklink1 = new TFile();
+			mockBacklink1.path = 'backlink1.md';
+			mockBacklink1.extension = 'md';
 
-				expect(backlinkFiles).toHaveLength(1);
-				expect((backlinkFiles[0] as any).path).toBe('backlink1.md');
+			const getAbstractFileByPath = vi.fn().mockImplementation((path: string) => {
+				if (path === 'backlink1.md') return mockBacklink1;
+				return null;
 			});
+			const mockContext = {
+				vault: {
+					getAbstractFileByPath,
+				} as unknown as Vault,
+				metadataCache: Object.assign(new MetadataCache(), {
+					resolvedLinks: {
+						'backlink1.md': { 'target.md': 1 },
+						'backlink2.md': { 'target.md': 1 }
+					},
+				}),
+				activeFile: { path: 'active.md' } as TFile
+			} as ProcessingContext;
+
+			const processedDocs = new Map();
+			processedDocs.set('backlink2.md', {
+				content: 'Already processed',
+				meta: {
+					source: 'backlink2.md',
+					basename: 'backlink2',
+					stat: { ctime: 1000 },
+					depth: 0,
+					isBacklink: false
+				}
+			});
+
+			const backlinkFiles = ragModule.getBacklinkFiles(
+				mockFile,
+				mockContext,
+				processedDocs,
+			);
+
+			expect(backlinkFiles.map((f: any) => f.path)).toEqual([
+				'backlink1.md',
+			]);
+			expect(getAbstractFileByPath).toHaveBeenCalledTimes(1);
 		});
 	
 		describe('Progress tracking', () => {
@@ -645,13 +884,13 @@ describe('RAG Functions', () => {
 					{ path: 'file2.md', extension: 'md', basename: 'file2', stat: { ctime: 2000 } } as TFile,
 					{ path: 'file3.md', extension: 'md', basename: 'file3', stat: { ctime: 3000 } } as TFile,
 				];
-				const mockVault = { cachedRead: jest.fn().mockResolvedValue('Mock content') } as unknown as Vault;
+				const mockVault = { cachedRead: vi.fn().mockResolvedValue('Mock content') } as unknown as Vault;
 				const mockMetadataCache = new MetadataCache();
 				const mockActiveFile = { path: 'active.md' } as TFile;
-				const mockUpdateCompletedSteps = jest.fn();
+				const mockUpdateCompletedSteps = vi.fn();
 	
-				jest.spyOn(ragModule, 'getLinkedFiles').mockReturnValue([]);
-				jest.spyOn(ragModule, 'getBacklinkFiles').mockReturnValue([]);
+				vi.spyOn(ragModule, 'getLinkedFiles').mockReturnValue([]);
+				vi.spyOn(ragModule, 'getBacklinkFiles').mockReturnValue([]);
 	
 				await startProcessing(mockLinkedFiles, mockVault, mockMetadataCache, mockActiveFile, mockUpdateCompletedSteps);
 	
@@ -663,12 +902,12 @@ describe('RAG Functions', () => {
 				const mockLinkedFiles = [
 					{ path: 'file1.md', extension: 'md', basename: 'file1', stat: { ctime: 1000 } } as TFile,
 				];
-				const mockVault = { cachedRead: jest.fn().mockResolvedValue('Mock content') } as unknown as Vault;
+				const mockVault = { cachedRead: vi.fn().mockResolvedValue('Mock content') } as unknown as Vault;
 				const mockMetadataCache = new MetadataCache();
 				const mockActiveFile = { path: 'active.md' } as TFile;
 	
-				jest.spyOn(ragModule, 'getLinkedFiles').mockReturnValue([]);
-				jest.spyOn(ragModule, 'getBacklinkFiles').mockReturnValue([]);
+				vi.spyOn(ragModule, 'getLinkedFiles').mockReturnValue([]);
+				vi.spyOn(ragModule, 'getBacklinkFiles').mockReturnValue([]);
 	
 				// Should not throw when callback is not provided
 				const result = await startProcessing(mockLinkedFiles, mockVault, mockMetadataCache, mockActiveFile);
@@ -694,7 +933,7 @@ describe('RAG Functions', () => {
 				];
 	
 				mockAIProviders.retrieve.mockResolvedValue(mockResults);
-				const mockUpdateCompletedSteps = jest.fn();
+				const mockUpdateCompletedSteps = vi.fn();
 				const abortController = new AbortController();
 	
 				await searchDocuments(
@@ -704,7 +943,7 @@ describe('RAG Functions', () => {
 					mockEmbeddingProvider,
 					abortController,
 					mockUpdateCompletedSteps,
-					jest.fn(),
+					vi.fn(),
 					10000
 				);
 	
@@ -715,7 +954,7 @@ describe('RAG Functions', () => {
 			it('should not call updateCompletedSteps when searchDocuments is aborted', async () => {
 				const abortController = new AbortController();
 				abortController.abort();
-				const mockUpdateCompletedSteps = jest.fn();
+				const mockUpdateCompletedSteps = vi.fn();
 	
 				const result = await searchDocuments(
 					'query',
@@ -724,7 +963,7 @@ describe('RAG Functions', () => {
 					mockEmbeddingProvider,
 					abortController,
 					mockUpdateCompletedSteps,
-					jest.fn(),
+					vi.fn(),
 					10000
 				);
 	
@@ -735,8 +974,8 @@ describe('RAG Functions', () => {
 			it('should not call updateCompletedSteps when searchDocuments encounters error', async () => {
 				mockAIProviders.retrieve.mockRejectedValue(new Error('Retrieval failed'));
 				const abortController = new AbortController();
-				const mockUpdateCompletedSteps = jest.fn();
-				const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+				const mockUpdateCompletedSteps = vi.fn();
+				const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
 	
 				const result = await searchDocuments(
 					'query',
@@ -745,7 +984,7 @@ describe('RAG Functions', () => {
 					mockEmbeddingProvider,
 					abortController,
 					mockUpdateCompletedSteps,
-					jest.fn(),
+					vi.fn(),
 					10000
 				);
 	
@@ -766,7 +1005,7 @@ describe('RAG Functions', () => {
 			
 			const mockContext: ProcessingContext = {
 				vault: {
-					getAbstractFileByPath: jest.fn().mockReturnValue(null)
+					getAbstractFileByPath: vi.fn().mockReturnValue(null)
 				} as unknown as Vault,
 				metadataCache: {
 					resolvedLinks: {

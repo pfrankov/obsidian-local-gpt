@@ -1,9 +1,11 @@
+import { vi } from "vitest";
+
 export const logger = {
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-  table: jest.fn(),
-  time: jest.fn(),
-  timeEnd: jest.fn(),
+	debug: vi.fn(),
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn(),
+	table: vi.fn(),
+	time: vi.fn(),
+	timeEnd: vi.fn(),
 };

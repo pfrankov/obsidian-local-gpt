@@ -1,5 +1,7 @@
+import { vi } from "vitest";
+
 export const remote = {
-  net: {
-    request: jest.fn(),
-  },
+	net: {
+		request: vi.fn(),
+	},
 };

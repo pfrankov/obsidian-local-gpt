@@ -1,3 +1,4 @@
+import { describe, expect, test } from "vitest";
 import { preparePrompt } from '../src/utils';
 import { SELECTION_KEYWORD, CONTEXT_KEYWORD, CONTEXT_CONDITION_START, CONTEXT_CONDITION_END } from '../src/defaultSettings';
 
@@ -10,6 +11,14 @@ describe('Utils', () => {
     const result = preparePrompt(prompt, selectedText, context);
 
     expect(result).toBe('Process this: Selected text\n\nContext:\nSome context');
+  });
+
+  test('preparePrompt replaces selection keyword with empty string', () => {
+    const prompt = `Process this: ${SELECTION_KEYWORD}`;
+
+    const result = preparePrompt(prompt, '', 'Context info');
+
+    expect(result).toBe('Process this: \n\nContext:\nContext info');
   });
 
   test('preparePrompt with context keyword', () => {
