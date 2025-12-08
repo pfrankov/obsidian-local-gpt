@@ -1,6 +1,6 @@
 {
   "name": "obsidian-local-gpt",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "description": "Local GPT assistance for maximum privacy and offline access",
   "main": "main.js",
   "scripts": {
@@ -25,38 +25,38 @@
   ],
   "author": "Pavel Frankov",
   "license": "MIT",
-	"devDependencies": {
-		"@sveltejs/vite-plugin-svelte": "^3.1.2",
-		"@testing-library/jest-dom": "^6.9.1",
-		"@types/aria-query": "^5.0.4",
-		"@types/node": "^18.19.130",
-		"@typescript-eslint/eslint-plugin": "5.29.0",
-		"@typescript-eslint/parser": "5.29.0",
-		"@vitest/coverage-v8": "^2.1.9",
-		"builtin-modules": "3.3.0",
-		"esbuild": "0.17.3",
-		"esbuild-plugin-inline-worker": "^0.1.1",
-		"esbuild-svelte": "^0.8.0",
-		"eslint-plugin-sonarjs": "^0.25.1",
-		"jsdom": "^27.3.0",
-		"obsidian": "latest",
-		"prettier": "3.7.4",
-		"simple-git-hooks": "^2.11.0",
-		"svelte": "^4.2.20",
-		"svelte-check": "^3.8.6",
-		"svelte-preprocess": "^5.1.4",
-		"ts-node": "^10.9.2",
-		"tslib": "2.4.0",
-		"typescript": "4.7.4",
-		"vite": "^5.4.21",
-		"vitest": "^2.1.9"
-	},
-	"dependencies": {
-		"@obsidian-ai-providers/sdk": "^1.5.2",
-		"idb": "^8.0.3",
-		"pdfjs-dist": "4.6.82",
-		"sortablejs": "^1.15.6"
-	},
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@types/aria-query": "^5.0.4",
+    "@types/node": "^18.19.130",
+    "@typescript-eslint/eslint-plugin": "5.29.0",
+    "@typescript-eslint/parser": "5.29.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "builtin-modules": "3.3.0",
+    "esbuild": "0.17.3",
+    "esbuild-plugin-inline-worker": "^0.1.1",
+    "esbuild-svelte": "^0.8.0",
+    "eslint-plugin-sonarjs": "^0.25.1",
+    "jsdom": "^27.3.0",
+    "obsidian": "latest",
+    "prettier": "3.7.4",
+    "simple-git-hooks": "^2.11.0",
+    "svelte": "^4.2.20",
+    "svelte-check": "^3.8.6",
+    "svelte-preprocess": "^5.1.4",
+    "ts-node": "^10.9.2",
+    "tslib": "2.4.0",
+    "typescript": "4.7.4",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "@obsidian-ai-providers/sdk": "^1.5.2",
+    "idb": "^8.0.3",
+    "pdfjs-dist": "4.6.82",
+    "sortablejs": "^1.15.6"
+  },
   "simple-git-hooks": {
     "pre-commit": "npm run format"
   }
