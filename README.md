@@ -11,6 +11,9 @@ The most casual AI assistant for Obsidian.
 _Action Palette_
 
 ## Features
+### PWA Creator
+Create Progressive Web Apps directly from Obsidian! The PWA Creator tool allows you to generate installable web applications with offline support, perfect for mobile use. See the [PWA Creator documentation](docs/pwa-creator.md) for more details.
+
 ### Works with images  
 <img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">  
 
