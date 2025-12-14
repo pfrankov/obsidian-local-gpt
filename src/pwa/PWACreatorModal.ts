@@ -125,7 +125,8 @@ export class PWACreatorModal extends Modal {
 					.addOption("portrait", "Portrait")
 					.setValue(this.config.orientation)
 					.onChange(async (value) => {
-						this.config.orientation = value as PWAConfig["orientation"];
+						this.config.orientation =
+							value as PWAConfig["orientation"];
 					}),
 			);
 
