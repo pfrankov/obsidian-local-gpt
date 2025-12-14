@@ -75,6 +75,26 @@ Follow the instructions in [AI Providers](https://github.com/pfrankov/obsidian-a
 5. Filter "Local" again and you should see "Local GPT: Action Palette"
 6. Click on `+` icon and press hotkey (e.g. `⌘ + J`)
 
+## Development
+
+Want to contribute or modify this plugin? Check out our [Contributing Guide](CONTRIBUTING.md) for:
+- Setting up your development environment
+- Building and testing the plugin
+- Code quality standards
+- How to submit changes
+
+Quick start for developers:
+```bash
+# Install dependencies
+npm install
+
+# Start development mode with auto-rebuild
+npm run dev
+
+# Run tests and checks
+npm run check
+```
+
 ## My other Obsidian plugins
 - [Colored Tags](https://github.com/pfrankov/obsidian-colored-tags) that colorizes tags in distinguishable colors. 
 - [Obsidian AI Providers](https://github.com/pfrankov/obsidian-ai-providers) is a hub for AI providers.
