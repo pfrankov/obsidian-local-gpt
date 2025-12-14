@@ -100,16 +100,18 @@ npm test
 
 ### Run Tests with Coverage
 
+The test script already includes coverage by default:
+
 ```bash
-npm run test -- --coverage
+npm test
 ```
 
 ### Run Tests in Watch Mode
 
-For development, you can run tests in watch mode:
+For development, you can run tests in watch mode using vitest directly:
 
 ```bash
-npm run test -- --watch
+npx vitest
 ```
 
 ## Code Quality
@@ -123,13 +125,18 @@ npm run check
 This command runs:
 - ESLint (code linting)
 - TypeScript type checking
-- All tests
+- All tests with coverage
 
-For a comprehensive check including formatting and building:
+For a comprehensive check that also formats code and builds the plugin:
 
 ```bash
 npm run full-check
 ```
+
+This command runs:
+- Prettier (code formatting)
+- TypeScript type checking and build
+- All tests with coverage
 
 ## Project Structure
 
