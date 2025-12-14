@@ -8,6 +8,8 @@ import {
 	hideActionPalette,
 } from "./ui/actionPalettePlugin";
 import { IAIDocument, LocalGPTAction, LocalGPTSettings } from "./interfaces";
+import { PWACreatorModal } from "./pwa/PWACreatorModal";
+import { PWAConfig } from "./pwa/pwaInterfaces";
 
 import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
 import { logger } from "./logger";
@@ -314,6 +316,17 @@ export default class LocalGPT extends Plugin {
 					},
 				});
 				this.app.workspace.updateOptions();
+			},
+		});
+
+		// Add PWA Creator command
+		this.addCommand({
+			id: "create-pwa",
+			name: "Create Progressive Web App",
+			callback: () => {
+				new PWACreatorModal(this.app, (config: PWAConfig) => {
+					console.log("PWA created with config:", config);
+				}).open();
 			},
 		});
 	}
