@@ -21,7 +21,14 @@ jobs:
     - uses: actions/stale@v5
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        stale-issue-message: 'Stale issue message'
-        stale-pr-message: 'Stale pull request message'
+        stale-issue-message: >
+          This issue has been quiet for a while, so I’m marking it as stale.
+          If it still matters, please leave a quick update (current status, steps to reproduce, logs, etc.) within 7 days.
+          If there’s no activity, it will be closed automatically.
+
+        stale-pr-message: >
+          This PR has been quiet for a while, so I’m marking it as stale.
+          If you want to keep it moving, please rebase onto the latest base branch, fix any conflicts, and update tests/details within 7 days.
+          If there’s no activity, it will be closed automatically.
         stale-issue-label: 'no-issue-activity'
         stale-pr-label: 'no-pr-activity'
