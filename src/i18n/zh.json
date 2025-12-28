@@ -15,6 +15,10 @@
 		"enhancing": "✨ 增强中",
 		"enhancingWithProgress": "✨ 增强中 {{percent}}%"
 	},
+	"thinking": {
+		"label": "思考中",
+		"placeholder": "…"
+	},
 	"notices": {
 		"errorGenerating": "生成文本时出错: {{message}}",
 		"errorProcessingRag": "处理相关文档时出错: {{message}}。将继续使用原始文本。",

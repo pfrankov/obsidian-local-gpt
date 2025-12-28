@@ -45,6 +45,7 @@
 	background-clip: text;
 	-webkit-text-fill-color: transparent;
 	box-decoration-break: slice;
+	animation: local-gpt-stream-reveal var(--anim-duration-fast) ease-out;
 }
 
 .local-gpt-loading {
@@ -56,13 +57,7 @@
 	margin: -0.3em 0.3em 0;
 }
 
-.local-gpt-thinking-container {
-	display: block;
-	opacity: 0;
-	animation: local-gpt-fadeIn 0.1s ease-out forwards;
-}
-
-@keyframes local-gpt-fadeIn {
+@keyframes local-gpt-stream-reveal {
 	from {
 		opacity: 0;
 	}
@@ -74,41 +69,166 @@
 .local-gpt-thinking {
 	position: relative;
 	display: inline-block;
-	color: var(--interactive-accent);
-	font-style: italic;
-	animation: local-gpt-pulse 1.7s ease-in-out infinite;
-}
-
-.local-gpt-thinking::before {
-	content: attr(data-text);
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	color: var(--interactive-accent-hover);
-	display: inline-block;
-	white-space: nowrap;
-	filter: blur(2px);
-	mask-image: linear-gradient(
+	color: var(--text-faint);
+	font-style: normal;
+	background-image: linear-gradient(
 		to right,
-		transparent 30%,
-		black 50%,
-		transparent 70%
+		var(--text-faint) 25%,
+		var(--text-muted) 50%,
+		var(--text-faint) 75%
 	);
-	mask-size: 200% 100%;
-	mask-position: -50% 0;
-	animation: local-gpt-maskMove 1.7s linear infinite reverse;
-	mix-blend-mode: color-dodge;
+	background-size: 200% 100%;
+	background-position: 140% 0;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	animation: local-gpt-thinking-shimmer 1.7s linear infinite;
 }
 
 .local-gpt-thinking::after {
 	content: "";
 	display: inline-block;
-	width: 1em;
+	width: 2.2ch;
+	margin-left: 0.1em;
 	text-align: left;
-	animation: local-gpt-dots 1.7s infinite;
+	color: var(--text-faint);
+	-webkit-text-fill-color: currentColor;
+	animation: local-gpt-dots 1.7s steps(1, end) infinite;
+}
+
+.local-gpt-thinking-stream {
+	display: block;
+	opacity: 0;
+	animation: local-gpt-stream-reveal var(--anim-duration-fast) ease-out
+		forwards;
+}
+
+.local-gpt-think-details {
+	margin: var(--size-2-2) 0 var(--size-4-2);
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	overflow: hidden;
+	max-height: calc(var(--line-height-normal) * 14 * 1em);
 	opacity: 1;
+	transition:
+		max-height calc(var(--anim-duration-fast) * 1.6) ease-out,
+		opacity var(--anim-duration-fast) ease-out,
+		margin calc(var(--anim-duration-fast) * 1.6) ease-out;
+}
+
+.local-gpt-think-details.is-hidden {
+	max-height: 0;
+	opacity: 0;
+	margin: 0;
+	pointer-events: none;
+}
+
+.local-gpt-think-summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding: var(--size-2-2) var(--size-4-2);
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+	color: var(--text-muted);
+}
+
+.local-gpt-think-summary::-webkit-details-marker {
+	display: none;
+}
+
+.local-gpt-think-summary::after {
+	content: "▾";
+	color: var(--text-faint);
+	margin-left: auto;
+	opacity: 0.65;
+	transition: transform var(--anim-duration-fast) ease;
+}
+
+.local-gpt-think-details[open] .local-gpt-think-summary::after {
+	transform: rotate(-180deg);
+}
+
+.local-gpt-think-title {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.local-gpt-think-body {
+	border-top: 1px solid
+		color-mix(in srgb, var(--background-modifier-border) 45%, transparent);
+	padding: var(--size-2-2) var(--size-4-2) var(--size-4-2);
+	background: transparent;
+}
+
+.local-gpt-think-content {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	display: block;
+	line-height: var(--line-height-normal);
+	white-space: pre-wrap;
+	word-break: break-word;
+	height: calc(var(--line-height-normal) * 10 * 1em);
+	max-height: calc(var(--line-height-normal) * 10 * 1em);
+	min-height: calc(var(--line-height-normal) * 10 * 1em);
+	overflow: auto;
+	padding-right: var(--size-2-2);
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+	mask-image: none;
+	-webkit-mask-image: none;
+}
+
+.local-gpt-think-content::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+}
+
+.local-gpt-think-content.is-overflowing {
+	mask-image: linear-gradient(
+		to bottom,
+		transparent 0%,
+		black 18%,
+		black 100%
+	);
+	mask-repeat: no-repeat;
+	mask-size: 100% 100%;
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		transparent 0%,
+		black 18%,
+		black 100%
+	);
+	-webkit-mask-repeat: no-repeat;
+	-webkit-mask-size: 100% 100%;
+}
+
+.local-gpt-think-content:empty::before {
+	content: attr(data-empty);
+	color: var(--text-faint);
+}
+
+.local-gpt-think-content .local-gpt-stream-chunk {
+	display: inline;
+	background-image: linear-gradient(
+		to right,
+		var(--text-faint) 0%,
+		var(--text-muted) 100%
+	);
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	box-decoration-break: slice;
+	animation: local-gpt-stream-reveal var(--anim-duration-fast) ease-out;
+}
+
+.local-gpt-think-answer {
+	margin-top: var(--size-2-2);
+}
+
+.local-gpt-think-answer.is-hidden {
+	display: none;
 }
 
 /* Inline input container in editor */
@@ -316,19 +436,19 @@
 		content: "";
 		opacity: 1;
 	}
-	59% {
+	64% {
 		content: "";
 		opacity: 1;
 	}
-	60% {
+	65% {
 		content: ".";
 		opacity: 1;
 	}
-	70% {
+	75% {
 		content: "..";
 		opacity: 1;
 	}
-	80% {
+	85% {
 		content: "...";
 		opacity: 1;
 	}
@@ -338,15 +458,15 @@
 	}
 }
 
-@keyframes local-gpt-pulse {
+@keyframes local-gpt-thinking-shimmer {
 	0% {
-		opacity: 0.8;
+		background-position: 140% 0;
 	}
-	50% {
-		opacity: 1;
+	65% {
+		background-position: -40% 0;
 	}
 	100% {
-		opacity: 0.8;
+		background-position: -40% 0;
 	}
 }
 

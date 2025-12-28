@@ -15,6 +15,10 @@
 		"enhancing": "✨ Улучшение",
 		"enhancingWithProgress": "✨ Улучшение {{percent}}%"
 	},
+	"thinking": {
+		"label": "Думаю",
+		"placeholder": "…"
+	},
 	"notices": {
 		"errorGenerating": "Ошибка генерации текста: {{message}}",
 		"errorProcessingRag": "Ошибка обработки связанных документов: {{message}}. Продолжаю с исходным текстом.",
