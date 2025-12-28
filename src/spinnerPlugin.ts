@@ -8,6 +8,7 @@ import {
 	ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
+import { I18n } from "./i18n";
 
 class LoaderWidget extends WidgetType {
 	static readonly element: HTMLSpanElement = document.createElement("span");
@@ -21,25 +22,178 @@ class LoaderWidget extends WidgetType {
 	}
 }
 
-class ThinkingWidget extends WidgetType {
-	private static createDOMStructure(): HTMLElement {
-		const container = document.createElement("div");
-		container.addClass("local-gpt-thinking-container");
+class ThinkingStreamWidget extends WidgetType {
+	private dom: HTMLElement | null = null;
+	private detailsEl: HTMLDetailsElement | null = null;
+	private thinkingEl: HTMLElement | null = null;
+	private answerEl: HTMLElement | null = null;
+	private scrollRaf: number | null = null;
 
-		// Add a line break element
-		container.appendChild(document.createElement("br"));
+	constructor(
+		private thinkingText: string,
+		private answerText: string,
+		private isThinking: boolean,
+	) {
+		super();
+	}
 
-		const textElement = document.createElement("span");
-		textElement.addClass("local-gpt-thinking");
-		textElement.textContent = "Thinking";
-		textElement.setAttribute("data-text", "Thinking");
+	eq(other: ThinkingStreamWidget) {
+		return (
+			other.thinkingText === this.thinkingText &&
+			other.answerText === this.answerText &&
+			other.isThinking === this.isThinking
+		);
+	}
 
-		container.appendChild(textElement);
-		return container;
+	update(thinkingText: string, answerText: string, isThinking: boolean) {
+		const shouldUpdateDom =
+			thinkingText !== this.thinkingText ||
+			answerText !== this.answerText ||
+			isThinking !== this.isThinking;
+
+		this.thinkingText = thinkingText;
+		this.answerText = answerText;
+		this.isThinking = isThinking;
+
+		if (!this.dom || !shouldUpdateDom) {
+			return;
+		}
+
+		this.updateHeader();
+		this.updateTextBlocks();
 	}
 
 	toDOM(view: EditorView): HTMLElement {
-		return ThinkingWidget.createDOMStructure();
+		if (!this.dom) {
+			this.dom = document.createElement("div");
+			this.dom.addClass("local-gpt-thinking-stream");
+			this.dom.appendChild(document.createElement("br"));
+
+			const details = document.createElement("details");
+			details.addClass("local-gpt-think-details");
+			details.open = true;
+			this.detailsEl = details;
+
+			const summary = document.createElement("summary");
+			summary.addClass("local-gpt-think-summary");
+
+			const titleEl = document.createElement("span");
+			titleEl.addClass("local-gpt-think-title");
+			const thinkingLabel = I18n.t("thinking.label");
+			titleEl.textContent = thinkingLabel;
+			titleEl.addClass("local-gpt-thinking");
+			summary.appendChild(titleEl);
+
+			details.appendChild(summary);
+
+			const body = document.createElement("div");
+			body.addClass("local-gpt-think-body");
+
+			this.thinkingEl = document.createElement("div");
+			this.thinkingEl.addClass("local-gpt-think-content");
+			this.thinkingEl.setAttribute(
+				"data-empty",
+				I18n.t("thinking.placeholder"),
+			);
+			body.appendChild(this.thinkingEl);
+
+			details.appendChild(body);
+			this.dom.appendChild(details);
+
+			this.answerEl = document.createElement("div");
+			this.answerEl.addClasses([
+				"local-gpt-content",
+				"local-gpt-think-answer",
+			]);
+			this.dom.appendChild(this.answerEl);
+
+			this.updateHeader();
+			this.updateTextBlocks();
+		}
+		return this.dom;
+	}
+
+	private updateHeader() {
+		this.detailsEl?.toggleClass("is-hidden", !this.isThinking);
+	}
+
+	private updateTextBlocks() {
+		if (this.thinkingEl) {
+			this.updateStreamingText(this.thinkingEl, this.thinkingText, true);
+		}
+
+		if (this.answerEl) {
+			const hasAnswer = Boolean(this.answerText.trim());
+			this.answerEl.toggleClass("is-hidden", !hasAnswer);
+			if (hasAnswer) {
+				this.updateStreamingText(this.answerEl, this.answerText, false);
+			}
+		}
+
+		this.scheduleScrollToBottom();
+	}
+
+	private updateStreamingText(
+		target: HTMLElement,
+		newText: string,
+		animateChunk: boolean,
+	) {
+		if (!newText) {
+			target.textContent = "";
+			return;
+		}
+
+		const previousText = target.textContent || "";
+
+		if (!newText.startsWith(previousText)) {
+			target.textContent = newText;
+			return;
+		}
+
+		const addedText = newText.slice(previousText.length);
+		if (!addedText) {
+			target.textContent = newText;
+			return;
+		}
+
+		target.textContent = newText.slice(
+			0,
+			newText.length - addedText.length,
+		);
+
+		if (!animateChunk) {
+			target.appendChild(document.createTextNode(addedText));
+			return;
+		}
+
+		const span = document.createElement("span");
+		span.addClass("local-gpt-stream-chunk");
+		span.textContent = addedText;
+		target.appendChild(span);
+	}
+
+	private scheduleScrollToBottom() {
+		if (!this.thinkingEl || this.scrollRaf !== null) {
+			return;
+		}
+
+		this.scrollRaf = requestAnimationFrame(() => {
+			this.scrollRaf = null;
+			if (!this.thinkingEl) {
+				return;
+			}
+
+			const maxScrollTop =
+				this.thinkingEl.scrollHeight - this.thinkingEl.clientHeight;
+			const isOverflowing = maxScrollTop > 1;
+			this.thinkingEl.toggleClass("is-overflowing", isOverflowing);
+			if (!isOverflowing) {
+				this.thinkingEl.scrollTop = 0;
+				return;
+			}
+
+			this.thinkingEl.scrollTop = maxScrollTop;
+		});
 	}
 }
 
@@ -84,8 +238,14 @@ class ContentWidget extends WidgetType {
  * Processed result of handling text with thinking tags
  */
 interface ProcessedThinkingResult {
+	// Whether there is a <think> tag at the start
+	hasThinkingTags: boolean;
+
 	// Whether we're in thinking mode
 	isThinking: boolean;
+
+	// Raw content inside <think>...</think>
+	thinkingText: string;
 
 	// The text to display (without thinking content)
 	displayText: string;
@@ -95,7 +255,7 @@ export class SpinnerPlugin implements PluginValue {
 	decorations: DecorationSet;
 	private positions: Map<
 		number,
-		{ isEndOfLine: boolean; widget: WidgetType; isThinking: boolean }
+		{ isEndOfLine: boolean; widget: WidgetType }
 	>;
 
 	constructor(private editorView: EditorView) {
@@ -118,10 +278,22 @@ export class SpinnerPlugin implements PluginValue {
 	) {
 		const result = this.processThinkingTags(text);
 
-		// Update thinking state
-		this.showThinking(result.isThinking, position);
+		if (result.hasThinkingTags) {
+			const displayText = result.displayText.trim()
+				? processFunc
+					? processFunc(result.displayText)
+					: result.displayText
+				: "";
 
-		// Only update visible content if there's content to show
+			this.updateThinkingStream(
+				result.thinkingText,
+				displayText,
+				result.isThinking,
+				position,
+			);
+			return;
+		}
+
 		if (result.displayText.trim()) {
 			const displayText = processFunc
 				? processFunc(result.displayText)
@@ -140,7 +312,9 @@ export class SpinnerPlugin implements PluginValue {
 		// Simple case - no thinking tags at all
 		if (!text.startsWith("<think>")) {
 			return {
+				hasThinkingTags: false,
 				isThinking: false,
+				thinkingText: "",
 				displayText: text,
 			};
 		}
@@ -152,23 +326,31 @@ export class SpinnerPlugin implements PluginValue {
 
 		if (!thinkingMatch) {
 			return {
+				hasThinkingTags: true,
 				isThinking: true,
+				thinkingText: text.slice("<think>".length),
 				displayText: "", // No display text while in thinking mode
 			};
 		}
+
+		const thinkingText = thinkingMatch[1] || "";
 
 		// If we have a closing tag, extract content after it
 		if (thinkingMatch[2]) {
 			const afterThinkTag = thinkingMatch[3] || "";
 			return {
+				hasThinkingTags: true,
 				isThinking: false,
+				thinkingText,
 				displayText: afterThinkTag,
 			};
 		}
 
 		// Open thinking tag without a closing tag
 		return {
+			hasThinkingTags: true,
 			isThinking: true,
+			thinkingText,
 			displayText: "", // No display text while in thinking mode
 		};
 	}
@@ -181,7 +363,6 @@ export class SpinnerPlugin implements PluginValue {
 		this.positions.set(position, {
 			isEndOfLine,
 			widget: new LoaderWidget(),
-			isThinking: false,
 		});
 		this.updateDecorations();
 		return () => this.hide(position);
@@ -192,22 +373,27 @@ export class SpinnerPlugin implements PluginValue {
 		this.updateDecorations();
 	}
 
-	showThinking(enabled: boolean, position?: number) {
+	private updateThinkingStream(
+		thinkingText: string,
+		answerText: string,
+		isThinking: boolean,
+		position?: number,
+	) {
 		let updated = false;
 
-		const updatePosition = (data: {
-			widget: WidgetType;
-			isThinking: boolean;
-		}) => {
-			if (enabled && !data.isThinking) {
-				data.widget = new ThinkingWidget();
-				data.isThinking = true;
+		const updatePosition = (data: { widget: WidgetType }) => {
+			if (data.widget instanceof ThinkingStreamWidget) {
+				data.widget.update(thinkingText, answerText, isThinking);
 				updated = true;
-			} else if (!enabled && data.isThinking) {
-				data.widget = new LoaderWidget();
-				data.isThinking = false;
-				updated = true;
+				return;
 			}
+
+			data.widget = new ThinkingStreamWidget(
+				thinkingText,
+				answerText,
+				isThinking,
+			);
+			updated = true;
 		};
 
 		if (position !== undefined) {
@@ -224,13 +410,7 @@ export class SpinnerPlugin implements PluginValue {
 
 	updateContent(text: string, position?: number) {
 		let updated = false;
-		const updatePosition = (data: {
-			widget: WidgetType;
-			isThinking: boolean;
-		}) => {
-			// Don't update content while in thinking mode
-			if (data.isThinking) return;
-
+		const updatePosition = (data: { widget: WidgetType }) => {
 			if (data.widget instanceof LoaderWidget) {
 				data.widget = new ContentWidget(text);
 				updated = true;

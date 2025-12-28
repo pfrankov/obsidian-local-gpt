@@ -15,6 +15,10 @@
 		"enhancing": "✨ Verbessern",
 		"enhancingWithProgress": "✨ Verbessern {{percent}}%"
 	},
+	"thinking": {
+		"label": "Denke",
+		"placeholder": "…"
+	},
 	"notices": {
 		"errorGenerating": "Fehler bei der Texterzeugung: {{message}}",
 		"errorProcessingRag": "Fehler bei der Verarbeitung verknüpfter Dokumente: {{message}}. Fahre mit dem Originaltext fort.",
