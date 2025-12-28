@@ -975,7 +975,9 @@ describe('RAG Functions', () => {
 				mockAIProviders.retrieve.mockRejectedValue(new Error('Retrieval failed'));
 				const abortController = new AbortController();
 				const mockUpdateCompletedSteps = vi.fn();
-				const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
+				const consoleSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => {});
 	
 				const result = await searchDocuments(
 					'query',

@@ -253,13 +253,16 @@ interface ProcessedThinkingResult {
 
 export class SpinnerPlugin implements PluginValue {
 	decorations: DecorationSet;
-	private positions: Map<
-		number,
-		{ isEndOfLine: boolean; widget: WidgetType }
+	private entries: Map<
+		string,
+		{ position: number; isEndOfLine: boolean; widget: WidgetType }
 	>;
+	private positionToId: Map<number, string>;
+	private idCounter = 0;
 
 	constructor(private editorView: EditorView) {
-		this.positions = new Map();
+		this.entries = new Map();
+		this.positionToId = new Map();
 		this.decorations = Decoration.none;
 	}
 
@@ -360,28 +363,35 @@ export class SpinnerPlugin implements PluginValue {
 			this.editorView.state,
 			position,
 		);
-		this.positions.set(position, {
+		const id = `spinner-${++this.idCounter}`;
+		this.entries.set(id, {
+			position,
 			isEndOfLine,
 			widget: new LoaderWidget(),
 		});
+		this.positionToId.set(position, id);
 		this.updateDecorations();
-		return () => this.hide(position);
+		return () => this.hide(id);
 	}
 
-	hide(position: number) {
-		this.positions.delete(position);
-		this.updateDecorations();
+	hide(id: string) {
+		const entry = this.entries.get(id);
+		if (entry) {
+			this.positionToId.delete(entry.position);
+			this.entries.delete(id);
+			this.updateDecorations();
+		}
 	}
 
 	private updateThinkingStream(
 		thinkingText: string,
 		answerText: string,
 		isThinking: boolean,
-		position?: number,
+		originalPosition?: number,
 	) {
 		let updated = false;
 
-		const updatePosition = (data: { widget: WidgetType }) => {
+		const updateEntry = (data: { widget: WidgetType }) => {
 			if (data.widget instanceof ThinkingStreamWidget) {
 				data.widget.update(thinkingText, answerText, isThinking);
 				updated = true;
@@ -396,11 +406,12 @@ export class SpinnerPlugin implements PluginValue {
 			updated = true;
 		};
 
-		if (position !== undefined) {
-			const data = this.positions.get(position);
-			if (data) updatePosition(data);
+		if (originalPosition !== undefined) {
+			const id = this.positionToId.get(originalPosition);
+			const data = id ? this.entries.get(id) : undefined;
+			if (data) updateEntry(data);
 		} else {
-			this.positions.forEach(updatePosition);
+			this.entries.forEach(updateEntry);
 		}
 
 		if (updated) {
@@ -408,9 +419,9 @@ export class SpinnerPlugin implements PluginValue {
 		}
 	}
 
-	updateContent(text: string, position?: number) {
+	updateContent(text: string, originalPosition?: number) {
 		let updated = false;
-		const updatePosition = (data: { widget: WidgetType }) => {
+		const updateEntry = (data: { widget: WidgetType }) => {
 			if (data.widget instanceof LoaderWidget) {
 				data.widget = new ContentWidget(text);
 				updated = true;
@@ -420,11 +431,12 @@ export class SpinnerPlugin implements PluginValue {
 			}
 		};
 
-		if (position !== undefined) {
-			const data = this.positions.get(position);
-			if (data) updatePosition(data);
+		if (originalPosition !== undefined) {
+			const id = this.positionToId.get(originalPosition);
+			const data = id ? this.entries.get(id) : undefined;
+			if (data) updateEntry(data);
 		} else {
-			this.positions.forEach(updatePosition);
+			this.entries.forEach(updateEntry);
 		}
 
 		if (updated) {
@@ -433,6 +445,16 @@ export class SpinnerPlugin implements PluginValue {
 	}
 
 	update(update: ViewUpdate) {
+		if (update.docChanged) {
+			this.entries.forEach((data) => {
+				data.position = update.changes.mapPos(data.position);
+				data.isEndOfLine = this.isPositionAtEndOfLine(
+					update.state,
+					data.position,
+				);
+			});
+		}
+
 		if (update.docChanged || update.viewportChanged) {
 			this.updateDecorations();
 		}
@@ -440,16 +462,19 @@ export class SpinnerPlugin implements PluginValue {
 
 	private updateDecorations() {
 		const builder = new RangeSetBuilder<Decoration>();
-		this.positions.forEach((data, position) => {
+		const sorted = [...this.entries.values()].sort(
+			(a, b) => a.position - b.position,
+		);
+		for (const data of sorted) {
 			builder.add(
-				position,
-				position,
+				data.position,
+				data.position,
 				Decoration.widget({
 					widget: data.widget,
 					side: data.isEndOfLine ? 1 : -1,
 				}),
 			);
-		});
+		}
 		this.decorations = builder.finish();
 		this.editorView.requestMeasure();
 	}

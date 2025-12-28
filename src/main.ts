@@ -3,6 +3,12 @@ import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "./spinnerPlugin";
 import {
+	getTrackedRange,
+	releaseTrackedRange,
+	requestPositionTracker,
+	trackSelectionRange,
+} from "./requestPositionTracker";
+import {
 	actionPalettePlugin,
 	showActionPalette,
 	hideActionPalette,
@@ -69,6 +75,7 @@ export default class LocalGPT extends Plugin {
 				}, 5000);
 			});
 			this.registerEditorExtension(spinnerPlugin);
+			this.registerEditorExtension(requestPositionTracker);
 			this.registerEditorExtension(actionPalettePlugin);
 			this.initializeStatusBar();
 		});
@@ -366,8 +373,7 @@ export default class LocalGPT extends Plugin {
 	) {
 		const {
 			editorView,
-			cursorPositionFrom,
-			cursorPositionTo,
+			cursorOffsetFrom,
 			cursorOffsetTo,
 			selectedTextRef,
 		} = this.extractSelectionContext(editor);
@@ -377,68 +383,103 @@ export default class LocalGPT extends Plugin {
 				cursorOffsetTo,
 				selectedTextRef,
 			);
-
-		const { cleanedText, imagesInBase64 } =
-			await this.extractImagesFromSelection(selectedTextRef.value);
-		selectedTextRef.value = cleanedText;
-
-		logger.time("Processing Embeddings");
-		logger.timeEnd("Processing Embeddings");
-		logger.debug("Selected text", cleanedText);
-
-		const aiRequestWaiter = await waitForAI();
-		const aiProviders: IAIProvidersService = await aiRequestWaiter.promise;
-
-		const embeddingProvider = aiProviders.providers.find(
-			(provider: IAIProvider) =>
-				provider.id === this.settings.aiProviders.embedding,
+		let selectionTrackerId = trackSelectionRange(
+			editorView,
+			cursorOffsetFrom,
+			cursorOffsetTo,
+		);
+		const releaseSelectionTracker = () => {
+			if (!selectionTrackerId) {
+				return;
+			}
+			releaseTrackedRange(editorView, selectionTrackerId);
+			selectionTrackerId = null;
+		};
+		abortController.signal.addEventListener(
+			"abort",
+			releaseSelectionTracker,
 		);
 
-		const context = await this.enhanceWithContext(
-			cleanedText,
-			aiProviders,
-			embeddingProvider,
-			abortController,
-			params.selectedFiles,
-		);
-
-		const provider = this.selectProvider(
-			aiProviders,
-			imagesInBase64.length > 0,
-			params.overrideProviderId,
-		);
-		const adjustedProvider = this.overrideProviderModel(provider, params);
-
-		let fullText = "";
 		try {
-			fullText = await this.executeProviderRequest(
-				aiProviders,
-				adjustedProvider,
-				params,
+			const { cleanedText, imagesInBase64 } =
+				await this.extractImagesFromSelection(selectedTextRef.value);
+			selectedTextRef.value = cleanedText;
+
+			logger.time("Processing Embeddings");
+			logger.timeEnd("Processing Embeddings");
+			logger.debug("Selected text", cleanedText);
+
+			const aiRequestWaiter = await waitForAI();
+			const aiProviders: IAIProvidersService =
+				await aiRequestWaiter.promise;
+
+			const embeddingProvider = aiProviders.providers.find(
+				(provider: IAIProvider) =>
+					provider.id === this.settings.aiProviders.embedding,
+			);
+
+			const context = await this.enhanceWithContext(
 				cleanedText,
-				context,
-				imagesInBase64,
+				aiProviders,
+				embeddingProvider,
 				abortController,
-				onUpdate,
+				params.selectedFiles,
+			);
+
+			const provider = this.selectProvider(
+				aiProviders,
+				imagesInBase64.length > 0,
+				params.overrideProviderId,
+			);
+			const adjustedProvider = this.overrideProviderModel(
+				provider,
+				params,
+			);
+
+			let fullText = "";
+			try {
+				fullText = await this.executeProviderRequest(
+					aiProviders,
+					adjustedProvider,
+					params,
+					cleanedText,
+					context,
+					imagesInBase64,
+					abortController,
+					onUpdate,
+				);
+			} finally {
+				hideSpinner && hideSpinner();
+				this.app.workspace.updateOptions();
+			}
+
+			if (abortController.signal.aborted) {
+				return;
+			}
+
+			const finalText = removeThinkingTags(fullText).trim();
+			const trackedRange = selectionTrackerId
+				? getTrackedRange(editorView, selectionTrackerId)
+				: null;
+			const mappedRange = trackedRange || {
+				from: cursorOffsetFrom,
+				to: cursorOffsetTo,
+				insertAfter: cursorOffsetTo,
+			};
+			const insertionOffset = params.replace
+				? mappedRange.to
+				: mappedRange.insertAfter;
+			this.applyTextResult(
+				editor,
+				params.replace,
+				finalText,
+				selectedTextRef.value,
+				mappedRange.from,
+				insertionOffset,
 			);
 		} finally {
-			hideSpinner && hideSpinner();
-			this.app.workspace.updateOptions();
+			releaseSelectionTracker();
 		}
-
-		if (abortController.signal.aborted) {
-			return;
-		}
-
-		const finalText = removeThinkingTags(fullText).trim();
-		this.applyTextResult(
-			editor,
-			params.replace,
-			finalText,
-			selectedTextRef.value,
-			cursorPositionFrom,
-			cursorPositionTo,
-		);
 	}
 
 	private extractSelectionContext(editor: Editor) {
@@ -448,12 +489,12 @@ export default class LocalGPT extends Plugin {
 		const selectedTextRef = { value: selection || editor.getValue() };
 		const cursorPositionFrom = editor.getCursor("from");
 		const cursorPositionTo = editor.getCursor("to");
+		const cursorOffsetFrom = editor.posToOffset(cursorPositionFrom);
 		const cursorOffsetTo = editor.posToOffset(cursorPositionTo);
 
 		return {
 			editorView,
-			cursorPositionFrom,
-			cursorPositionTo,
+			cursorOffsetFrom,
 			cursorOffsetTo,
 			selectedTextRef,
 		};
@@ -478,8 +519,10 @@ export default class LocalGPT extends Plugin {
 
 		const onUpdate = (updatedString: string) => {
 			if (!spinner) return;
-			spinner.processText(updatedString, (text: string) =>
-				this.processText(text, selectedTextRef.value),
+			spinner.processText(
+				updatedString,
+				(text: string) => this.processText(text, selectedTextRef.value),
+				cursorOffsetTo,
 			);
 			this.app.workspace.updateOptions();
 		};
@@ -621,9 +664,11 @@ export default class LocalGPT extends Plugin {
 		replaceSelection: boolean | undefined,
 		finalText: string,
 		selectedText: string,
-		cursorPositionFrom: any,
-		cursorPositionTo: any,
+		cursorOffsetFrom: number,
+		cursorOffsetTo: number,
 	) {
+		const cursorPositionFrom = editor.offsetToPos(cursorOffsetFrom);
+		const cursorPositionTo = editor.offsetToPos(cursorOffsetTo);
 		if (replaceSelection) {
 			editor.replaceRange(
 				finalText,
