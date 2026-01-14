@@ -15,6 +15,41 @@ export const Platform = {
   isAndroidApp: false,
   isPhone: false,
 };
+export const setIcon = vi.fn((parent: HTMLElement, iconId: string) => {
+  parent.setAttribute("data-icon", iconId);
+});
+export const getIconIds = vi.fn(() => [
+  "bug",
+  "fish",
+  "bird",
+  "rabbit",
+  "paw-print",
+  "bot",
+  "cat",
+  "dog",
+  "turtle",
+  "snail",
+  "book",
+  "book-open",
+  "compass",
+  "flask-conical",
+  "coffee",
+  "gem",
+  "key",
+  "leaf",
+  "microscope",
+  "pencil",
+  "sparkles",
+  "telescope",
+  "wand-2",
+]);
+export const getIcon = vi.fn((iconId: string) => {
+  const allowed = getIconIds();
+  if (allowed.includes(iconId)) {
+    return document.createElement("svg");
+  }
+  return null;
+});
 export class TFile {
   path: string = 'mock/path.md';
   extension: string = 'md';
