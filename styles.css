@@ -84,6 +84,70 @@
 	animation: local-gpt-thinking-shimmer 1.7s linear infinite;
 }
 
+.local-gpt-thinking-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.2em;
+	height: 1.2em;
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	position: relative;
+	transition:
+		opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+		transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+		filter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+	will-change: opacity, transform, filter;
+}
+
+.local-gpt-thinking-icon.is-glint {
+	animation: local-gpt-icon-flash 0.28s ease-out;
+}
+
+.local-gpt-thinking-icon.is-hidden {
+	display: none;
+}
+
+.local-gpt-thinking-icon-svg {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	transform: scale(0.92) rotate(-6deg);
+	filter: blur(0.6px);
+	transition:
+		opacity 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+		transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+		filter 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+	will-change: opacity, transform, filter;
+}
+
+.local-gpt-thinking-icon-svg.is-active {
+	opacity: 1;
+	transform: scale(1) rotate(0deg);
+	filter: blur(0);
+}
+
+.local-gpt-thinking-icon svg {
+	width: 0.95em;
+	height: 0.95em;
+	stroke-width: 1.8;
+}
+
+@keyframes local-gpt-icon-flash {
+	0% {
+		color: var(--text-faint);
+	}
+	40% {
+		color: var(--text-muted);
+	}
+	100% {
+		color: var(--text-faint);
+	}
+}
+
 .local-gpt-thinking::after {
 	content: "";
 	display: inline-block;
