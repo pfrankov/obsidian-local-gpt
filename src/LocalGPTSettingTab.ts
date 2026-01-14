@@ -1,10 +1,18 @@
-import { App, Notice, PluginSettingTab, Setting, setIcon } from "obsidian";
+import {
+	App,
+	Notice,
+	Platform,
+	PluginSettingTab,
+	Setting,
+	setIcon,
+} from "obsidian";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import { LocalGPTAction } from "./interfaces";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import { I18n } from "./i18n";
 import Sortable from "sortablejs";
+import { isSeparatorAction, moveAction } from "./actionUtils";
 
 const SEPARATOR = "✂️";
 
@@ -26,7 +34,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	editEnabled = false;
 	editExistingAction?: LocalGPTAction;
 	modelsOptions: Record<string, string> = {};
-	changingOrder = false;
 	// Controls visibility of the Advanced settings section
 	private isAdvancedMode = false;
 	// Guard to require a second click before destructive reset
@@ -210,7 +217,19 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						this.editExistingAction = undefined;
 						this.display();
 					}),
-				);
+				)
+				.addExtraButton((button) => {
+					button
+						.setIcon("minus")
+						.setTooltip(I18n.t("settings.addSeparator"))
+						.onClick(async () => {
+							await this.addSeparator();
+							this.display();
+						});
+					button.extraSettingsEl.addClass(
+						"local-gpt-add-separator-button",
+					);
+				});
 		} else {
 			new Setting(containerEl)
 				.setName(I18n.t("settings.actionName"))
@@ -374,7 +393,98 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			"local-gpt-actions-container",
 		);
 
+		const isMobile = Platform.isMobile || Platform.isMobileApp;
+
+		const updateOrder = async (fromIndex: number, toIndex: number) => {
+			const updatedActions = moveAction(
+				this.plugin.settings.actions,
+				fromIndex,
+				toIndex,
+			);
+			if (updatedActions === this.plugin.settings.actions) {
+				return;
+			}
+			this.plugin.settings.actions = updatedActions;
+			await this.plugin.saveSettings();
+		};
+
+		const addMobileMoveButtons = (row: Setting, actionIndex: number) => {
+			if (!isMobile) return;
+
+			row.addExtraButton((button) => {
+				button
+					.setIcon("chevron-up")
+					.setTooltip(I18n.t("settings.moveUp"))
+					.onClick(async () => {
+						await updateOrder(actionIndex, actionIndex - 1);
+						this.display();
+					});
+				if (actionIndex === 0) {
+					button.setDisabled(true);
+				}
+			});
+
+			row.addExtraButton((button) => {
+				button
+					.setIcon("chevron-down")
+					.setTooltip(I18n.t("settings.moveDown"))
+					.onClick(async () => {
+						await updateOrder(actionIndex, actionIndex + 1);
+						this.display();
+					});
+				if (actionIndex === this.plugin.settings.actions.length - 1) {
+					button.setDisabled(true);
+				}
+			});
+		};
+
 		this.plugin.settings.actions.forEach((action, actionIndex) => {
+			const isSeparator = isSeparatorAction(action);
+			const actionRow = new Setting(actionsContainer)
+				.setName(isSeparator ? "" : action.name)
+				.setDesc("");
+
+			actionRow.settingEl.addClass("local-gpt-action-row");
+			if (isSeparator) {
+				actionRow.settingEl.addClass("local-gpt-action-separator");
+				actionRow.settingEl.setAttribute(
+					"aria-label",
+					I18n.t("settings.separator"),
+				);
+			}
+
+			const handle = actionRow.settingEl.createDiv(
+				"local-gpt-drag-handle",
+			);
+			setIcon(handle, "grip-vertical");
+			actionRow.settingEl.prepend(handle);
+
+			addMobileMoveButtons(actionRow, actionIndex);
+
+			if (isSeparator) {
+				actionRow.infoEl.empty();
+				actionRow.infoEl.createDiv("local-gpt-action-separator-line");
+				actionRow.addButton((button) =>
+					button
+						.setIcon("trash")
+						.setTooltip(I18n.t("settings.remove"))
+						.onClick(async () => {
+							if (!button.buttonEl.hasClass("mod-warning")) {
+								button.setClass("mod-warning");
+								return;
+							}
+
+							this.plugin.settings.actions =
+								this.plugin.settings.actions.filter(
+									(innerAction) => innerAction !== action,
+								);
+							await this.plugin.saveSettings();
+							this.display();
+						}),
+				);
+				return;
+			}
+
 			const sharingString = [
 				action.name && `${sharingActionsMapping.name}${action.name}`,
 				action.system &&
@@ -387,58 +497,38 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				.filter(Boolean)
 				.join(` ${SEPARATOR}\n`);
 
-			if (!this.changingOrder) {
-				const actionRow = new Setting(actionsContainer)
-					.setName(action.name)
-					.setDesc("")
-					.addButton((button) =>
-						button.setIcon("copy").onClick(async () => {
-							navigator.clipboard.writeText(sharingString);
-							new Notice(I18n.t("notices.copied"));
-						}),
-					)
-					.addButton((button) =>
-						button.setButtonText("Edit").onClick(async () => {
-							this.editEnabled = true;
-							this.editExistingAction =
-								this.plugin.settings.actions.find(
-									(innerAction) =>
-										innerAction.name == action.name,
-								);
-							this.display();
-						}),
-					);
-
-				const systemTitle = escapeTitle(action.system);
-
-				const promptTitle = escapeTitle(action.prompt);
-
-				actionRow.descEl.innerHTML = [
-					action.system &&
-						`<div title="${systemTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-							<b>${sharingActionsMapping.system}</b>${action.system}</div>`,
-					action.prompt &&
-						`<div title="${promptTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-							<b>${sharingActionsMapping.prompt}</b>${action.prompt}
-						</div>`,
-				]
-					.filter(Boolean)
-					.join("<br/>\n");
-			} else {
-				const actionRow = new Setting(actionsContainer)
-					.setName(action.name)
-					.setDesc("");
-
-				actionRow.settingEl.addClass("local-gpt-action-row");
-				const handle = actionRow.settingEl.createDiv(
-					"local-gpt-drag-handle",
+			actionRow
+				.addButton((button) =>
+					button.setIcon("copy").onClick(async () => {
+						navigator.clipboard.writeText(sharingString);
+						new Notice(I18n.t("notices.copied"));
+					}),
+				)
+				.addButton((button) =>
+					button.setButtonText("Edit").onClick(async () => {
+						this.editEnabled = true;
+						this.editExistingAction = action;
+						this.display();
+					}),
 				);
-				setIcon(handle, "grip-vertical");
-				actionRow.settingEl.prepend(handle);
-			}
+
+			const systemTitle = escapeTitle(action.system);
+			const promptTitle = escapeTitle(action.prompt);
+
+			actionRow.descEl.innerHTML = [
+				action.system &&
+					`<div title="${systemTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+						<b>${sharingActionsMapping.system}</b>${action.system}</div>`,
+				action.prompt &&
+					`<div title="${promptTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+						<b>${sharingActionsMapping.prompt}</b>${action.prompt}
+					</div>`,
+			]
+				.filter(Boolean)
+				.join("<br/>\n");
 		});
 
-		if (this.changingOrder) {
+		if (this.plugin.settings.actions.length > 1) {
 			// Manual edge auto-scroll helpers
 			const getScrollableParent = (el: HTMLElement): HTMLElement => {
 				let node: HTMLElement | null = el.parentElement;
@@ -519,8 +609,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			Sortable.create(actionsContainer, {
 				animation: 150,
-				// Allow dragging by the whole item (not just the handle)
+				// Allow dragging by the handle only
 				draggable: ".setting-item",
+				handle: ".local-gpt-drag-handle",
 				// We provide manual edge autoscroll for reliability in Obsidian's settings modal
 				ghostClass: "local-gpt-sortable-ghost",
 				chosenClass: "local-gpt-sortable-chosen",
@@ -595,34 +686,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						evt.newIndex !== undefined &&
 						evt.oldIndex !== evt.newIndex
 					) {
-						const [moved] = this.plugin.settings.actions.splice(
-							evt.oldIndex,
-							1,
-						);
-						this.plugin.settings.actions.splice(
-							evt.newIndex,
-							0,
-							moved,
-						);
-						await this.plugin.saveSettings();
+						await updateOrder(evt.oldIndex, evt.newIndex);
 					}
 				},
-			});
-		}
-
-		if (this.plugin.settings.actions.length) {
-			new Setting(containerEl).setName("").addButton((button) => {
-				this.changingOrder && button.setCta();
-				button
-					.setButtonText(
-						this.changingOrder
-							? I18n.t("settings.done")
-							: I18n.t("settings.changeOrder"),
-					)
-					.onClick(async () => {
-						this.changingOrder = !this.changingOrder;
-						this.display();
-					});
 			});
 		}
 
@@ -729,6 +795,19 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				I18n.t("notices.actionAdded", { name: editingAction.name }),
 			);
 		}
+		await this.plugin.saveSettings();
+	}
+
+	async addSeparator() {
+		const separatorAction: LocalGPTAction = {
+			name: "separator",
+			prompt: "",
+			separator: true,
+		};
+		this.plugin.settings.actions = [
+			separatorAction,
+			...this.plugin.settings.actions,
+		];
 		await this.plugin.saveSettings();
 	}
 }

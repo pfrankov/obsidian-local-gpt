@@ -6,6 +6,15 @@ export const Menu = vi.fn();
 export const Editor = vi.fn();
 export const App = vi.fn();
 export const PluginManifest = vi.fn();
+export const Platform = {
+  isDesktop: true,
+  isMobile: false,
+  isDesktopApp: true,
+  isMobileApp: false,
+  isIosApp: false,
+  isAndroidApp: false,
+  isPhone: false,
+};
 export class TFile {
   path: string = 'mock/path.md';
   extension: string = 'md';

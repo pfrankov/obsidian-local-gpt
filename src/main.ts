@@ -14,6 +14,8 @@ import {
 	hideActionPalette,
 } from "./ui/actionPalettePlugin";
 import { IAIDocument, LocalGPTAction, LocalGPTSettings } from "./interfaces";
+import { populateActionContextMenu } from "./actionMenu";
+import { getRunnableActions } from "./actionUtils";
 
 import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
 import { logger } from "./logger";
@@ -113,13 +115,11 @@ export default class LocalGPT extends Plugin {
 
 				const contextMenu = new Menu();
 
-				this.settings.actions.forEach((action) => {
-					contextMenu.addItem((item) => {
-						item.setTitle(action.name).onClick(
-							this.runAction.bind(this, action, editor),
-						);
-					});
-				});
+				populateActionContextMenu(
+					contextMenu,
+					this.settings.actions,
+					(action) => this.runAction(action, editor),
+				);
 
 				const fromRect = editorView.coordsAtPos(
 					editor.posToOffset(cursorPositionFrom),
@@ -134,7 +134,7 @@ export default class LocalGPT extends Plugin {
 			},
 		});
 
-		this.settings.actions.forEach((action, index) => {
+		getRunnableActions(this.settings.actions).forEach((action, index) => {
 			this.addCommand({
 				id: `quick-access-${index + 1}`,
 				name: `${index + 1} | ${action.name}`,
@@ -312,7 +312,7 @@ export default class LocalGPT extends Plugin {
 						this.actionPaletteCreativityKey = creativityKey;
 					},
 					getSystemPrompts: () => {
-						return this.settings.actions
+						return getRunnableActions(this.settings.actions)
 							.filter((action) => action.system)
 							.map((action) => ({
 								name: action.name,
