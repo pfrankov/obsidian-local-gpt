@@ -107,11 +107,15 @@ export default class LocalGPT extends Plugin {
 				const contextMenu = new Menu();
 
 				this.settings.actions.forEach((action) => {
-					contextMenu.addItem((item) => {
-						item.setTitle(action.name).onClick(
-							this.runAction.bind(this, action, editor),
-						);
-					});
+					if (action.name[0] == "-"){
+						contextMenu.addSeparator();
+					} else{
+						contextMenu.addItem((item) => {
+							item.setTitle(action.name).onClick(
+								this.runAction.bind(this, action, editor),
+							);
+						});	
+					}					
 				});
 
 				const fromRect = editorView.coordsAtPos(
