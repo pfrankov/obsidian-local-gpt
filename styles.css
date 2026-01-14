@@ -654,7 +654,6 @@
 .local-gpt-action-row {
 	display: flex;
 	align-items: center;
-	cursor: grab;
 }
 
 .local-gpt-drag-handle {
@@ -662,10 +661,29 @@
 	align-items: center;
 	margin-inline-end: var(--size-4-2);
 	color: var(--text-faint);
+	cursor: grab;
 }
 
 .local-gpt-drag-handle:hover {
 	color: var(--text-muted);
+}
+
+.local-gpt-action-separator .setting-item-info {
+	display: flex;
+	align-items: center;
+	min-height: var(--size-4-4);
+}
+
+.local-gpt-action-separator-line {
+	width: 100%;
+	height: 2px;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		var(--background-modifier-border),
+		transparent
+	);
+	margin: var(--size-2-2) 0;
 }
 
 .local-gpt-sortable-chosen,

@@ -22,6 +22,7 @@ export interface LocalGPTAction {
 	temperature?: number;
 	system?: string;
 	replace?: boolean;
+	separator?: boolean;
 }
 
 export type {
