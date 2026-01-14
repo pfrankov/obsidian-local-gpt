@@ -609,7 +609,7 @@
 	align-self: end;
 	font-size: var(--font-smallest);
 	line-height: var(--line-height-normal);
-	color: var(--text-faint);
+	color: var(--text-muted);
 	text-shadow:
 		var(--background-primary) 0 0 1px,
 		var(--background-primary) 0 0 1px;
