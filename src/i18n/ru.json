@@ -46,6 +46,7 @@
 		"quickAddPlaceholder": "Вставьте готовое действие",
 		"quickAddDesc": "Вы можете поделиться своими наборами промптов или найти новые в <a href=\"https://github.com/pfrankov/obsidian-local-gpt/discussions/2\">сообществе</a>.<br/><strong>Важно:</strong> если у вас уже есть действие с таким же названием, оно будет перезаписано.",
 		"addNewManually": "Добавить вручную",
+		"addAction": "Добавить действие",
 		"addSeparator": "Добавить разделитель",
 		"actionName": "Название действия",
 		"actionNamePlaceholder": "Кратко пересказать выделенное",

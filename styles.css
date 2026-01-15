@@ -4,6 +4,16 @@
 	height: 1em;
 }
 
+.local-gpt-add-actions .setting-item-control {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-2);
+}
+
+.local-gpt-add-actions .setting-item-control button {
+	white-space: nowrap;
+}
+
 /* Advanced settings styling (match AI Providers look-and-feel) */
 .local-gpt-advanced-toggle {
 	margin-top: 1.5em;
