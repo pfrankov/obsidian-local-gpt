@@ -736,6 +736,7 @@
 	display: flex;
 	align-items: center;
 	min-height: var(--size-4-4);
+	flex-basis: 100%;
 }
 
 .local-gpt-action-separator-line {
