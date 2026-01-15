@@ -209,27 +209,29 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			quickAdd.descEl.innerHTML = I18n.t("settings.quickAddDesc");
 
-			new Setting(containerEl)
+			const addActionsRow = new Setting(containerEl)
 				.setName(I18n.t("settings.addNewManually"))
+				.setClass("local-gpt-add-actions");
+
+			addActionsRow
 				.addButton((button) =>
-					button.setIcon("plus").onClick(async () => {
-						this.editEnabled = true;
-						this.editExistingAction = undefined;
-						this.display();
-					}),
-				)
-				.addExtraButton((button) => {
 					button
-						.setIcon("minus")
-						.setTooltip(I18n.t("settings.addSeparator"))
+						.setCta()
+						.setButtonText(I18n.t("settings.addAction"))
+						.onClick(async () => {
+							this.editEnabled = true;
+							this.editExistingAction = undefined;
+							this.display();
+						}),
+				)
+				.addButton((button) =>
+					button
+						.setButtonText(I18n.t("settings.addSeparator"))
 						.onClick(async () => {
 							await this.addSeparator();
 							this.display();
-						});
-					button.extraSettingsEl.addClass(
-						"local-gpt-add-separator-button",
-					);
-				});
+						}),
+				);
 		} else {
 			new Setting(containerEl)
 				.setName(I18n.t("settings.actionName"))

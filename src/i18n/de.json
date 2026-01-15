@@ -46,6 +46,7 @@
 		"quickAddPlaceholder": "Aktion einfügen",
 		"quickAddDesc": "Sie können die besten Sätze von Prompts teilen oder einen <a href=\"https://github.com/pfrankov/obsidian-local-gpt/discussions/2\">aus der Community</a> erhalten.<br/><strong>Wichtig:</strong> Wenn Sie bereits eine Aktion mit demselben Namen haben, wird sie überschrieben.",
 		"addNewManually": "Manuell hinzufügen",
+		"addAction": "Aktion hinzufügen",
 		"addSeparator": "Trenner hinzufügen",
 		"actionName": "Aktionsname",
 		"actionNamePlaceholder": "Auswahl zusammenfassen",

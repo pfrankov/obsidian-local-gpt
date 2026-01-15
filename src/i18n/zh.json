@@ -46,6 +46,7 @@
 		"quickAddPlaceholder": "粘贴操作",
 		"quickAddDesc": "您可以分享最佳的提示集，或从<a href=\"https://github.com/pfrankov/obsidian-local-gpt/discussions/2\">社区</a>获取一个。<br/><strong>重要提示:</strong> 如果您已经有一个同名操作，它将被覆盖。",
 		"addNewManually": "手动添加",
+		"addAction": "添加操作",
 		"addSeparator": "添加分隔线",
 		"actionName": "操作名称",
 		"actionNamePlaceholder": "总结选择",

@@ -46,6 +46,7 @@
 		"quickAddPlaceholder": "Paste action",
 		"quickAddDesc": "You can share the best sets prompts or get one <a href=\"https://github.com/pfrankov/obsidian-local-gpt/discussions/2\">from the community</a>.<br/><strong>Important:</strong> if you already have an action with the same name it will be overwritten.",
 		"addNewManually": "Add new manually",
+		"addAction": "Add action",
 		"addSeparator": "Add separator",
 		"actionName": "Action name",
 		"actionNamePlaceholder": "Summarize selection",
