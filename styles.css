@@ -725,9 +725,50 @@
 }
 
 /* Actions list drag handle and SortableJS states */
+.local-gpt-action-input {
+	width: 100%;
+}
+
+.local-gpt-action-textarea {
+	width: 100%;
+	min-height: 6em;
+	resize: vertical;
+}
+
+.local-gpt-action-remove {
+	margin-right: 2em;
+}
+
 .local-gpt-action-row {
 	display: flex;
 	align-items: center;
+}
+
+.local-gpt-action-highlight {
+	position: relative;
+}
+
+.local-gpt-action-highlight::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: var(--radius-m);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+	opacity: 0;
+	pointer-events: none;
+	animation: local-gpt-action-highlight 1.4s ease-out;
+}
+
+@keyframes local-gpt-action-highlight {
+	0% {
+		opacity: 0;
+	}
+	18% {
+		opacity: 0.6;
+	}
+	100% {
+		opacity: 0;
+	}
 }
 
 .local-gpt-drag-handle {

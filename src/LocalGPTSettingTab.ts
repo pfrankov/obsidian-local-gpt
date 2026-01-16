@@ -36,6 +36,15 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	modelsOptions: Record<string, string> = {};
 	// Controls visibility of the Advanced settings section
 	private isAdvancedMode = false;
+	private pendingScroll?: {
+		action: LocalGPTAction;
+		align: "start" | "center";
+		target: "form" | "row";
+	};
+	private pendingScrollRestore?: {
+		top: number;
+		height: number;
+	};
 	// Guard to require a second click before destructive reset
 	private isConfirmingReset = false;
 
@@ -160,16 +169,184 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			model: "Model: ",
 		};
 
+		const isEditingExisting = Boolean(this.editExistingAction);
+		const isEditingNew = this.editEnabled && !isEditingExisting;
+
+		const closeActionEditor = (scrollAction?: LocalGPTAction) => {
+			this.editEnabled = false;
+			this.editExistingAction = undefined;
+			this.pendingScroll = scrollAction
+				? {
+						action: scrollAction,
+						align: "center",
+						target: "row",
+					}
+				: undefined;
+			this.display();
+		};
+
+		const renderActionEditor = (
+			container: HTMLElement,
+			actionToEdit: LocalGPTAction,
+			isExistingAction: boolean,
+		) => {
+			new Setting(container)
+				.setName(I18n.t("settings.actionName"))
+				.addText((text) => {
+					text.inputEl.classList.add("local-gpt-action-input");
+					actionToEdit?.name && text.setValue(actionToEdit.name);
+					text.setPlaceholder(
+						I18n.t("settings.actionNamePlaceholder"),
+					);
+					text.onChange(async (value) => {
+						actionToEdit.name = value;
+					});
+				});
+
+			new Setting(container)
+				.setName(I18n.t("settings.systemPrompt"))
+				.setDesc(I18n.t("settings.systemPromptDesc"))
+				.addTextArea((text) => {
+					text.inputEl.classList.add("local-gpt-action-textarea");
+					actionToEdit?.system && text.setValue(actionToEdit.system);
+					text.setPlaceholder(
+						I18n.t("settings.systemPromptPlaceholder"),
+					);
+					text.onChange(async (value) => {
+						actionToEdit.system = value;
+					});
+				});
+
+			const promptSetting = new Setting(container)
+				.setName(I18n.t("settings.prompt"))
+				.setDesc("")
+				.addTextArea((text) => {
+					text.inputEl.classList.add("local-gpt-action-textarea");
+					actionToEdit?.prompt && text.setValue(actionToEdit.prompt);
+					text.setPlaceholder("");
+					text.onChange(async (value) => {
+						actionToEdit.prompt = value;
+					});
+				});
+
+			promptSetting.descEl.innerHTML = I18n.t("settings.promptDesc");
+
+			new Setting(container)
+				.setName(I18n.t("settings.replaceSelected"))
+				.setDesc(I18n.t("settings.replaceSelectedDesc"))
+				.addToggle((component) => {
+					actionToEdit?.replace &&
+						component.setValue(actionToEdit.replace);
+					component.onChange(async (value) => {
+						actionToEdit.replace = value;
+					});
+				});
+
+			const actionButtonsRow = new Setting(container).setName("");
+
+			if (isExistingAction) {
+				actionButtonsRow.addButton((button) => {
+					button.setClass("local-gpt-action-remove");
+					button
+						.setButtonText(I18n.t("settings.remove"))
+						.onClick(async () => {
+							if (!button.buttonEl.hasClass("mod-warning")) {
+								button.setClass("mod-warning");
+								return;
+							}
+
+							this.plugin.settings.actions =
+								this.plugin.settings.actions.filter(
+									(innerAction) =>
+										innerAction !== actionToEdit,
+								);
+							await this.plugin.saveSettings();
+							closeActionEditor();
+						});
+				});
+			}
+
+			actionButtonsRow
+				.addButton((button) => {
+					button
+						.setButtonText(I18n.t("settings.close"))
+						.onClick(async () => {
+							closeActionEditor(
+								isExistingAction ? actionToEdit : undefined,
+							);
+						});
+				})
+				.addButton((button) =>
+					button
+						.setCta()
+						.setButtonText(I18n.t("settings.save"))
+						.onClick(async () => {
+							if (!actionToEdit.name) {
+								new Notice(
+									I18n.t("notices.actionNameRequired"),
+								);
+								return;
+							}
+
+							if (!isExistingAction) {
+								if (
+									this.plugin.settings.actions.find(
+										(action) =>
+											action.name === actionToEdit.name,
+									)
+								) {
+									new Notice(
+										I18n.t("notices.actionNameExists", {
+											name: actionToEdit.name,
+										}),
+									);
+									return;
+								}
+
+								await this.addNewAction(actionToEdit);
+							} else {
+								if (
+									this.plugin.settings.actions.filter(
+										(action) =>
+											action.name === actionToEdit.name,
+									).length > 1
+								) {
+									new Notice(
+										I18n.t("notices.actionNameExists", {
+											name: actionToEdit.name,
+										}),
+									);
+									return;
+								}
+
+								const index =
+									this.plugin.settings.actions.findIndex(
+										(innerAction) =>
+											innerAction === actionToEdit,
+									);
+
+								if (index >= 0) {
+									this.plugin.settings.actions[index] =
+										actionToEdit;
+								}
+							}
+
+							await this.plugin.saveSettings();
+							closeActionEditor(actionToEdit);
+						}),
+				);
+		};
+
 		containerEl.createEl("div", { cls: "local-gpt-settings-separator" });
 
 		containerEl.createEl("h3", { text: I18n.t("settings.actions") });
 
-		if (!this.editEnabled) {
+		if (!isEditingNew) {
 			const quickAdd = new Setting(containerEl)
 				.setName(I18n.t("settings.quickAdd"))
 				.setDesc("")
 				.addText((text) => {
-					text.inputEl.style.minWidth = "100%";
+					text.inputEl.classList.add("local-gpt-action-input");
 					text.setPlaceholder(I18n.t("settings.quickAddPlaceholder"));
 					text.onChange(async (value) => {
 						const quickAddAction: LocalGPTAction = value
@@ -228,165 +405,13 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					button
 						.setButtonText(I18n.t("settings.addSeparator"))
 						.onClick(async () => {
+							captureScrollPosition(containerEl);
 							await this.addSeparator();
 							this.display();
 						}),
 				);
 		} else {
-			new Setting(containerEl)
-				.setName(I18n.t("settings.actionName"))
-				.addText((text) => {
-					editingAction?.name && text.setValue(editingAction.name);
-					text.inputEl.style.minWidth = "100%";
-					text.setPlaceholder(
-						I18n.t("settings.actionNamePlaceholder"),
-					);
-					text.onChange(async (value) => {
-						editingAction.name = value;
-					});
-				});
-
-			new Setting(containerEl)
-				.setName(I18n.t("settings.systemPrompt"))
-				.setDesc(I18n.t("settings.systemPromptDesc"))
-				.addTextArea((text) => {
-					editingAction?.system &&
-						text.setValue(editingAction.system);
-					text.inputEl.style.minWidth = "100%";
-					text.inputEl.style.minHeight = "6em";
-					text.inputEl.style.resize = "vertical";
-					text.setPlaceholder(
-						I18n.t("settings.systemPromptPlaceholder"),
-					);
-					text.onChange(async (value) => {
-						editingAction.system = value;
-					});
-				});
-
-			const promptSetting = new Setting(containerEl)
-				.setName(I18n.t("settings.prompt"))
-				.setDesc("")
-				.addTextArea((text) => {
-					editingAction?.prompt &&
-						text.setValue(editingAction.prompt);
-					text.inputEl.style.minWidth = "100%";
-					text.inputEl.style.minHeight = "6em";
-					text.inputEl.style.resize = "vertical";
-					text.setPlaceholder("");
-					text.onChange(async (value) => {
-						editingAction.prompt = value;
-					});
-				});
-
-			promptSetting.descEl.innerHTML = I18n.t("settings.promptDesc");
-
-			new Setting(containerEl)
-				.setName(I18n.t("settings.replaceSelected"))
-				.setDesc(I18n.t("settings.replaceSelectedDesc"))
-				.addToggle((component) => {
-					editingAction?.replace &&
-						component.setValue(editingAction.replace);
-					component.onChange(async (value) => {
-						editingAction.replace = value;
-					});
-				});
-
-			const actionButtonsRow = new Setting(containerEl).setName("");
-
-			if (this.editExistingAction) {
-				actionButtonsRow.addButton((button) => {
-					button.buttonEl.style.marginRight = "2em";
-					button
-						.setButtonText(I18n.t("settings.remove"))
-						.onClick(async () => {
-							if (!button.buttonEl.hasClass("mod-warning")) {
-								button.setClass("mod-warning");
-								return;
-							}
-
-							this.plugin.settings.actions =
-								this.plugin.settings.actions.filter(
-									(innerAction) =>
-										innerAction !== editingAction,
-								);
-							await this.plugin.saveSettings();
-							this.editExistingAction = undefined;
-							this.editEnabled = false;
-							this.display();
-						});
-				});
-			}
-
-			actionButtonsRow
-				.addButton((button) => {
-					button
-						.setButtonText(I18n.t("settings.close"))
-						.onClick(async () => {
-							this.editEnabled = false;
-							this.editExistingAction = undefined;
-							this.display();
-						});
-				})
-				.addButton((button) =>
-					button
-						.setCta()
-						.setButtonText(I18n.t("settings.save"))
-						.onClick(async () => {
-							if (!editingAction.name) {
-								new Notice(
-									I18n.t("notices.actionNameRequired"),
-								);
-								return;
-							}
-
-							if (!this.editExistingAction) {
-								if (
-									this.plugin.settings.actions.find(
-										(action) =>
-											action.name === editingAction.name,
-									)
-								) {
-									new Notice(
-										I18n.t("notices.actionNameExists", {
-											name: editingAction.name,
-										}),
-									);
-									return;
-								}
-
-								await this.addNewAction(editingAction);
-							} else {
-								if (
-									this.plugin.settings.actions.filter(
-										(action) =>
-											action.name === editingAction.name,
-									).length > 1
-								) {
-									new Notice(
-										I18n.t("notices.actionNameExists", {
-											name: editingAction.name,
-										}),
-									);
-									return;
-								}
-
-								const index =
-									this.plugin.settings.actions.findIndex(
-										(innerAction) =>
-											innerAction === editingAction,
-									);
-
-								this.plugin.settings.actions[index] =
-									editingAction;
-							}
-
-							await this.plugin.saveSettings();
-
-							this.editEnabled = false;
-							this.editExistingAction = undefined;
-							this.display();
-						}),
-				);
+			renderActionEditor(containerEl, editingAction, false);
 		}
 
 		containerEl.createEl("h4", { text: I18n.t("settings.actionsList") });
@@ -408,6 +433,182 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			}
 			this.plugin.settings.actions = updatedActions;
 			await this.plugin.saveSettings();
+		};
+
+		const editFormScrollOffset = 30;
+
+		const getScrollableParent = (el: HTMLElement): HTMLElement => {
+			let node: HTMLElement | null = el.parentElement;
+			while (node) {
+				const style = getComputedStyle(node);
+				const overflowY = style.overflowY;
+				if (
+					node.scrollHeight > node.clientHeight &&
+					(overflowY === "auto" || overflowY === "scroll")
+				) {
+					return node;
+				}
+				node = node.parentElement;
+			}
+			return (document.scrollingElement ||
+				document.documentElement) as HTMLElement;
+		};
+
+		const captureScrollPosition = (anchor: HTMLElement) => {
+			const scrollEl = getScrollableParent(anchor);
+			this.pendingScrollRestore = {
+				top: scrollEl.scrollTop,
+				height: scrollEl.scrollHeight,
+			};
+		};
+
+		const restoreScrollPosition = (anchor: HTMLElement) => {
+			const pendingRestore = this.pendingScrollRestore;
+			if (!pendingRestore) return;
+			const scrollEl = getScrollableParent(anchor);
+			const heightDelta = scrollEl.scrollHeight - pendingRestore.height;
+			let desiredTop = pendingRestore.top;
+			if (pendingRestore.top > 0) {
+				desiredTop += heightDelta;
+			}
+			const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+			scrollEl.scrollTop = Math.min(
+				Math.max(desiredTop, 0),
+				Math.max(0, maxScroll),
+			);
+			this.pendingScrollRestore = undefined;
+		};
+
+		const smoothScrollToTarget = (
+			target: HTMLElement,
+			align: "start" | "center",
+			offset = 0,
+			onComplete?: () => void,
+		) => {
+			const scrollEl = getScrollableParent(target);
+			const parentRect = scrollEl.getBoundingClientRect();
+			const targetRect = target.getBoundingClientRect();
+			const currentTop = scrollEl.scrollTop;
+			const targetTop = targetRect.top - parentRect.top + currentTop;
+			let desiredTop = targetTop;
+
+			if (align === "start") {
+				desiredTop = targetTop - offset;
+			} else {
+				const available = parentRect.height - targetRect.height;
+				desiredTop = targetTop - Math.max(0, available / 2);
+			}
+
+			const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+			const clampedTop = Math.min(
+				Math.max(desiredTop, 0),
+				Math.max(0, maxScroll),
+			);
+
+			const prefersReducedMotion = window.matchMedia(
+				"(prefers-reduced-motion: reduce)",
+			).matches;
+			const distance = clampedTop - currentTop;
+			const minDistance = 1;
+
+			if (prefersReducedMotion || Math.abs(distance) < minDistance) {
+				scrollEl.scrollTop = clampedTop;
+				onComplete?.();
+				return;
+			}
+
+			const duration = Math.min(
+				600,
+				Math.max(240, Math.abs(distance) * 0.5),
+			);
+			const startTime = performance.now();
+			const easeInOut = (t: number) =>
+				t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+
+			const step = (now: number) => {
+				const progress = Math.min((now - startTime) / duration, 1);
+				const eased = easeInOut(progress);
+				scrollEl.scrollTop = currentTop + distance * eased;
+				if (progress < 1) {
+					requestAnimationFrame(step);
+					return;
+				}
+				onComplete?.();
+			};
+
+			requestAnimationFrame(step);
+		};
+
+		const triggerHighlight = (element: HTMLElement) => {
+			element.classList.remove("local-gpt-action-highlight");
+			// Force reflow so the highlight animation restarts on repeat triggers.
+			void element.offsetWidth;
+			element.classList.add("local-gpt-action-highlight");
+			element.addEventListener(
+				"animationend",
+				() => element.classList.remove("local-gpt-action-highlight"),
+				{ once: true },
+			);
+		};
+
+		const applyPendingScroll = (
+			action: LocalGPTAction,
+			target: HTMLElement,
+			targetType: "form" | "row",
+			offset = 0,
+			highlightTarget?: HTMLElement,
+		) => {
+			const pendingScroll = this.pendingScroll;
+			if (
+				!pendingScroll ||
+				pendingScroll.action !== action ||
+				pendingScroll.target !== targetType
+			) {
+				return;
+			}
+
+			const scrollOffset = pendingScroll.align === "start" ? offset : 0;
+			requestAnimationFrame(() => {
+				smoothScrollToTarget(
+					target,
+					pendingScroll.align,
+					scrollOffset,
+					() => triggerHighlight(highlightTarget ?? target),
+				);
+			});
+			this.pendingScroll = undefined;
+		};
+
+		const buildSharingString = (action: LocalGPTAction) =>
+			[
+				action.name && `${sharingActionsMapping.name}${action.name}`,
+				action.system &&
+					`${sharingActionsMapping.system}${action.system}`,
+				action.prompt &&
+					`${sharingActionsMapping.prompt}${action.prompt}`,
+				action.replace &&
+					`${sharingActionsMapping.replace}${action.replace}`,
+			]
+				.filter(Boolean)
+				.join(` ${SEPARATOR}\n`);
+
+		const buildActionDescription = (action: LocalGPTAction) => {
+			const systemTitle = escapeTitle(action.system);
+			const promptTitle = escapeTitle(action.prompt);
+
+			return [
+				action.system
+					? `<div title="${systemTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+						<b>${sharingActionsMapping.system}</b>${action.system}</div>`
+					: "",
+				action.prompt
+					? `<div title="${promptTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+						<b>${sharingActionsMapping.prompt}</b>${action.prompt}
+					</div>`
+					: "",
+			]
+				.filter(Boolean)
+				.join("<br/>\n");
 		};
 
 		const addMobileMoveButtons = (row: Setting, actionIndex: number) => {
@@ -440,20 +641,20 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			});
 		};
 
-		this.plugin.settings.actions.forEach((action, actionIndex) => {
-			const isSeparator = isSeparatorAction(action);
+		const renderSeparatorActionRow = (
+			action: LocalGPTAction,
+			actionIndex: number,
+		) => {
 			const actionRow = new Setting(actionsContainer)
-				.setName(isSeparator ? "" : action.name)
+				.setName("")
 				.setDesc("");
 
 			actionRow.settingEl.addClass("local-gpt-action-row");
-			if (isSeparator) {
-				actionRow.settingEl.addClass("local-gpt-action-separator");
-				actionRow.settingEl.setAttribute(
-					"aria-label",
-					I18n.t("settings.separator"),
-				);
-			}
+			actionRow.settingEl.addClass("local-gpt-action-separator");
+			actionRow.settingEl.setAttribute(
+				"aria-label",
+				I18n.t("settings.separator"),
+			);
 
 			const handle = actionRow.settingEl.createDiv(
 				"local-gpt-drag-handle",
@@ -463,41 +664,65 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			addMobileMoveButtons(actionRow, actionIndex);
 
-			if (isSeparator) {
-				actionRow.infoEl.empty();
-				actionRow.infoEl.createDiv("local-gpt-action-separator-line");
-				actionRow.addButton((button) =>
-					button
-						.setIcon("trash")
-						.setTooltip(I18n.t("settings.remove"))
-						.onClick(async () => {
-							if (!button.buttonEl.hasClass("mod-warning")) {
-								button.setClass("mod-warning");
-								return;
-							}
+			actionRow.infoEl.empty();
+			actionRow.infoEl.createDiv("local-gpt-action-separator-line");
+			actionRow.addButton((button) =>
+				button
+					.setIcon("trash")
+					.setTooltip(I18n.t("settings.remove"))
+					.onClick(async () => {
+						if (!button.buttonEl.hasClass("mod-warning")) {
+							button.setClass("mod-warning");
+							return;
+						}
 
-							this.plugin.settings.actions =
-								this.plugin.settings.actions.filter(
-									(innerAction) => innerAction !== action,
-								);
-							await this.plugin.saveSettings();
-							this.display();
-						}),
+						this.plugin.settings.actions =
+							this.plugin.settings.actions.filter(
+								(innerAction) => innerAction !== action,
+							);
+						await this.plugin.saveSettings();
+						this.display();
+					}),
+			);
+		};
+
+		const renderActionRow = (
+			action: LocalGPTAction,
+			actionIndex: number,
+		) => {
+			const isEditingRow = this.editExistingAction === action;
+			const actionRow = new Setting(actionsContainer);
+
+			actionRow.settingEl.addClass("local-gpt-action-row");
+
+			if (isEditingRow) {
+				actionRow.controlEl.remove();
+				actionRow.infoEl.empty();
+				renderActionEditor(actionRow.infoEl, action, true);
+				const target =
+					actionRow.infoEl.querySelector(".setting-item") ??
+					actionRow.infoEl;
+				applyPendingScroll(
+					action,
+					target as HTMLElement,
+					"form",
+					editFormScrollOffset,
+					actionRow.settingEl,
 				);
 				return;
 			}
 
-			const sharingString = [
-				action.name && `${sharingActionsMapping.name}${action.name}`,
-				action.system &&
-					`${sharingActionsMapping.system}${action.system}`,
-				action.prompt &&
-					`${sharingActionsMapping.prompt}${action.prompt}`,
-				action.replace &&
-					`${sharingActionsMapping.replace}${action.replace}`,
-			]
-				.filter(Boolean)
-				.join(` ${SEPARATOR}\n`);
+			actionRow.setName(action.name).setDesc("");
+
+			const handle = actionRow.settingEl.createDiv(
+				"local-gpt-drag-handle",
+			);
+			setIcon(handle, "grip-vertical");
+			actionRow.settingEl.prepend(handle);
+
+			addMobileMoveButtons(actionRow, actionIndex);
+
+			const sharingString = buildSharingString(action);
 
 			actionRow
 				.addButton((button) =>
@@ -508,47 +733,37 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				)
 				.addButton((button) =>
 					button.setButtonText("Edit").onClick(async () => {
-						this.editEnabled = true;
+						this.editEnabled = false;
+						this.pendingScroll = {
+							action,
+							align: "start",
+							target: "form",
+						};
 						this.editExistingAction = action;
 						this.display();
 					}),
 				);
 
-			const systemTitle = escapeTitle(action.system);
-			const promptTitle = escapeTitle(action.prompt);
+			actionRow.descEl.innerHTML = buildActionDescription(action);
 
-			actionRow.descEl.innerHTML = [
-				action.system &&
-					`<div title="${systemTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-						<b>${sharingActionsMapping.system}</b>${action.system}</div>`,
-				action.prompt &&
-					`<div title="${promptTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-						<b>${sharingActionsMapping.prompt}</b>${action.prompt}
-					</div>`,
-			]
-				.filter(Boolean)
-				.join("<br/>\n");
+			applyPendingScroll(action, actionRow.settingEl, "row");
+		};
+
+		this.plugin.settings.actions.forEach((action, actionIndex) => {
+			if (isSeparatorAction(action)) {
+				renderSeparatorActionRow(action, actionIndex);
+				return;
+			}
+
+			renderActionRow(action, actionIndex);
 		});
+
+		restoreScrollPosition(actionsContainer);
+
+		this.pendingScroll = undefined;
 
 		if (this.plugin.settings.actions.length > 1) {
 			// Manual edge auto-scroll helpers
-			const getScrollableParent = (el: HTMLElement): HTMLElement => {
-				let node: HTMLElement | null = el.parentElement;
-				while (node) {
-					const style = getComputedStyle(node);
-					const overflowY = style.overflowY;
-					if (
-						node.scrollHeight > node.clientHeight &&
-						(overflowY === "auto" || overflowY === "scroll")
-					) {
-						return node;
-					}
-					node = node.parentElement;
-				}
-				return (document.scrollingElement ||
-					document.documentElement) as HTMLElement;
-			};
-
 			let autoScrollFrame: number | null = null;
 			let autoScrollDelta = 0;
 			let scrollEl: HTMLElement | null = null;
