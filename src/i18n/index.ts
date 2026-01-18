@@ -1,13 +1,27 @@
 import de from "./de.json";
 import en from "./en.json";
+import es from "./es.json";
+import fr from "./fr.json";
+import it from "./it.json";
+import ja from "./ja.json";
+import ko from "./ko.json";
+import nl from "./nl.json";
+import pt from "./pt.json";
 import ru from "./ru.json";
 import zh from "./zh.json";
 import { logger } from "../logger";
 
 const locales: { [key: string]: any } = {
 	en,
-	ru,
 	de,
+	es,
+	fr,
+	it,
+	ja,
+	ko,
+	nl,
+	pt,
+	ru,
 	zh,
 };
 

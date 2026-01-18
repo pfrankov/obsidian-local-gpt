@@ -47,8 +47,15 @@ You can also add your own, share the best actions, or get one [from the communit
 ### Supported languages
 - English
 - Chinese
+- Dutch
+- French
 - German
+- Italian
+- Japanese
+- Korean
+- Portuguese
 - Russian
+- Spanish
 
 ## Installation
 ### 1. Install Plugin
