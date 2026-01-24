@@ -1,5 +1,8 @@
 import {
 	App,
+	ButtonComponent,
+	DropdownComponent,
+	Modal,
 	Notice,
 	Platform,
 	PluginSettingTab,
@@ -8,13 +11,31 @@ import {
 } from "obsidian";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
-import { LocalGPTAction } from "./interfaces";
+import { CommunityActionRef, LocalGPTAction } from "./interfaces";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import { I18n } from "./i18n";
 import Sortable from "sortablejs";
 import { isSeparatorAction, moveAction } from "./actionUtils";
+import { detectDominantLanguage } from "./languageDetection";
+import {
+	CommunityAction,
+	CommunityActionsService,
+	buildCommunityActionKey,
+	buildCommunityActionSignature,
+} from "./CommunityActionsService";
 
 const SEPARATOR = "✂️";
+
+const normalizeLanguageCode = (value?: string | null): string => {
+	if (!value) {
+		return "en";
+	}
+	const trimmed = value.trim().toLowerCase();
+	if (!trimmed) {
+		return "en";
+	}
+	return trimmed.split(/[-_]/)[0] || "en";
+};
 
 function escapeTitle(title?: string) {
 	if (!title) {
@@ -45,6 +66,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		top: number;
 		height: number;
 	};
+	private communityActionsLanguage?: string;
+	private communityActionsStatusMessage = "";
+	private communityActionsRenderId = 0;
 	// Guard to require a second click before destructive reset
 	private isConfirmingReset = false;
 
@@ -161,16 +185,57 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			replace: false,
 		};
 
-		const sharingActionsMapping = {
+		const sharingFieldLabels = {
 			name: "Name: ",
 			system: "System: ",
 			prompt: "Prompt: ",
 			replace: "Replace: ",
-			model: "Model: ",
+			language: "Language: ",
+		} as const;
+		const sharingFieldOrder: Array<keyof typeof sharingFieldLabels> = [
+			"name",
+			"system",
+			"prompt",
+			"replace",
+			"language",
+		];
+		const sharingEntries = sharingFieldOrder.map(
+			(key) => [key, sharingFieldLabels[key]] as const,
+		);
+		const quickAddHandlers: Partial<
+			Record<
+				keyof typeof sharingFieldLabels,
+				(value: string, action: LocalGPTAction) => void
+			>
+		> = {
+			name: (value, action) => {
+				action.name = value;
+			},
+			system: (value, action) => {
+				action.system = value;
+			},
+			prompt: (value, action) => {
+				action.prompt = value;
+			},
+			replace: (value, action) => {
+				action.replace = value.trim().toLowerCase() === "true";
+			},
 		};
+		const defaultCommunityActionsLanguage = normalizeLanguageCode(
+			window.localStorage.getItem("language"),
+		);
 
 		const isEditingExisting = Boolean(this.editExistingAction);
 		const isEditingNew = this.editEnabled && !isEditingExisting;
+		const dropCommunityLinkIfModified = (action: LocalGPTAction) => {
+			if (!action.community?.hash) {
+				return;
+			}
+			const localSignature = buildCommunityActionSignature(action);
+			if (localSignature !== action.community.hash) {
+				delete action.community;
+			}
+		};
 
 		const closeActionEditor = (scrollAction?: LocalGPTAction) => {
 			this.editEnabled = false;
@@ -319,6 +384,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 									return;
 								}
 
+								dropCommunityLinkIfModified(actionToEdit);
+
 								const index =
 									this.plugin.settings.actions.findIndex(
 										(innerAction) =>
@@ -349,32 +416,36 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					text.inputEl.classList.add("local-gpt-action-input");
 					text.setPlaceholder(I18n.t("settings.quickAddPlaceholder"));
 					text.onChange(async (value) => {
-						const quickAddAction: LocalGPTAction = value
+						const parts = value
 							.split(SEPARATOR)
 							.map((part) => part.trim())
-							.reduce((acc, part) => {
-								const foundMatchKey = Object.keys(
-									sharingActionsMapping,
-								).find((key) => {
-									return part.startsWith(
-										sharingActionsMapping[
-											key as keyof typeof sharingActionsMapping
-										],
-									);
-								});
+							.filter(Boolean);
+						if (!parts.length) {
+							return;
+						}
 
-								if (foundMatchKey) {
-									// @ts-ignore
-									acc[foundMatchKey] = part.substring(
-										sharingActionsMapping[
-											foundMatchKey as keyof typeof sharingActionsMapping
-										].length,
-										part.length,
-									);
-								}
+						const quickAddAction: LocalGPTAction = {
+							name: "",
+							prompt: "",
+						};
 
-								return acc;
-							}, {} as LocalGPTAction);
+						for (const part of parts) {
+							const entry = sharingEntries.find(([, label]) =>
+								part.startsWith(label),
+							);
+							const key = entry?.[0];
+							const label = entry?.[1];
+							const rawValue = label
+								? part.slice(label.length).trim()
+								: "";
+							if (!key || !rawValue) {
+								continue;
+							}
+							const handler = quickAddHandlers[key];
+							if (handler) {
+								handler(rawValue, quickAddAction);
+							}
+						}
 
 						if (quickAddAction.name) {
 							await this.addNewAction(quickAddAction);
@@ -385,6 +456,16 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				});
 
 			quickAdd.descEl.innerHTML = I18n.t("settings.quickAddDesc");
+
+			new Setting(containerEl)
+				.setName(I18n.t("settings.communityActions"))
+				.setDesc(I18n.t("settings.communityActionsOpenDesc"))
+				.addButton((button) => {
+					button
+						.setButtonText(I18n.t("settings.communityActionsOpen"))
+						.setCta()
+						.onClick(() => openCommunityActionsModal());
+				});
 
 			const addActionsRow = new Setting(containerEl)
 				.setName(I18n.t("settings.addNewManually"))
@@ -579,31 +660,49 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			this.pendingScroll = undefined;
 		};
 
-		const buildSharingString = (action: LocalGPTAction) =>
-			[
-				action.name && `${sharingActionsMapping.name}${action.name}`,
-				action.system &&
-					`${sharingActionsMapping.system}${action.system}`,
-				action.prompt &&
-					`${sharingActionsMapping.prompt}${action.prompt}`,
-				action.replace &&
-					`${sharingActionsMapping.replace}${action.replace}`,
+		const buildSharingString = (action: LocalGPTAction) => {
+			const detectedLanguage = detectDominantLanguage(
+				[action.name, action.system, action.prompt]
+					.filter((value): value is string => Boolean(value))
+					.join("\n"),
+			);
+			const resolvedLanguage = normalizeLanguageCode(
+				detectedLanguage === "unknown"
+					? defaultCommunityActionsLanguage
+					: detectedLanguage,
+			);
+			const replaceValue = action.replace
+				? `${sharingFieldLabels.replace}${action.replace}`
+				: "";
+
+			return [
+				action.name && `${sharingFieldLabels.name}${action.name}`,
+				action.system && `${sharingFieldLabels.system}${action.system}`,
+				action.prompt && `${sharingFieldLabels.prompt}${action.prompt}`,
+				replaceValue,
+				`${sharingFieldLabels.language}${resolvedLanguage}`,
 			]
 				.filter(Boolean)
 				.join(` ${SEPARATOR}\n`);
+		};
 
 		const buildActionDescription = (action: LocalGPTAction) => {
 			const systemTitle = escapeTitle(action.system);
 			const promptTitle = escapeTitle(action.prompt);
+			const communityDescription = action.community?.description?.trim();
+			if (communityDescription) {
+				const escaped = escapeTitle(communityDescription);
+				return `<div class="local-gpt-action-community-description" title="${escaped}">${escaped}</div>`;
+			}
 
 			return [
 				action.system
 					? `<div title="${systemTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-						<b>${sharingActionsMapping.system}</b>${action.system}</div>`
+						<b>${sharingFieldLabels.system}</b>${action.system}</div>`
 					: "",
 				action.prompt
 					? `<div title="${promptTitle}" style="text-overflow: ellipsis; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-						<b>${sharingActionsMapping.prompt}</b>${action.prompt}
+						<b>${sharingFieldLabels.prompt}</b>${action.prompt}
 					</div>`
 					: "",
 			]
@@ -713,6 +812,19 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			}
 
 			actionRow.setName(action.name).setDesc("");
+			if (action.community && actionRow.nameEl) {
+				const nameEl = actionRow.nameEl;
+				const nameText = nameEl.textContent ?? "";
+				nameEl.empty();
+				nameEl.createSpan({
+					cls: "local-gpt-action-name-label",
+					text: nameText,
+				});
+				nameEl.createSpan({
+					cls: "local-gpt-community-actions-status local-gpt-action-community-status is-installed",
+					text: I18n.t("settings.communityActionsBadge"),
+				});
+			}
 
 			const handle = actionRow.settingEl.createDiv(
 				"local-gpt-drag-handle",
@@ -762,7 +874,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		this.pendingScroll = undefined;
 
-		if (this.plugin.settings.actions.length > 1) {
+		const setupActionsSortable = () => {
+			if (this.plugin.settings.actions.length <= 1) {
+				return;
+			}
 			// Manual edge auto-scroll helpers
 			let autoScrollFrame: number | null = null;
 			let autoScrollDelta = 0;
@@ -907,7 +1022,734 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					}
 				},
 			});
-		}
+		};
+
+		setupActionsSortable();
+
+		const openCommunityActionsModal = () => {
+			const modal = new Modal(this.app);
+			modal.modalEl.addClass("local-gpt-community-actions-modal");
+			modal.titleEl.setText(I18n.t("settings.communityActions"));
+			const modalContent = modal.contentEl;
+
+			const communityActionsRenderId = Date.now();
+			this.communityActionsRenderId = communityActionsRenderId;
+
+			const communityActionsSection = modalContent.createDiv(
+				"local-gpt-community-actions",
+			);
+			const communityActionsDescription =
+				communityActionsSection.createDiv("setting-item-description");
+			communityActionsDescription.innerHTML = I18n.t(
+				"settings.communityActionsDesc",
+			);
+
+			const communityActionsHint = communityActionsSection.createDiv(
+				"local-gpt-community-actions-hint",
+			);
+			communityActionsHint.setText(
+				I18n.t("settings.communityActionsAutoUpdate"),
+			);
+
+			const communityActionsStatus = communityActionsSection.createDiv(
+				"local-gpt-community-actions-status-line",
+			);
+			communityActionsStatus.setText(
+				this.communityActionsStatusMessage || "",
+			);
+			communityActionsStatus.toggleClass(
+				"is-hidden",
+				!this.communityActionsStatusMessage,
+			);
+
+			this.communityActionsLanguage = normalizeLanguageCode(
+				this.communityActionsLanguage ||
+					defaultCommunityActionsLanguage,
+			);
+
+			let communityActions: CommunityAction[] = [];
+			let communityActionsLoaded = false;
+			let languageDropdown: DropdownComponent | null = null;
+			let refreshButton: ButtonComponent | null = null;
+
+			const communityActionsList = communityActionsSection.createDiv(
+				"local-gpt-community-actions-list",
+			);
+
+			const renderCommunityActionsMessage = (
+				message: string,
+				className: string,
+			) => {
+				communityActionsList.empty();
+				const messageEl = communityActionsList.createDiv(className);
+				messageEl.setText(message);
+			};
+
+			const normalizeActionName = (name: string) =>
+				name.trim().toLowerCase();
+
+			type CommunityActionsLookup = {
+				byId: Map<string, LocalGPTAction>;
+				byKey: Map<string, LocalGPTAction>;
+				byName: Map<string, LocalGPTAction>;
+			};
+
+			const buildCommunityActionsLookup = (
+				actions: LocalGPTAction[],
+			): CommunityActionsLookup => {
+				const byId = new Map<string, LocalGPTAction>();
+				const byKey = new Map<string, LocalGPTAction>();
+				const byName = new Map<string, LocalGPTAction>();
+
+				actions.forEach((action) => {
+					byName.set(normalizeActionName(action.name), action);
+					if (action.community?.id) {
+						byId.set(action.community.id, action);
+					}
+					if (action.community?.language && action.community?.name) {
+						byKey.set(
+							buildCommunityActionKey(
+								action.community.language,
+								action.community.name,
+							),
+							action,
+						);
+					}
+				});
+
+				return { byId, byKey, byName };
+			};
+
+			const findCommunityActionLink = (
+				action: CommunityAction,
+				lookup: CommunityActionsLookup,
+			) =>
+				lookup.byId.get(action.id) ||
+				lookup.byKey.get(
+					buildCommunityActionKey(action.language, action.name),
+				);
+
+			type CommunityActionState =
+				| { type: "available" }
+				| { type: "installed"; localAction: LocalGPTAction }
+				| { type: "modified"; localAction: LocalGPTAction }
+				| { type: "conflict"; localAction: LocalGPTAction };
+
+			const resolveCommunityActionState = (
+				action: CommunityAction,
+				lookup: CommunityActionsLookup,
+			): CommunityActionState => {
+				const linkedAction = findCommunityActionLink(action, lookup);
+				if (linkedAction) {
+					const localSignature =
+						buildCommunityActionSignature(linkedAction);
+					const storedHash = linkedAction.community?.hash;
+					if (storedHash && localSignature !== storedHash) {
+						return { type: "modified", localAction: linkedAction };
+					}
+					return { type: "installed", localAction: linkedAction };
+				}
+
+				const nameMatch = lookup.byName.get(
+					normalizeActionName(action.name),
+				);
+				if (nameMatch) {
+					return { type: "conflict", localAction: nameMatch };
+				}
+
+				return { type: "available" };
+			};
+
+			const buildCommunityActionRef = (
+				action: CommunityAction,
+			): CommunityActionRef => ({
+				id: action.id,
+				language: action.language,
+				name: action.name,
+				hash: buildCommunityActionSignature(action),
+				updatedAt: action.updatedAt ?? action.createdAt,
+				description: action.description?.trim() || undefined,
+			});
+
+			const setCommunityActionsStatusMessage = (message: string) => {
+				this.communityActionsStatusMessage = message;
+				if (!message) {
+					communityActionsStatus.setText("");
+					communityActionsStatus.addClass("is-hidden");
+					return;
+				}
+				communityActionsStatus.setText(message);
+				communityActionsStatus.removeClass("is-hidden");
+			};
+
+			const addPreviewLine = (
+				preview: HTMLElement,
+				label: string,
+				value?: string,
+			) => {
+				if (!value) {
+					return;
+				}
+				const line = preview.createDiv(
+					"local-gpt-community-actions-preview-line",
+				);
+				line.createSpan({
+					text: `${label}: `,
+					cls: "local-gpt-community-actions-preview-label",
+				});
+				line.createSpan({ text: value });
+			};
+
+			let refreshCommunityActionsList = () => {
+				renderCommunityActionsMessage(
+					I18n.t("settings.communityActionsLoading"),
+					"local-gpt-community-actions-loading",
+				);
+			};
+
+			const installCommunityAction = async (
+				action: CommunityAction,
+				existingAction?: LocalGPTAction,
+			) => {
+				const localAction: LocalGPTAction = existingAction
+					? { ...existingAction }
+					: {
+							name: action.name,
+							prompt: "",
+						};
+
+				localAction.name = action.name;
+				localAction.prompt = action.prompt ?? "";
+				localAction.replace = action.replace ?? false;
+				if (action.system) {
+					localAction.system = action.system;
+				} else {
+					delete localAction.system;
+				}
+				localAction.community = buildCommunityActionRef(action);
+				captureScrollPosition(containerEl);
+				await this.addNewAction(localAction);
+				refreshCommunityActionsList();
+				this.pendingScroll = {
+					action: localAction,
+					align: "center",
+					target: "row",
+				};
+				this.display();
+			};
+
+			const getCommunityActionStatusPill = (
+				state: CommunityActionState,
+			): {
+				label: string;
+				variant: "installed" | "modified" | "conflict";
+			} | null => {
+				if (state.type === "installed") {
+					return {
+						label: I18n.t("settings.communityActionsInstalled"),
+						variant: "installed",
+					};
+				}
+				if (state.type === "modified") {
+					return {
+						label: I18n.t("settings.communityActionsModified"),
+						variant: "modified",
+					};
+				}
+				if (state.type === "conflict") {
+					return {
+						label: I18n.t("settings.communityActionsInList"),
+						variant: "conflict",
+					};
+				}
+				return null;
+			};
+
+			const getCommunityActionNote = (state: CommunityActionState) => {
+				if (state.type === "modified") {
+					return I18n.t("settings.communityActionsModifiedNote");
+				}
+				if (state.type === "conflict") {
+					return I18n.t("settings.communityActionsConflictNote");
+				}
+				return null;
+			};
+
+			const configureCommunityActionButton = (
+				button: ButtonComponent,
+				action: CommunityAction,
+				state: CommunityActionState,
+			) => {
+				if (state.type === "installed") {
+					button
+						.setButtonText(
+							I18n.t("settings.communityActionsInstalled"),
+						)
+						.setDisabled(true);
+					button.buttonEl.addClass(
+						"local-gpt-community-actions-installed-button",
+					);
+					return;
+				}
+
+				if (state.type === "modified") {
+					button
+						.setButtonText(
+							I18n.t("settings.communityActionsUpdate"),
+						)
+						.setClass("mod-warning")
+						.onClick(async () =>
+							installCommunityAction(action, state.localAction),
+						);
+					return;
+				}
+
+				if (state.type === "conflict") {
+					button
+						.setButtonText(
+							I18n.t("settings.communityActionsReplace"),
+						)
+						.setClass("mod-warning")
+						.onClick(async () =>
+							installCommunityAction(action, state.localAction),
+						);
+					return;
+				}
+
+				button
+					.setCta()
+					.setButtonText(I18n.t("settings.communityActionsInstall"))
+					.onClick(async () => installCommunityAction(action));
+				button.buttonEl.addClass(
+					"local-gpt-community-actions-install-button",
+				);
+				const icon = button.buttonEl.createSpan(
+					"local-gpt-community-actions-install-icon",
+				);
+				setIcon(icon, "plus");
+				button.buttonEl.prepend(icon);
+			};
+
+			const renderCommunityActionRow = (
+				action: CommunityAction,
+				state: CommunityActionState,
+			) => {
+				const actionRow = communityActionsList.createDiv(
+					"local-gpt-community-actions-row",
+				);
+				if (state.type === "installed") {
+					actionRow.addClass("is-installed");
+				}
+				const infoEl = actionRow.createDiv(
+					"local-gpt-community-actions-info",
+				);
+
+				const content = infoEl.createDiv(
+					"local-gpt-community-actions-content",
+				);
+				const header = content.createDiv(
+					"local-gpt-community-actions-header",
+				);
+				header.createSpan({
+					text: action.name,
+					cls: "local-gpt-community-actions-title",
+				});
+
+				const statusPill = getCommunityActionStatusPill(state);
+				if (statusPill) {
+					const pill = header.createSpan(
+						"local-gpt-community-actions-status",
+					);
+					pill.setText(statusPill.label);
+					pill.addClass(`is-${statusPill.variant}`);
+				}
+
+				const score = header.createSpan(
+					"local-gpt-community-actions-score",
+				);
+				score.setText(String(action.score));
+				score.setAttr(
+					"aria-label",
+					`${I18n.t("settings.communityActionsScoreLabel")} ${action.score}`,
+				);
+
+				const metaRow = content.createDiv(
+					"local-gpt-community-actions-meta",
+				);
+				if (action.author) {
+					const author = metaRow.createSpan(
+						"local-gpt-community-actions-meta-item",
+					);
+					author.setText(
+						I18n.t("settings.communityActionsByAuthor", {
+							author: `@${action.author}`,
+						}),
+					);
+					author.addClass("local-gpt-community-actions-author");
+				}
+				if (action.replace) {
+					const replaceTag = metaRow.createSpan(
+						"local-gpt-community-actions-meta-pill",
+					);
+					replaceTag.setText(
+						I18n.t("settings.communityActionsReplaceTag"),
+					);
+				}
+
+				const footer = content.createDiv(
+					"local-gpt-community-actions-footer",
+				);
+				const preview = footer.createDiv(
+					"local-gpt-community-actions-preview",
+				);
+				const description = action.description?.trim();
+				if (description) {
+					const descriptionLine = preview.createDiv(
+						"local-gpt-community-actions-description",
+					);
+					descriptionLine.setText(description);
+					descriptionLine.setAttr("title", description);
+				} else {
+					addPreviewLine(
+						preview,
+						I18n.t("settings.systemPrompt"),
+						action.system,
+					);
+					addPreviewLine(
+						preview,
+						I18n.t("settings.prompt"),
+						action.prompt,
+					);
+				}
+
+				const noteText = getCommunityActionNote(state);
+				if (noteText) {
+					const note = content.createDiv(
+						"local-gpt-community-actions-note",
+					);
+					note.setText(noteText);
+				}
+
+				const actions = footer.createDiv(
+					"local-gpt-community-actions-actions",
+				);
+				const controlEl = actions.createDiv(
+					"local-gpt-community-actions-control",
+				);
+				const button = new ButtonComponent(controlEl);
+				configureCommunityActionButton(button, action, state);
+			};
+
+			const renderCommunityActionsList = (actions: CommunityAction[]) => {
+				if (!communityActionsLoaded) {
+					renderCommunityActionsMessage(
+						I18n.t("settings.communityActionsLoading"),
+						"local-gpt-community-actions-loading",
+					);
+					return;
+				}
+
+				const filtered = actions.filter(
+					(action) =>
+						normalizeLanguageCode(action.language) ===
+						normalizeLanguageCode(
+							this.communityActionsLanguage ||
+								defaultCommunityActionsLanguage,
+						),
+				);
+				if (!filtered.length) {
+					renderCommunityActionsMessage(
+						I18n.t("settings.communityActionsEmpty"),
+						"local-gpt-community-actions-empty",
+					);
+					return;
+				}
+
+				communityActionsList.empty();
+				const lookup = buildCommunityActionsLookup(
+					this.plugin.settings.actions,
+				);
+				filtered.forEach((action) =>
+					renderCommunityActionRow(
+						action,
+						resolveCommunityActionState(action, lookup),
+					),
+				);
+			};
+
+			refreshCommunityActionsList = () =>
+				renderCommunityActionsList(communityActions);
+
+			const updateCommunityActionsLanguageOptions = (
+				actions: CommunityAction[],
+			) => {
+				if (!languageDropdown) {
+					return;
+				}
+
+				const languages = new Set<string>(
+					actions.map((action) =>
+						normalizeLanguageCode(action.language),
+					),
+				);
+				if (this.communityActionsLanguage) {
+					languages.add(
+						normalizeLanguageCode(this.communityActionsLanguage),
+					);
+				}
+				languages.add(defaultCommunityActionsLanguage);
+
+				const options = Array.from(languages).sort((a, b) =>
+					a.localeCompare(b),
+				);
+				languageDropdown.selectEl.options.length = 0;
+				options.forEach((language) => {
+					languageDropdown?.addOption(language, language);
+				});
+				languageDropdown.setValue(
+					normalizeLanguageCode(
+						this.communityActionsLanguage ||
+							defaultCommunityActionsLanguage,
+					),
+				);
+			};
+
+			const syncCommunityActions = async (
+				actions: CommunityAction[],
+			): Promise<{ updated: number; skipped: number }> => {
+				const lookup = buildCommunityActionsLookup(
+					this.plugin.settings.actions,
+				);
+				let updated = 0;
+				let skipped = 0;
+
+				const applyCommunityActionUpdate = (
+					localAction: LocalGPTAction,
+					action: CommunityAction,
+				) => {
+					localAction.prompt = action.prompt ?? "";
+					localAction.replace = action.replace ?? false;
+					if (action.system) {
+						localAction.system = action.system;
+					} else {
+						delete localAction.system;
+					}
+					localAction.community = buildCommunityActionRef(action);
+				};
+
+				const isCommunityActionModified = (
+					localAction: LocalGPTAction,
+					localSignature: string,
+				) => {
+					const storedHash = localAction.community?.hash;
+					return Boolean(storedHash && localSignature !== storedHash);
+				};
+
+				const shouldUpdateCommunityAction = (
+					localAction: LocalGPTAction,
+					localSignature: string,
+					remoteSignature: string,
+					action: CommunityAction,
+				) =>
+					localSignature !== remoteSignature ||
+					localAction.community?.hash !== remoteSignature ||
+					localAction.community?.id !== action.id ||
+					localAction.community?.description?.trim() !==
+						(action.description?.trim() || undefined);
+
+				const tryAdoptCommunityAction = (
+					action: CommunityAction,
+					lookup: CommunityActionsLookup,
+				) => {
+					const nameMatch = lookup.byName.get(
+						normalizeActionName(action.name),
+					);
+					if (!nameMatch) {
+						return { updated: 0, skipped: 0 };
+					}
+					const localSignature =
+						buildCommunityActionSignature(nameMatch);
+					const remoteSignature =
+						buildCommunityActionSignature(action);
+					if (localSignature !== remoteSignature) {
+						return { updated: 0, skipped: 0 };
+					}
+					nameMatch.community = buildCommunityActionRef(action);
+					return { updated: 1, skipped: 0 };
+				};
+
+				const syncCommunityAction = (
+					action: CommunityAction,
+					lookup: CommunityActionsLookup,
+				) => {
+					const localAction = findCommunityActionLink(action, lookup);
+					if (!localAction) {
+						return tryAdoptCommunityAction(action, lookup);
+					}
+
+					const localSignature =
+						buildCommunityActionSignature(localAction);
+					const remoteSignature =
+						buildCommunityActionSignature(action);
+					if (
+						isCommunityActionModified(localAction, localSignature)
+					) {
+						return { updated: 0, skipped: 1 };
+					}
+					if (
+						!shouldUpdateCommunityAction(
+							localAction,
+							localSignature,
+							remoteSignature,
+							action,
+						)
+					) {
+						return { updated: 0, skipped: 0 };
+					}
+					applyCommunityActionUpdate(localAction, action);
+					return { updated: 1, skipped: 0 };
+				};
+
+				actions.forEach((action) => {
+					const result = syncCommunityAction(action, lookup);
+					updated += result.updated;
+					skipped += result.skipped;
+				});
+
+				if (updated > 0) {
+					await this.plugin.saveSettings();
+				}
+
+				return { updated, skipped };
+			};
+
+			const buildCommunityActionsSyncMessage = (result: {
+				updated: number;
+				skipped: number;
+			}) => {
+				if (result.updated > 0 && result.skipped > 0) {
+					return I18n.t("settings.communityActionsSyncSummary", {
+						updated: String(result.updated),
+						skipped: String(result.skipped),
+					});
+				}
+				if (result.updated > 0) {
+					return I18n.t("settings.communityActionsUpdated", {
+						count: String(result.updated),
+					});
+				}
+				if (result.skipped > 0) {
+					return I18n.t("settings.communityActionsSkipped", {
+						count: String(result.skipped),
+					});
+				}
+				return "";
+			};
+
+			const finishCommunityActionsLoad = (actions: CommunityAction[]) => {
+				communityActionsLoaded = true;
+				updateCommunityActionsLanguageOptions(actions);
+				renderCommunityActionsList(actions);
+			};
+
+			const handleCommunityActions = async (
+				actions: CommunityAction[],
+			): Promise<boolean> => {
+				if (
+					this.communityActionsRenderId !== communityActionsRenderId
+				) {
+					return true;
+				}
+				communityActions = actions;
+				const syncResult = await syncCommunityActions(actions);
+				const syncMessage =
+					buildCommunityActionsSyncMessage(syncResult);
+				setCommunityActionsStatusMessage(syncMessage);
+				if (syncResult.updated > 0) {
+					this.display();
+					return true;
+				}
+				finishCommunityActionsLoad(actions);
+				return false;
+			};
+
+			const handleCommunityActionsError = (error: unknown) => {
+				if (
+					this.communityActionsRenderId !== communityActionsRenderId
+				) {
+					return;
+				}
+				console.error("Failed to load community actions", error);
+				communityActionsLoaded = true;
+				setCommunityActionsStatusMessage("");
+				renderCommunityActionsMessage(
+					I18n.t("settings.communityActionsError"),
+					"local-gpt-community-actions-error",
+				);
+			};
+
+			const loadCommunityActions = async (forceRefresh = false) => {
+				communityActionsLoaded = false;
+				renderCommunityActionsMessage(
+					I18n.t("settings.communityActionsLoading"),
+					"local-gpt-community-actions-loading",
+				);
+				refreshButton?.setDisabled(true);
+
+				try {
+					const actions =
+						await CommunityActionsService.getCommunityActions({
+							forceRefresh,
+						});
+					await handleCommunityActions(actions);
+				} catch (error) {
+					handleCommunityActionsError(error);
+				} finally {
+					refreshButton?.setDisabled(false);
+				}
+			};
+
+			const languageSetting = new Setting(communityActionsSection)
+				.setName(I18n.t("settings.communityActionsLanguage"))
+				.setDesc(I18n.t("settings.communityActionsLanguageDesc"))
+				.addDropdown((dropdown) => {
+					languageDropdown = dropdown;
+					const initialLanguage = normalizeLanguageCode(
+						this.communityActionsLanguage ||
+							defaultCommunityActionsLanguage,
+					);
+					dropdown.addOption(initialLanguage, initialLanguage);
+					dropdown.setValue(initialLanguage);
+					dropdown.onChange((value) => {
+						this.communityActionsLanguage =
+							normalizeLanguageCode(value);
+						renderCommunityActionsList(communityActions);
+					});
+				})
+				.addButton((button) => {
+					refreshButton = button;
+					button
+						.setButtonText(
+							I18n.t("settings.communityActionsRefresh"),
+						)
+						.onClick(async () => {
+							CommunityActionsService.clearCache();
+							await loadCommunityActions(true);
+						});
+				});
+			communityActionsSection.insertBefore(
+				languageSetting.settingEl,
+				communityActionsList,
+			);
+
+			modal.onClose = () => {
+				this.communityActionsRenderId = 0;
+				modal.contentEl.empty();
+			};
+
+			modal.open();
+			loadCommunityActions();
+		};
 
 		// Advanced settings toggle (similar to AI Providers "For developers")
 		new Setting(containerEl)
@@ -982,7 +1824,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							button.buttonEl.setAttribute("disabled", "true");
 							button.buttonEl.classList.remove("mod-warning");
 							this.plugin.settings.actions =
-								DEFAULT_SETTINGS.actions;
+								DEFAULT_SETTINGS.actions.map((action) => ({
+									...action,
+								}));
 							await this.plugin.saveSettings();
 							this.isConfirmingReset = false;
 							this.display();

@@ -16,6 +16,15 @@ export interface LocalGPTSettings {
 	_version: number;
 }
 
+export interface CommunityActionRef {
+	id: string;
+	language: string;
+	name: string;
+	hash: string;
+	updatedAt?: string;
+	description?: string;
+}
+
 export interface LocalGPTAction {
 	name: string;
 	prompt: string;
@@ -23,6 +32,7 @@ export interface LocalGPTAction {
 	system?: string;
 	replace?: boolean;
 	separator?: boolean;
+	community?: CommunityActionRef;
 }
 
 export type {

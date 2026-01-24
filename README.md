@@ -40,7 +40,13 @@ _No speedup. MacBook Pro 13, M1, 16GB, Ollama, bakllava._
 - General help (just use selected text as a prompt for any purpose)
 - New System Prompt to create actions for your needs
 
-You can also add your own, share the best actions, or get one [from the community](https://github.com/pfrankov/obsidian-local-gpt/discussions/2).
+### Community Actions
+You can browse and install community actions directly from the plugin settings.
+
+**Automatic Updates:**
+Community actions are automatically updated to the latest version.
+To stick with a specific version or preserve your changes, simply **modify the Prompt or System Prompt**. This will disable auto-updates for that action.
+Note: Changing the **Name** of the action does *not* disable auto-updates.
 
 <img width="479" alt="Settings" src="https://github.com/user-attachments/assets/5337e74c-864b-45cb-82e0-2c32bbbfa3ed" />
 
