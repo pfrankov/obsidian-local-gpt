@@ -152,7 +152,7 @@ class ThinkingStreamWidget extends WidgetType {
 			const iconPrimary = document.createElement("span");
 			iconPrimary.addClasses([
 				"local-gpt-thinking-icon-svg",
-				"is-active",
+				"local-gpt-is-active",
 			]);
 			const iconSecondary = document.createElement("span");
 			iconSecondary.addClass("local-gpt-thinking-icon-svg");
@@ -200,7 +200,7 @@ class ThinkingStreamWidget extends WidgetType {
 	}
 
 	private updateHeader() {
-		this.detailsEl?.toggleClass("is-hidden", !this.isThinking);
+		this.detailsEl?.toggleClass("local-gpt-is-hidden", !this.isThinking);
 		if (this.isThinking) {
 			this.startIconCycle();
 		} else {
@@ -215,7 +215,7 @@ class ThinkingStreamWidget extends WidgetType {
 
 		if (this.answerEl) {
 			const hasAnswer = Boolean(this.answerText.trim());
-			this.answerEl.toggleClass("is-hidden", !hasAnswer);
+			this.answerEl.toggleClass("local-gpt-is-hidden", !hasAnswer);
 			if (hasAnswer) {
 				this.updateStreamingText(this.answerEl, this.answerText, false);
 			}
@@ -277,7 +277,10 @@ class ThinkingStreamWidget extends WidgetType {
 			const maxScrollTop =
 				this.thinkingEl.scrollHeight - this.thinkingEl.clientHeight;
 			const isOverflowing = maxScrollTop > 1;
-			this.thinkingEl.toggleClass("is-overflowing", isOverflowing);
+			this.thinkingEl.toggleClass(
+				"local-gpt-is-overflowing",
+				isOverflowing,
+			);
 			if (!isOverflowing) {
 				this.thinkingEl.scrollTop = 0;
 				return;
@@ -295,10 +298,10 @@ class ThinkingStreamWidget extends WidgetType {
 		if (!this.currentIcon) {
 			const nextIcon = this.getNextIcon();
 			if (!nextIcon) {
-				this.iconWrap.classList.add("is-hidden");
+				this.iconWrap.classList.add("local-gpt-is-hidden");
 				return;
 			}
-			this.iconWrap.classList.remove("is-hidden");
+			this.iconWrap.classList.remove("local-gpt-is-hidden");
 			this.applyIcon(nextIcon);
 		}
 
@@ -312,7 +315,7 @@ class ThinkingStreamWidget extends WidgetType {
 	private stopIconCycle() {
 		this.clearIconTimers();
 		this.iconQueue = [];
-		this.iconWrap?.classList.remove("is-glint");
+		this.iconWrap?.classList.remove("local-gpt-is-glint");
 	}
 
 	private clearIconTimers() {
@@ -389,8 +392,8 @@ class ThinkingStreamWidget extends WidgetType {
 
 		this.iconCrossfadeRaf = requestAnimationFrame(() => {
 			this.iconCrossfadeRaf = null;
-			outgoing.classList.remove("is-active");
-			incoming.classList.add("is-active");
+			outgoing.classList.remove("local-gpt-is-active");
+			incoming.classList.add("local-gpt-is-active");
 			const glintDelay = Math.max(0, Math.round(ICON_CROSSFADE_MS * 0.1));
 			this.scheduleGlint(glintDelay);
 		});
@@ -414,8 +417,8 @@ class ThinkingStreamWidget extends WidgetType {
 
 		this.iconPrimary.textContent = "";
 		setIcon(this.iconPrimary, iconId);
-		this.iconPrimary.classList.add("is-active");
-		this.iconSecondary.classList.remove("is-active");
+		this.iconPrimary.classList.add("local-gpt-is-active");
+		this.iconSecondary.classList.remove("local-gpt-is-active");
 		this.iconSecondary.textContent = "";
 		this.currentIcon = iconId;
 	}
@@ -434,12 +437,12 @@ class ThinkingStreamWidget extends WidgetType {
 			this.iconGlintEndTimeout = null;
 		}
 
-		this.iconWrap.classList.remove("is-glint");
+		this.iconWrap.classList.remove("local-gpt-is-glint");
 		void this.iconWrap.offsetWidth;
-		this.iconWrap.classList.add("is-glint");
+		this.iconWrap.classList.add("local-gpt-is-glint");
 		this.iconGlintEndTimeout = window.setTimeout(() => {
 			this.iconGlintEndTimeout = null;
-			this.iconWrap?.classList.remove("is-glint");
+			this.iconWrap?.classList.remove("local-gpt-is-glint");
 		}, ICON_GLINT_DURATION_MS);
 	}
 
@@ -458,7 +461,7 @@ class ThinkingStreamWidget extends WidgetType {
 			this.iconGlintEndTimeout = null;
 		}
 
-		this.iconWrap.classList.remove("is-glint");
+		this.iconWrap.classList.remove("local-gpt-is-glint");
 
 		if (delayMs <= 0) {
 			this.triggerGlint();

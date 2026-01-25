@@ -104,7 +104,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setHeading()
 				.setName(I18n.t("settings.mainProvider"))
-				.setClass("ai-providers-select")
+				.setClass("local-gpt-ai-providers-select")
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(providers)
@@ -121,7 +121,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName(I18n.t("settings.embeddingProvider"))
 				.setDesc(I18n.t("settings.embeddingProviderDesc"))
-				.setClass("ai-providers-select")
+				.setClass("local-gpt-ai-providers-select")
 				.addDropdown((dropdown) =>
 					dropdown
 						.addOptions(providers)
@@ -137,7 +137,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName(I18n.t("settings.visionProvider"))
-				.setClass("ai-providers-select")
+				.setClass("local-gpt-ai-providers-select")
 				.setDesc(I18n.t("settings.visionProviderDesc"))
 				.addDropdown((dropdown) =>
 					dropdown
@@ -821,7 +821,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					text: nameText,
 				});
 				nameEl.createSpan({
-					cls: "local-gpt-community-actions-status local-gpt-action-community-status is-installed",
+					cls: "local-gpt-community-actions-status local-gpt-action-community-status local-gpt-is-installed",
 					text: I18n.t("settings.communityActionsBadge"),
 				});
 			}
@@ -1058,7 +1058,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				this.communityActionsStatusMessage || "",
 			);
 			communityActionsStatus.toggleClass(
-				"is-hidden",
+				"local-gpt-is-hidden",
 				!this.communityActionsStatusMessage,
 			);
 
@@ -1071,6 +1071,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			let communityActionsLoaded = false;
 			let languageDropdown: DropdownComponent | null = null;
 			let refreshButton: ButtonComponent | null = null;
+			let communityActionsSearchQuery = "";
 
 			const communityActionsList = communityActionsSection.createDiv(
 				"local-gpt-community-actions-list",
@@ -1087,6 +1088,24 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			const normalizeActionName = (name: string) =>
 				name.trim().toLowerCase();
+
+			const normalizeSearchValue = (value: string) =>
+				value.toLowerCase().replace(/\s+/g, " ").trim();
+
+			const fuzzyMatch = (target: string, query: string): boolean => {
+				if (!query) {
+					return true;
+				}
+				let ti = 0;
+				for (const qc of query) {
+					ti = target.indexOf(qc, ti);
+					if (ti === -1) {
+						return false;
+					}
+					ti++;
+				}
+				return true;
+			};
 
 			type CommunityActionsLookup = {
 				byId: Map<string, LocalGPTAction>;
@@ -1135,6 +1154,35 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				| { type: "modified"; localAction: LocalGPTAction }
 				| { type: "conflict"; localAction: LocalGPTAction };
 
+			type CommunityActionMatch = {
+				action: CommunityAction;
+				rank: number;
+				index: number;
+			};
+
+			const getCommunityActionSearchRank = (
+				action: CommunityAction,
+				query: string,
+			): number | null => {
+				const fields = [
+					action.name,
+					action.description,
+					action.prompt,
+					action.system,
+				];
+				for (let i = 0; i < fields.length; i++) {
+					const value = fields[i];
+					if (!value) {
+						continue;
+					}
+					const normalized = normalizeSearchValue(value);
+					if (normalized && fuzzyMatch(normalized, query)) {
+						return i;
+					}
+				}
+				return null;
+			};
+
 			const resolveCommunityActionState = (
 				action: CommunityAction,
 				lookup: CommunityActionsLookup,
@@ -1175,11 +1223,11 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				this.communityActionsStatusMessage = message;
 				if (!message) {
 					communityActionsStatus.setText("");
-					communityActionsStatus.addClass("is-hidden");
+					communityActionsStatus.addClass("local-gpt-is-hidden");
 					return;
 				}
 				communityActionsStatus.setText(message);
-				communityActionsStatus.removeClass("is-hidden");
+				communityActionsStatus.removeClass("local-gpt-is-hidden");
 			};
 
 			const addPreviewLine = (
@@ -1338,7 +1386,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					"local-gpt-community-actions-row",
 				);
 				if (state.type === "installed") {
-					actionRow.addClass("is-installed");
+					actionRow.addClass("local-gpt-is-installed");
 				}
 				const infoEl = actionRow.createDiv(
 					"local-gpt-community-actions-info",
@@ -1361,7 +1409,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						"local-gpt-community-actions-status",
 					);
 					pill.setText(statusPill.label);
-					pill.addClass(`is-${statusPill.variant}`);
+					pill.addClass(`local-gpt-is-${statusPill.variant}`);
 				}
 
 				const score = header.createSpan(
@@ -1449,20 +1497,54 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 					return;
 				}
 
-				const filtered = actions.filter(
+				const selectedLanguage = normalizeLanguageCode(
+					this.communityActionsLanguage ||
+						defaultCommunityActionsLanguage,
+				);
+				const languageFiltered = actions.filter(
 					(action) =>
 						normalizeLanguageCode(action.language) ===
-						normalizeLanguageCode(
-							this.communityActionsLanguage ||
-								defaultCommunityActionsLanguage,
-						),
+						selectedLanguage,
 				);
-				if (!filtered.length) {
+				if (!languageFiltered.length) {
 					renderCommunityActionsMessage(
 						I18n.t("settings.communityActionsEmpty"),
 						"local-gpt-community-actions-empty",
 					);
 					return;
+				}
+
+				const query = normalizeSearchValue(communityActionsSearchQuery);
+				let filtered = languageFiltered;
+				if (query) {
+					const matches = languageFiltered
+						.map((action, index) => {
+							const rank = getCommunityActionSearchRank(
+								action,
+								query,
+							);
+							if (rank === null) {
+								return null;
+							}
+							return { action, rank, index };
+						})
+						.filter((match): match is CommunityActionMatch =>
+							Boolean(match),
+						)
+						.sort((a, b) => {
+							if (a.rank !== b.rank) {
+								return a.rank - b.rank;
+							}
+							return a.index - b.index;
+						});
+					if (!matches.length) {
+						renderCommunityActionsMessage(
+							I18n.t("settings.communityActionsSearchEmpty"),
+							"local-gpt-community-actions-empty",
+						);
+						return;
+					}
+					filtered = matches.map((match) => match.action);
 				}
 
 				communityActionsList.empty();
@@ -1742,6 +1824,24 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				communityActionsList,
 			);
 
+			const searchSetting = new Setting(communityActionsSection)
+				.setName(I18n.t("settings.communityActionsSearch"))
+				.setDesc("")
+				.setClass("local-gpt-community-actions-search")
+				.addText((text) => {
+					text.setPlaceholder(
+						I18n.t("settings.communityActionsSearchPlaceholder"),
+					);
+					text.onChange((value) => {
+						communityActionsSearchQuery = value;
+						renderCommunityActionsList(communityActions);
+					});
+				});
+			communityActionsSection.insertBefore(
+				searchSetting.settingEl,
+				communityActionsList,
+			);
+
 			modal.onClose = () => {
 				this.communityActionsRenderId = 0;
 				modal.contentEl.empty();
@@ -1775,7 +1875,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			new Setting(enhancedSection)
 				.setName(I18n.t("settings.enhancedActionsLabel"))
 				.setDesc(I18n.t("settings.enhancedActionsDesc"))
-				.setClass("ai-providers-select")
+				.setClass("local-gpt-ai-providers-select")
 				.addDropdown((dropdown) => {
 					// Preset options with non-numeric labels
 					dropdown
