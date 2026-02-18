@@ -1,0 +1,14 @@
+{
+	"id": "c48-deep-folder",
+	"title": "Deeply nested folder",
+	"description": "Link to file in deeply nested folder structure.",
+	"activeFile": "active.md",
+	"selection": "Check [[very/deep/nested/folder/structure/DeepDoc]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c48:a1@@",
+			"file": "very/deep/nested/folder/structure/DeepDoc.md"
+		}
+	]
+}

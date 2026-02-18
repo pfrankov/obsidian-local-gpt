@@ -1,0 +1,14 @@
+{
+	"id": "c17-embed-heading",
+	"title": "Embed heading",
+	"description": "Embed a specific heading.",
+	"activeFile": "active.md",
+	"selection": "Embed ![[EmbedHead#Slice]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c17:a1@@",
+			"file": "EmbedHead.md"
+		}
+	]
+}

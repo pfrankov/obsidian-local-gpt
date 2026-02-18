@@ -1,0 +1,19 @@
+{
+	"id": "c38-negative",
+	"title": "Negative control with noisy syntax",
+	"description": "Without wiki links, markdown links and tags should not pull unrelated docs.",
+	"activeFile": "active.md",
+	"selection": "No wiki links: [Irrelevant](Irrelevant.md), [Ghost](Ghost.pdf), and #topic.",
+	"selectedFiles": [],
+	"expected": [],
+	"forbidden": [
+		{
+			"marker": "@@c38:f1@@",
+			"file": "Irrelevant.md"
+		},
+		{
+			"marker": "@@c38:f2@@",
+			"file": "Ghost.pdf"
+		}
+	]
+}

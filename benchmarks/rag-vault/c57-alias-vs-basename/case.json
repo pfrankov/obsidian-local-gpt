@@ -1,0 +1,20 @@
+{
+	"id": "c57-alias-vs-basename",
+	"title": "Basename precedence over alias",
+	"description": "If a basename matches, it should win over an alias with the same text.",
+	"activeFile": "active.md",
+	"selection": "Check [[Shared]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c57:a1@@",
+			"file": "Shared.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c57:f1@@",
+			"file": "AliasOwner.md"
+		}
+	]
+}

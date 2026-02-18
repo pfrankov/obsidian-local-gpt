@@ -1,0 +1,3 @@
+# EmbedB
+
+Go to [[Answer]].

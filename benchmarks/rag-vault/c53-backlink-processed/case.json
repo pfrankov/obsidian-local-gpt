@@ -1,0 +1,22 @@
+{
+	"id": "c53-backlink-processed",
+	"title": "Backlink from processed file",
+	"description": "When Root→Shared, then AlsoLinks is a backlink to Shared but Root is already processed so should not duplicate.",
+	"activeFile": "active.md",
+	"selection": "Check [[Root]] and [[AlsoLinks]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c53:a1@@",
+			"file": "Root.md"
+		},
+		{
+			"marker": "@@c53:a2@@",
+			"file": "Shared.md"
+		},
+		{
+			"marker": "@@c53:a3@@",
+			"file": "AlsoLinks.md"
+		}
+	]
+}

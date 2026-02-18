@@ -1,0 +1,22 @@
+{
+	"id": "c44-unicode",
+	"title": "Unicode filenames",
+	"description": "Files with Chinese, Cyrillic, and emoji characters in names should be resolved.",
+	"activeFile": "active.md",
+	"selection": "Check [[文档]], [[Документ]], and [[🚀 Notes]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c44:a1@@",
+			"file": "文档.md"
+		},
+		{
+			"marker": "@@c44:a2@@",
+			"file": "Документ.md"
+		},
+		{
+			"marker": "@@c44:a3@@",
+			"file": "🚀 Notes.md"
+		}
+	]
+}

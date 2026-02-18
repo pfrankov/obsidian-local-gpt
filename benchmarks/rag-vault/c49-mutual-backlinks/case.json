@@ -1,0 +1,28 @@
+{
+	"id": "c49-mutual-backlinks",
+	"title": "Mutual backlinks with nested leak",
+	"description": "Backlink files are included, but links inside backlink files must not be traversed.",
+	"activeFile": "active.md",
+	"selection": "Check [[Root]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c49:a1@@",
+			"file": "Root.md"
+		},
+		{
+			"marker": "@@c49:a2@@",
+			"file": "BackA.md"
+		},
+		{
+			"marker": "@@c49:a3@@",
+			"file": "BackB.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c49:f1@@",
+			"file": "Leak.md"
+		}
+	]
+}

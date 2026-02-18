@@ -1,0 +1,14 @@
+{
+	"id": "c26-backlink-alias",
+	"title": "Backlink via alias",
+	"description": "Backlink file links to alias of target.",
+	"activeFile": "active.md",
+	"selection": "Target is [[Target]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c26:a1@@",
+			"file": "AliasBack.md"
+		}
+	]
+}

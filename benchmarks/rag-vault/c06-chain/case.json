@@ -1,0 +1,14 @@
+{
+	"id": "c06-chain",
+	"title": "Forward link chain",
+	"description": "A -> B -> C chain should reach C.",
+	"activeFile": "active.md",
+	"selection": "Start from [[ChainA]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c06:a1@@",
+			"file": "ChainC.md"
+		}
+	]
+}

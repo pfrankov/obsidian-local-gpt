@@ -1,0 +1,14 @@
+{
+	"id": "c43-empty-file",
+	"title": "Empty file handling",
+	"description": "Empty file should be processed without errors, traversal continues to other files.",
+	"activeFile": "active.md",
+	"selection": "Check [[EmptyDoc]] and [[NonEmpty]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c43:a1@@",
+			"file": "NonEmpty.md"
+		}
+	]
+}

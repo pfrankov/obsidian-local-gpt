@@ -1,0 +1,18 @@
+{
+	"id": "c62-active-bridge-gap",
+	"title": "Active file bridge gap",
+	"description": "If the active file sits in the only path, downstream docs are skipped.",
+	"activeFile": "Bridge.md",
+	"selection": "Start from [[Before]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c62:a1@@",
+			"file": "Before.md"
+		},
+		{
+			"marker": "@@c62:l1@@",
+			"file": "After.md"
+		}
+	]
+}

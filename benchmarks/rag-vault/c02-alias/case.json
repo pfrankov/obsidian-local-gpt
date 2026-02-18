@@ -1,0 +1,14 @@
+{
+	"id": "c02-alias",
+	"title": "Alias link",
+	"description": "Selection links by alias defined in frontmatter.",
+	"activeFile": "active.md",
+	"selection": "Use [[AliasDoc]] to find the answer.",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c02:a1@@",
+			"file": "DocAlias.md"
+		}
+	]
+}

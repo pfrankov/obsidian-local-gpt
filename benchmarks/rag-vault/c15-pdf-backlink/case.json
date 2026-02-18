@@ -1,0 +1,15 @@
+{
+	"id": "c15-pdf-backlink",
+	"title": "Backlink to PDF",
+	"description": "Backlinks are not collected for PDFs.",
+	"activeFile": "active.md",
+	"selection": "Open [[Spec.pdf]].",
+	"selectedFiles": [],
+	"expected": [],
+	"forbidden": [
+		{
+			"marker": "@@c15:a1@@",
+			"file": "Notes.md"
+		}
+	]
+}

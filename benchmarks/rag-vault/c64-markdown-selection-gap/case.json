@@ -1,0 +1,14 @@
+{
+	"id": "c64-markdown-selection-gap",
+	"title": "Markdown link in selection gap",
+	"description": "Selection parser does not treat markdown links as traversal roots.",
+	"activeFile": "active.md",
+	"selection": "See [Doc](Doc.md).",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c64:l1@@",
+			"file": "Doc.md"
+		}
+	]
+}

@@ -1,0 +1,3 @@
+# ChainB
+
+Next [[ChainC]].

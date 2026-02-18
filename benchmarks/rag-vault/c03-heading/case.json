@@ -1,0 +1,14 @@
+{
+	"id": "c03-heading",
+	"title": "Heading link",
+	"description": "Selection links to a specific heading.",
+	"activeFile": "active.md",
+	"selection": "Check [[DocHead#Answer Section]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c03:a1@@",
+			"file": "DocHead.md"
+		}
+	]
+}

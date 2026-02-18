@@ -1,0 +1,14 @@
+{
+	"id": "c52-whitespace-link",
+	"title": "Whitespace in link",
+	"description": "Link with leading/trailing whitespace should still resolve.",
+	"activeFile": "active.md",
+	"selection": "Check [[ SpacedDoc ]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c52:a1@@",
+			"file": "SpacedDoc.md"
+		}
+	]
+}

@@ -1,0 +1,18 @@
+{
+	"id": "c63-backlink-second-hop-gap",
+	"title": "Backlink second-hop gap",
+	"description": "Backlinks to backlinks are not explored.",
+	"activeFile": "active.md",
+	"selection": "Inspect [[Root]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c63:a1@@",
+			"file": "BackA.md"
+		},
+		{
+			"marker": "@@c63:l1@@",
+			"file": "BackB.md"
+		}
+	]
+}

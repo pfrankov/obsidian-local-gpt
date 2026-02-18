@@ -1,0 +1,16 @@
+{
+	"id": "c35-explicit",
+	"title": "Explicit selected files",
+	"description": "Selected files are included even without links.",
+	"activeFile": "active.md",
+	"selection": "Question without links.",
+	"selectedFiles": [
+		"Explicit.md"
+	],
+	"expected": [
+		{
+			"marker": "@@c35:a1@@",
+			"file": "Explicit.md"
+		}
+	]
+}

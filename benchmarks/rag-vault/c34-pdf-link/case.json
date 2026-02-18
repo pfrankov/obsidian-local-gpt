@@ -1,0 +1,14 @@
+{
+	"id": "c34-pdf-link",
+	"title": "PDF without extension",
+	"description": "Link without extension resolves to PDF.",
+	"activeFile": "active.md",
+	"selection": "Open [[Spec]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c34:a1@@",
+			"file": "Spec.pdf"
+		}
+	]
+}

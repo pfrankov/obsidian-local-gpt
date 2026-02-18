@@ -1,0 +1,22 @@
+{
+	"id": "c61-backlink-forward-gap",
+	"title": "Backlink forward traversal gap",
+	"description": "Backlink document is found, but its own forward links are not traversed.",
+	"activeFile": "active.md",
+	"selection": "Start from [[Root]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c61:a1@@",
+			"file": "Root.md"
+		},
+		{
+			"marker": "@@c61:a2@@",
+			"file": "BackBridge.md"
+		},
+		{
+			"marker": "@@c61:l1@@",
+			"file": "Answer.md"
+		}
+	]
+}

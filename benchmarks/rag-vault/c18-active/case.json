@@ -1,0 +1,15 @@
+{
+	"id": "c18-active",
+	"title": "Active file links ignored",
+	"description": "Links in active file are not used if selection has no links.",
+	"activeFile": "active.md",
+	"selection": "Question without links.",
+	"selectedFiles": [],
+	"expected": [],
+	"forbidden": [
+		{
+			"marker": "@@c18:a1@@",
+			"file": "Hidden.md"
+		}
+	]
+}

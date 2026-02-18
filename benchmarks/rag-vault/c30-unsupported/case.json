@@ -1,0 +1,15 @@
+{
+	"id": "c30-unsupported",
+	"title": "Unsupported extension",
+	"description": "Links to unsupported files should be ignored.",
+	"activeFile": "active.md",
+	"selection": "See [[Notes.txt]].",
+	"selectedFiles": [],
+	"expected": [],
+	"forbidden": [
+		{
+			"marker": "@@c30:a1@@",
+			"file": "Notes.txt"
+		}
+	]
+}

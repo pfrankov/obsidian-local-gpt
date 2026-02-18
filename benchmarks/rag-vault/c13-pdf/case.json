@@ -1,0 +1,14 @@
+{
+	"id": "c13-pdf",
+	"title": "PDF link",
+	"description": "Direct link to PDF.",
+	"activeFile": "active.md",
+	"selection": "Use [[Spec.pdf]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c13:a1@@",
+			"file": "Spec.pdf"
+		}
+	]
+}

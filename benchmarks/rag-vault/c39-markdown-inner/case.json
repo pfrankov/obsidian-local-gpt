@@ -1,0 +1,14 @@
+{
+	"id": "c39-markdown-inner",
+	"title": "Markdown link inside note",
+	"description": "Target is only reachable via markdown link in a discovered note.",
+	"activeFile": "active.md",
+	"selection": "Start from [[Root]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c39:a1@@",
+			"file": "Target.md"
+		}
+	]
+}

@@ -1,0 +1,14 @@
+{
+	"id": "c25-embed-pdf",
+	"title": "Embed PDF",
+	"description": "Embed a PDF directly.",
+	"activeFile": "active.md",
+	"selection": "Embed ![[EmbedSpec.pdf]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c25:a1@@",
+			"file": "EmbedSpec.pdf"
+		}
+	]
+}

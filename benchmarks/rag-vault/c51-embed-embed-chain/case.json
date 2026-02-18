@@ -1,0 +1,14 @@
+{
+	"id": "c51-embed-embed-chain",
+	"title": "Double embed chain",
+	"description": "Embed A embeds B which embeds C. All should be reached.",
+	"activeFile": "active.md",
+	"selection": "Include ![[EmbedA]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c51:a1@@",
+			"file": "EmbedC.md"
+		}
+	]
+}

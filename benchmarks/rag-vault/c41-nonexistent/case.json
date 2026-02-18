@@ -1,0 +1,14 @@
+{
+	"id": "c41-nonexistent",
+	"title": "Link to nonexistent file",
+	"description": "Links to nonexistent files should be gracefully ignored without breaking traversal.",
+	"activeFile": "active.md",
+	"selection": "Check [[NonExistent]] and [[RealDoc]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c41:a1@@",
+			"file": "RealDoc.md"
+		}
+	]
+}

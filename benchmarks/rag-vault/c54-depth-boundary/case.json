@@ -1,0 +1,20 @@
+{
+	"id": "c54-depth-boundary",
+	"title": "Depth boundary exactness",
+	"description": "Depth 10 should be reachable, depth 11 should be excluded.",
+	"activeFile": "active.md",
+	"selection": "Start from [[D0]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c54:a1@@",
+			"file": "D10.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c54:f1@@",
+			"file": "D11.md"
+		}
+	]
+}

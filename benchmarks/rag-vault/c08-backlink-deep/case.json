@@ -1,0 +1,15 @@
+{
+	"id": "c08-backlink-deep",
+	"title": "Backlink depth stop",
+	"description": "Backlinks are not expanded further.",
+	"activeFile": "active.md",
+	"selection": "Root is [[Root]].",
+	"selectedFiles": [],
+	"expected": [],
+	"forbidden": [
+		{
+			"marker": "@@c08:a1@@",
+			"file": "Deep.md"
+		}
+	]
+}

@@ -1,0 +1,23 @@
+{
+	"id": "c58-selected-active-skip",
+	"title": "Selected files containing active file",
+	"description": "Active file present in selectedFiles should be skipped while other selected files are processed.",
+	"activeFile": "active.md",
+	"selection": "No wiki links in query.",
+	"selectedFiles": [
+		"active.md",
+		"SelectedOnly.md"
+	],
+	"expected": [
+		{
+			"marker": "@@c58:a1@@",
+			"file": "SelectedOnly.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c58:f1@@",
+			"file": "active.md"
+		}
+	]
+}

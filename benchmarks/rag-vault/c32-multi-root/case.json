@@ -1,0 +1,18 @@
+{
+	"id": "c32-multi-root-chain",
+	"title": "Multiple roots with chains",
+	"description": "Two roots each with forward chain to separate leaves.",
+	"activeFile": "active.md",
+	"selection": "Use [[RootA]] and [[RootB]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c32:a1@@",
+			"file": "LeafA.md"
+		},
+		{
+			"marker": "@@c32:a2@@",
+			"file": "LeafB.md"
+		}
+	]
+}

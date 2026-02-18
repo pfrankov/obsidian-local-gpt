@@ -1,0 +1,28 @@
+{
+	"id": "c56-code-context-links",
+	"title": "Links inside code and comments",
+	"description": "Wiki links inside fenced code, inline code, and HTML comments should be ignored.",
+	"activeFile": "active.md",
+	"selection": "Use [[RealDoc]]. Ignore code fence:\n```md\n[[LeakFromCode]]\n```\nIgnore inline `[[LeakFromInline]]` and <!-- [[LeakFromComment]] -->.",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c56:a1@@",
+			"file": "RealDoc.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c56:f1@@",
+			"file": "LeakFromCode.md"
+		},
+		{
+			"marker": "@@c56:f2@@",
+			"file": "LeakFromInline.md"
+		},
+		{
+			"marker": "@@c56:f3@@",
+			"file": "LeakFromComment.md"
+		}
+	]
+}

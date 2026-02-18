@@ -1,0 +1,14 @@
+{
+	"id": "c10-path",
+	"title": "Path link",
+	"description": "Link uses folder path.",
+	"activeFile": "active.md",
+	"selection": "Use [[Area/PathDoc]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c10:a1@@",
+			"file": "Area/PathDoc.md"
+		}
+	]
+}

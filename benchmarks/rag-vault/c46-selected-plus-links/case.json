@@ -1,0 +1,28 @@
+{
+	"id": "c46-selected-plus-links",
+	"title": "Selected files and links together",
+	"description": "Both selectedFiles and links in selection should be processed, chains from both should be followed.",
+	"activeFile": "active.md",
+	"selection": "Check [[LinkedDoc]].",
+	"selectedFiles": [
+		"SelectedDoc.md"
+	],
+	"expected": [
+		{
+			"marker": "@@c46:a1@@",
+			"file": "LinkedDoc.md"
+		},
+		{
+			"marker": "@@c46:a2@@",
+			"file": "SelectedDoc.md"
+		},
+		{
+			"marker": "@@c46:a3@@",
+			"file": "ChainEnd.md"
+		},
+		{
+			"marker": "@@c46:a4@@",
+			"file": "SelectedChain.md"
+		}
+	]
+}

@@ -1,0 +1,14 @@
+{
+	"id": "c07-backlink",
+	"title": "Backlink discovery",
+	"description": "Backlink note should be included.",
+	"activeFile": "active.md",
+	"selection": "Target is [[Target]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c07:a1@@",
+			"file": "Backlink.md"
+		}
+	]
+}

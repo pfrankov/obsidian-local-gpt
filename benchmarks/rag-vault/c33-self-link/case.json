@@ -1,0 +1,14 @@
+{
+	"id": "c33-self-link",
+	"title": "Self-referencing note",
+	"description": "A note linking to itself should be included once without infinite loop.",
+	"activeFile": "active.md",
+	"selection": "Check [[SelfRef]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c33:a1@@",
+			"file": "SelfRef.md"
+		}
+	]
+}

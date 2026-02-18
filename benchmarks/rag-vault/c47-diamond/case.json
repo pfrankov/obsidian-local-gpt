@@ -1,0 +1,14 @@
+{
+	"id": "c47-diamond",
+	"title": "Diamond pattern",
+	"description": "Top→Left→Bottom and Top→Right→Bottom. Bottom should be included only once.",
+	"activeFile": "active.md",
+	"selection": "Start from [[Top]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c47:a1@@",
+			"file": "Bottom.md"
+		}
+	]
+}

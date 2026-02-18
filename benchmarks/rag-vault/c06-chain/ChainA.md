@@ -1,0 +1,3 @@
+# ChainA
+
+Go to [[ChainB]].

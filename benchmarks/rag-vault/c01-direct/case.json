@@ -1,0 +1,14 @@
+{
+	"id": "c01-direct",
+	"title": "Direct wiki link",
+	"description": "Selection contains a direct wiki link to the answer note.",
+	"activeFile": "active.md",
+	"selection": "Find the answer in [[DocA]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c01:a1@@",
+			"file": "DocA.md"
+		}
+	]
+}

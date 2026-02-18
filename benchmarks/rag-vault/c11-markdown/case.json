@@ -1,0 +1,24 @@
+{
+	"id": "c11-markdown",
+	"title": "Mixed wiki and markdown links in selection",
+	"description": "Wiki links should resolve while markdown links in the same selection stay ignored.",
+	"activeFile": "active.md",
+	"selection": "Use [[WikiTarget]] and [[AliasPick]]. Ignore [MarkdownTarget](MarkdownTarget.md).",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c11:a1@@",
+			"file": "WikiTarget.md"
+		},
+		{
+			"marker": "@@c11:a2@@",
+			"file": "AliasTarget.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c11:f1@@",
+			"file": "MarkdownTarget.md"
+		}
+	]
+}

@@ -1,0 +1,14 @@
+{
+	"id": "c28-special",
+	"title": "Special characters",
+	"description": "File name with spaces and parentheses.",
+	"activeFile": "active.md",
+	"selection": "Open [[Project Plan (Q1)]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c28:a1@@",
+			"file": "Project Plan (Q1).md"
+		}
+	]
+}

@@ -1,0 +1,15 @@
+{
+	"id": "c12-tags",
+	"title": "Tag relation",
+	"description": "Tags are not treated as links.",
+	"activeFile": "active.md",
+	"selection": "Find #topic details.",
+	"selectedFiles": [],
+	"expected": [],
+	"forbidden": [
+		{
+			"marker": "@@c12:a1@@",
+			"file": "Tagged.md"
+		}
+	]
+}

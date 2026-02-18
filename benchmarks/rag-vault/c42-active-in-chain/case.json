@@ -1,0 +1,14 @@
+{
+	"id": "c42-active-in-chain",
+	"title": "Active file in chain",
+	"description": "Chain Before→active→After: active file is skipped but After is still reached via Before's direct link.",
+	"activeFile": "active.md",
+	"selection": "Start from [[Before]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c42:a1@@",
+			"file": "After.md"
+		}
+	]
+}

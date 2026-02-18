@@ -1,0 +1,14 @@
+{
+	"id": "c24-block-alias",
+	"title": "Alias + block",
+	"description": "Alias plus block reference.",
+	"activeFile": "active.md",
+	"selection": "See [[AliasBlock#^block-99]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c24:a1@@",
+			"file": "AliasBlock.md"
+		}
+	]
+}

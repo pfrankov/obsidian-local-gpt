@@ -1,0 +1,22 @@
+{
+	"id": "c20-mixed",
+	"title": "Mixed relations",
+	"description": "Direct link, alias, chain, and backlink together.",
+	"activeFile": "active.md",
+	"selection": "Use [[Root]] and [[AliasMixed]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c20:a1@@",
+			"file": "AliasDoc.md"
+		},
+		{
+			"marker": "@@c20:a2@@",
+			"file": "ChainDoc.md"
+		},
+		{
+			"marker": "@@c20:a3@@",
+			"file": "BackDoc.md"
+		}
+	]
+}

@@ -1,0 +1,14 @@
+{
+	"id": "c05-embed",
+	"title": "Embed note",
+	"description": "Selection embeds a note.",
+	"activeFile": "active.md",
+	"selection": "Embed ![[DocEmbed]] for context.",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c05:a1@@",
+			"file": "DocEmbed.md"
+		}
+	]
+}

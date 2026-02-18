@@ -1,0 +1,18 @@
+{
+	"id": "c59-backlink-markdown-source",
+	"title": "Backlink from markdown link",
+	"description": "A markdown link source should still appear as a backlink to the selected target.",
+	"activeFile": "active.md",
+	"selection": "Inspect [[Target]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c59:a1@@",
+			"file": "Target.md"
+		},
+		{
+			"marker": "@@c59:a2@@",
+			"file": "MarkdownBack.md"
+		}
+	]
+}

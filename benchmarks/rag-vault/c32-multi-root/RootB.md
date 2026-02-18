@@ -1,0 +1,3 @@
+# RootB
+
+Go to [[LeafB]].

@@ -1,0 +1,14 @@
+{
+	"id": "c40-alias-pdf-chain",
+	"title": "Alias to PDF chain",
+	"description": "Alias resolves to markdown which links to PDF.",
+	"activeFile": "active.md",
+	"selection": "Use [[IndexAlias]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c40:a1@@",
+			"file": "Spec.pdf"
+		}
+	]
+}

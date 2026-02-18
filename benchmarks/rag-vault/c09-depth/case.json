@@ -1,0 +1,15 @@
+{
+	"id": "c09-depth",
+	"title": "Depth limit exceeded",
+	"description": "Chain longer than MAX_DEPTH should miss last node.",
+	"activeFile": "active.md",
+	"selection": "Start from [[D1]].",
+	"selectedFiles": [],
+	"expected": [],
+	"forbidden": [
+		{
+			"marker": "@@c09:a1@@",
+			"file": "D12.md"
+		}
+	]
+}

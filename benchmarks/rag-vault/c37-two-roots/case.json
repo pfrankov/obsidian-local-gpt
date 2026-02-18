@@ -1,0 +1,14 @@
+{
+	"id": "c37-two-roots",
+	"title": "Two roots to shared note",
+	"description": "Two roots converge on a shared note.",
+	"activeFile": "active.md",
+	"selection": "Use [[RootA]] and [[RootB]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c37:a1@@",
+			"file": "Shared.md"
+		}
+	]
+}

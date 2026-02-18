@@ -1,0 +1,18 @@
+{
+	"id": "c16-multi",
+	"title": "Multiple roots",
+	"description": "Selection links to multiple notes.",
+	"activeFile": "active.md",
+	"selection": "Use [[MultiA]] and [[MultiB]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c16:a1@@",
+			"file": "MultiA.md"
+		},
+		{
+			"marker": "@@c16:a2@@",
+			"file": "MultiB.md"
+		}
+	]
+}

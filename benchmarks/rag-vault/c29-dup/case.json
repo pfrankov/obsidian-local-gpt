@@ -1,0 +1,14 @@
+{
+	"id": "c29-dup",
+	"title": "Duplicate basenames",
+	"description": "Resolve by current folder for duplicate basenames.",
+	"activeFile": "Area1/active.md",
+	"selection": "Use [[Alpha]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c29:a1@@",
+			"file": "Area1/Alpha.md"
+		}
+	]
+}

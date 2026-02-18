@@ -1,0 +1,14 @@
+{
+	"id": "c23-heading-alias",
+	"title": "Alias + heading",
+	"description": "Alias plus heading reference.",
+	"activeFile": "active.md",
+	"selection": "See [[AliasHead#Section]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c23:a1@@",
+			"file": "AliasHead.md"
+		}
+	]
+}

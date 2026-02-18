@@ -1,0 +1,24 @@
+{
+	"id": "c36-embed-chain",
+	"title": "Embed chain with backlink cutoff",
+	"description": "Embed traversal should include backlink docs but must not follow links inside those backlink docs.",
+	"activeFile": "active.md",
+	"selection": "Embed ![[EmbedA]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c36:a1@@",
+			"file": "Answer.md"
+		},
+		{
+			"marker": "@@c36:a2@@",
+			"file": "BackRef.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c36:f1@@",
+			"file": "Leak.md"
+		}
+	]
+}

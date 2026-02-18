@@ -1,0 +1,14 @@
+{
+	"id": "c14-pdf-chain",
+	"title": "PDF in chain",
+	"description": "Chain reaches a PDF.",
+	"activeFile": "active.md",
+	"selection": "Start from [[Entry]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c14:a1@@",
+			"file": "Spec.pdf"
+		}
+	]
+}

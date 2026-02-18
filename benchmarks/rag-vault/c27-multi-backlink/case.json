@@ -1,0 +1,18 @@
+{
+	"id": "c27-multi-backlink",
+	"title": "Multiple backlinks",
+	"description": "Multiple notes link back to root.",
+	"activeFile": "active.md",
+	"selection": "Root is [[Hub]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c27:a1@@",
+			"file": "BackOne.md"
+		},
+		{
+			"marker": "@@c27:a2@@",
+			"file": "BackTwo.md"
+		}
+	]
+}

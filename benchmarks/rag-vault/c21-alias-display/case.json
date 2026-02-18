@@ -1,0 +1,14 @@
+{
+	"id": "c21-alias-display",
+	"title": "Display alias",
+	"description": "Display text uses | syntax.",
+	"activeFile": "active.md",
+	"selection": "Open [[Display|Shown Name]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c21:a1@@",
+			"file": "Display.md"
+		}
+	]
+}

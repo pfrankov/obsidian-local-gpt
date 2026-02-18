@@ -1,0 +1,14 @@
+{
+	"id": "c22-alias-list",
+	"title": "Alias list",
+	"description": "Alias list in frontmatter.",
+	"activeFile": "active.md",
+	"selection": "Use [[Alt Two]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c22:a1@@",
+			"file": "AliasList.md"
+		}
+	]
+}

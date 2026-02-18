@@ -1,0 +1,3 @@
+# EmbedA
+
+Embeds ![[EmbedB]].

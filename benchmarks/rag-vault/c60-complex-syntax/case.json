@@ -1,0 +1,36 @@
+{
+	"id": "c60-complex-syntax",
+	"title": "Complex mixed syntax graph",
+	"description": "Alias root, forward chain, PDF include, markdown-noise exclusion, and backlink cutoff in one scenario.",
+	"activeFile": "active.md",
+	"selection": "Investigate [[Start Alias]] and [Ghost](GhostFromMarkdown.md).",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c60:a1@@",
+			"file": "Bridge.md"
+		},
+		{
+			"marker": "@@c60:a2@@",
+			"file": "Deep.md"
+		},
+		{
+			"marker": "@@c60:a3@@",
+			"file": "SideBack.md"
+		},
+		{
+			"marker": "@@c60:a4@@",
+			"file": "Spec.pdf"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c60:f1@@",
+			"file": "GhostFromMarkdown.md"
+		},
+		{
+			"marker": "@@c60:f2@@",
+			"file": "Leak.md"
+		}
+	]
+}

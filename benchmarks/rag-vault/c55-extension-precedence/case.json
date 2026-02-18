@@ -1,0 +1,20 @@
+{
+	"id": "c55-extension-precedence",
+	"title": "Extension precedence without explicit suffix",
+	"description": "When both .md and .pdf exist, bare [[Name]] should resolve to markdown first.",
+	"activeFile": "active.md",
+	"selection": "Open [[Spec]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c55:a1@@",
+			"file": "Spec.md"
+		}
+	],
+	"forbidden": [
+		{
+			"marker": "@@c55:f1@@",
+			"file": "Spec.pdf"
+		}
+	]
+}

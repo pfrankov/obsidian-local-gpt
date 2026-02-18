@@ -1,0 +1,14 @@
+{
+	"id": "c04-block",
+	"title": "Block link",
+	"description": "Selection links to a block ID.",
+	"activeFile": "active.md",
+	"selection": "See [[DocBlock#^block-1]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c04:a1@@",
+			"file": "DocBlock.md"
+		}
+	]
+}

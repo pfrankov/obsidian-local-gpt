@@ -1,0 +1,14 @@
+{
+	"id": "c19-cycle",
+	"title": "Cycle handling",
+	"description": "Graph with cycle should not loop.",
+	"activeFile": "active.md",
+	"selection": "Start at [[CycleA]].",
+	"selectedFiles": [],
+	"expected": [
+		{
+			"marker": "@@c19:a1@@",
+			"file": "CycleB.md"
+		}
+	]
+}
