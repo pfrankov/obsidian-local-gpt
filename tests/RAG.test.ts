@@ -195,6 +195,22 @@ describe('RAG Functions', () => {
 			expect(linkedFiles).toHaveLength(0);
 			expect(mockVault.getAbstractFileByPath).not.toHaveBeenCalled();
 		});
+
+		it('ignores absolute and external markdown links', () => {
+			const content = '[External](https://example.com) and [Absolute](/notes/File.md)';
+			const mockVault = {
+				getAbstractFileByPath: vi.fn(),
+			} as unknown as Vault;
+			const mockMetadataCache = {
+				getFirstLinkpathDest: vi.fn(),
+			} as unknown as MetadataCache;
+
+			const linkedFiles = getLinkedFiles(content, mockVault, mockMetadataCache, 'current.md', true);
+
+			expect(linkedFiles).toHaveLength(0);
+			expect(mockMetadataCache.getFirstLinkpathDest).not.toHaveBeenCalled();
+			expect(mockVault.getAbstractFileByPath).not.toHaveBeenCalled();
+		});
 	});
 
 

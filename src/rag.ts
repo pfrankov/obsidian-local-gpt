@@ -5,6 +5,9 @@ import { extractTextFromPDF } from "./processors/pdf";
 import { fileCache } from "./indexedDB";
 
 const MAX_DEPTH = 10;
+const WIKI_LINK_REGEX = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
+const MARKDOWN_LINK_REGEX = /\[[^\]]+\]\(([^)]+)\)/g;
+const SUPPORTED_RAG_EXTENSIONS = new Set(["md", "pdf"]);
 
 export interface ProcessingContext {
 	vault: Vault;
@@ -62,18 +65,21 @@ export async function processDocumentForRAG(
 	depth: number,
 	isBacklink: boolean,
 ): Promise<Map<string, IAIDocument>> {
-	if (
-		depth > MAX_DEPTH ||
-		processedDocs.has(file.path) ||
-		file.path === context.activeFile.path
-	) {
+	if (depth > MAX_DEPTH || processedDocs.has(file.path)) {
 		return processedDocs;
 	}
 
 	try {
+		if (file.path === context.activeFile.path) {
+			await traverseLinkedGraph(file, context, processedDocs, depth, {
+				includeBacklinks: false,
+			});
+			return processedDocs;
+		}
+
 		const content = await getFileContent(file, context.vault);
 		processedDocs.set(file.path, {
-			content: content,
+			content,
 			meta: {
 				source: file.path,
 				basename: file.basename,
@@ -83,39 +89,11 @@ export async function processDocumentForRAG(
 			},
 		});
 
-		if (file.extension === "md" && !isBacklink) {
-			const linkedFiles = getLinkedFiles(
+		if (file.extension === "md") {
+			await traverseLinkedGraph(file, context, processedDocs, depth, {
 				content,
-				context.vault,
-				context.metadataCache,
-				file.path,
-			);
-			const backlinkFiles = getBacklinkFiles(
-				file,
-				context,
-				processedDocs,
-			);
-
-			await Promise.all([
-				...linkedFiles.map((linkedFile) =>
-					processDocumentForRAG(
-						linkedFile,
-						context,
-						processedDocs,
-						depth + 1,
-						false,
-					),
-				),
-				...backlinkFiles.map((backlinkFile) =>
-					processDocumentForRAG(
-						backlinkFile,
-						context,
-						processedDocs,
-						depth,
-						true,
-					),
-				),
-			]);
+				includeForwardLinks: !isBacklink,
+			});
 		}
 	} catch (error) {
 		console.error(`Error processing document ${file.path}:`, error);
@@ -124,15 +102,121 @@ export async function processDocumentForRAG(
 	return processedDocs;
 }
 
+async function traverseLinkedGraph(
+	file: TFile,
+	context: ProcessingContext,
+	processedDocs: Map<string, IAIDocument>,
+	depth: number,
+	options?: {
+		content?: string;
+		includeForwardLinks?: boolean;
+		includeBacklinks?: boolean;
+	},
+) {
+	const includeForwardLinks = options?.includeForwardLinks ?? true;
+	const includeBacklinks = options?.includeBacklinks ?? true;
+
+	const linkedFiles = includeForwardLinks
+		? resolveForwardLinks(file, context, options?.content)
+		: [];
+	const backlinkFiles = includeBacklinks
+		? getBacklinkFiles(file, context, processedDocs)
+		: [];
+
+	await Promise.all([
+		...processFilesForRAG(
+			linkedFiles,
+			context,
+			processedDocs,
+			depth + 1,
+			false,
+		),
+		...processFilesForRAG(
+			backlinkFiles,
+			context,
+			processedDocs,
+			depth,
+			true,
+		),
+	]);
+}
+
+function resolveForwardLinks(
+	file: TFile,
+	context: ProcessingContext,
+	content?: string,
+): TFile[] {
+	if (content !== undefined) {
+		return getLinkedFiles(
+			content,
+			context.vault,
+			context.metadataCache,
+			file.path,
+			true,
+		);
+	}
+	return getResolvedLinkedFiles(
+		file.path,
+		context.vault,
+		context.metadataCache,
+	);
+}
+
+function processFilesForRAG(
+	files: TFile[],
+	context: ProcessingContext,
+	processedDocs: Map<string, IAIDocument>,
+	depth: number,
+	isBacklink: boolean,
+): Promise<Map<string, IAIDocument>>[] {
+	return files.map((candidate) =>
+		processDocumentForRAG(
+			candidate,
+			context,
+			processedDocs,
+			depth,
+			isBacklink,
+		),
+	);
+}
+
+function getResolvedLinkedFiles(
+	currentFilePath: string,
+	vault: Vault,
+	metadataCache: MetadataCache,
+): TFile[] {
+	const resolvedLinks = metadataCache?.resolvedLinks;
+	const links = resolvedLinks?.[currentFilePath];
+	if (!links) return [];
+
+	return Object.keys(links)
+		.map((targetPath) => vault.getAbstractFileByPath(targetPath))
+		.filter(isSupportedRagFile);
+}
+
 export function getLinkedFiles(
 	content: string,
 	vault: Vault,
 	metadataCache: MetadataCache,
 	currentFilePath: string,
+	includeAllMarkdownLinks = false,
 ): TFile[] {
-	const linkRegex = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
+	const sanitizedContent = sanitizeMarkdownForLinks(content);
+	const wikiLinks = Array.from(
+		sanitizedContent.matchAll(WIKI_LINK_REGEX),
+		(match) => match[1],
+	);
+	const markdownCandidates = Array.from(
+		sanitizedContent.matchAll(MARKDOWN_LINK_REGEX),
+		(match) => normalizeMarkdownLink(match[1]),
+	).filter((link): link is string => Boolean(link));
+	const markdownLinks =
+		includeAllMarkdownLinks ||
+		(wikiLinks.length === 0 && markdownCandidates.length === 1)
+			? markdownCandidates
+			: [];
 
-	return Array.from(content.matchAll(linkRegex), (match) => match[1])
+	return [...wikiLinks, ...markdownLinks]
 		.map((linkText) => {
 			const linkPath = metadataCache.getFirstLinkpathDest(
 				linkText,
@@ -140,11 +224,34 @@ export function getLinkedFiles(
 			);
 			return linkPath ? vault.getAbstractFileByPath(linkPath.path) : null;
 		})
-		.filter(
-			(file): file is TFile =>
-				file instanceof TFile &&
-				(file.extension === "md" || file.extension === "pdf"),
-		);
+		.filter(isSupportedRagFile);
+}
+
+function isSupportedRagFile(file: unknown): file is TFile {
+	return (
+		file instanceof TFile && SUPPORTED_RAG_EXTENSIONS.has(file.extension)
+	);
+}
+
+function sanitizeMarkdownForLinks(content: string): string {
+	return content
+		.replace(/```[\s\S]*?```/g, "")
+		.replace(/<!--[\s\S]*?-->/g, "")
+		.replace(/`[^`]*`/g, "");
+}
+
+function normalizeMarkdownLink(rawLink: string): string | null {
+	const withoutAnchor = rawLink.split("#")[0].trim();
+	const normalized = withoutAnchor.replace(/^<|>$/g, "");
+	if (
+		!normalized ||
+		normalized.startsWith("/") ||
+		/^[a-z]+:/i.test(normalized)
+	) {
+		return null;
+	}
+
+	return normalized;
 }
 
 export function getBacklinkFiles(
