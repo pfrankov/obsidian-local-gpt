@@ -8,7 +8,9 @@
 			"changeModel": "Changer de modèle",
 			"changeCreativity": "Changer la créativité",
 			"changeSystemPrompt": "Changer l'invite système",
-			"unknownModel": "Modèle inconnu"
+			"unknownModel": "Modèle inconnu",
+			"hint": "Utilisez / pour les commandes, @ pour les fichiers",
+			"providerTooltip": "Changer via les commandes /"
 		}
 	},
 	"statusBar": {
@@ -33,7 +35,7 @@
 	"settings": {
 		"mainProvider": "Fournisseur d'IA principal",
 		"embeddingProvider": "Fournisseur d'IA d'intégration (Embedding)",
-		"embeddingProviderDesc": "Facultatif. Utilisé pour les ✨\u00A0Actions\u00A0Améliorées.",
+		"embeddingProviderDesc": "Facultatif. Utilisé pour les ✨ Actions Améliorées.",
 		"visionProvider": "Fournisseur d'IA de vision",
 		"visionProviderDesc": "Facultatif. Utilisé pour les images. Si non défini, le fournisseur principal sera utilisé.",
 		"creativity": "Créativité",

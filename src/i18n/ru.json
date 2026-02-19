@@ -8,7 +8,9 @@
 			"changeModel": "Сменить модель",
 			"changeCreativity": "Сменить креативность",
 			"changeSystemPrompt": "Сменить системную инструкцию",
-			"unknownModel": "Неизвестная модель"
+			"unknownModel": "Неизвестная модель",
+			"hint": "Используйте / для команд, @ для файлов",
+			"providerTooltip": "Сменить через / команды"
 		}
 	},
 	"statusBar": {

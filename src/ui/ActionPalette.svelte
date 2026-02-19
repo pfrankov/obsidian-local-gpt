@@ -1560,10 +1560,14 @@
 
 	{#if providerLabel}
 		<div class="local-gpt-provider-badge" aria-hidden="true">
+			<div class="local-gpt-provider-badge-hint">
+				{I18n.t("commands.actionPalette.hint")}
+			</div>
 			<div
 				class={badgeHighlight
 					? "local-gpt-provider-badge-label local-gpt-badge-highlight"
 					: "local-gpt-provider-badge-label"}
+				title={I18n.t("commands.actionPalette.providerTooltip")}
 			>
 				{providerLabel}
 			</div>

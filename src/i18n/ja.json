@@ -8,7 +8,9 @@
 			"changeModel": "モデルを変更",
 			"changeCreativity": "創造性を変更",
 			"changeSystemPrompt": "システムプロンプトを変更",
-			"unknownModel": "不明なモデル"
+			"unknownModel": "不明なモデル",
+			"hint": "コマンドには /、ファイルには @ を使用",
+			"providerTooltip": "/ コマンドで変更"
 		}
 	},
 	"statusBar": {
@@ -33,7 +35,7 @@
 	"settings": {
 		"mainProvider": "メインAIプロバイダー",
 		"embeddingProvider": "埋め込みAIプロバイダー",
-		"embeddingProviderDesc": "オプション。✨\u00A0強化アクションに使用されます。",
+		"embeddingProviderDesc": "オプション。✨ 強化アクションに使用されます。",
 		"visionProvider": "ビジョンAIプロバイダー",
 		"visionProviderDesc": "オプション。画像に使用されます。設定されていない場合は、メインプロバイダーが使用されます。",
 		"creativity": "創造性",

@@ -8,7 +8,9 @@
 			"changeModel": "Cambiar el modelo",
 			"changeCreativity": "Cambiar creatividad",
 			"changeSystemPrompt": "Cambiar mensaje del sistema",
-			"unknownModel": "Modelo desconocido"
+			"unknownModel": "Modelo desconocido",
+			"hint": "Use / para comandos, @ para archivos",
+			"providerTooltip": "Cambiar mediante comandos /"
 		}
 	},
 	"statusBar": {
@@ -33,7 +35,7 @@
 	"settings": {
 		"mainProvider": "Proveedor principal de IA",
 		"embeddingProvider": "Proveedor de incrustaciones (Embeddings)",
-		"embeddingProviderDesc": "Opcional. Se utiliza para ✨\u00A0Acciones\u00A0Mejoradas.",
+		"embeddingProviderDesc": "Opcional. Se utiliza para ✨ Acciones Mejoradas.",
 		"visionProvider": "Proveedor de visión",
 		"visionProviderDesc": "Opcional. Se utiliza para imágenes. Si no se establece, se usará el proveedor principal.",
 		"creativity": "Creatividad",

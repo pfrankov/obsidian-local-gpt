@@ -8,7 +8,9 @@
 			"changeModel": "Wijzig model",
 			"changeCreativity": "Wijzig creativiteit",
 			"changeSystemPrompt": "Wijzig systeemprompt",
-			"unknownModel": "Onbekend model"
+			"unknownModel": "Onbekend model",
+			"hint": "Gebruik / voor commando's, @ voor bestanden",
+			"providerTooltip": "Wijzigen via / commando's"
 		}
 	},
 	"statusBar": {
@@ -33,7 +35,7 @@
 	"settings": {
 		"mainProvider": "Hoofd AI-provider",
 		"embeddingProvider": "Embedding AI-provider",
-		"embeddingProviderDesc": "Optioneel. Gebruikt voor ✨\u00A0Verbeterde\u00A0Acties.",
+		"embeddingProviderDesc": "Optioneel. Gebruikt voor ✨ Verbeterde Acties.",
 		"visionProvider": "Visie AI-provider",
 		"visionProviderDesc": "Optioneel. Gebruikt voor afbeeldingen. Indien niet ingesteld, wordt de hoofdprovider gebruikt.",
 		"creativity": "Creativiteit",
