@@ -55,6 +55,7 @@
 	const COMMAND_REGEX = /\/([^\/\s]+)(?=\s|$|\/)/g;
 	const COMMAND_PREFIX = "/";
 	const SPACE_AFTER_COMMAND = " ";
+	const CLEAR_SYSTEM_PROMPT_ID = "__clear_system_prompt__";
 
 	// Exported props
 	export let placeholder: string = I18n.t(
@@ -74,6 +75,10 @@
 		| undefined = undefined;
 	export let getSystemPrompts:
 		| GetSystemPromptsCallback
+		| undefined = undefined;
+	export let selectedSystemPromptId: string | null = null;
+	export let onSystemPromptChange:
+		| ((systemPromptId: string | null) => Promise<void> | void)
 		| undefined = undefined;
 
 	// Event dispatcher
@@ -193,7 +198,7 @@
 	let providerName = providerLabel.split(" · ")[0] || "";
 	let modelName = (providerLabel.split(" · ")[1] || "").trim();
 	let creativityBadge = (providerLabel.split(" · ")[2] || "").trim();
-	let systemPromptBadge = "";
+	let selectedSystemPromptName = "";
 	const SYSTEM_PREVIEW_LENGTH = 80;
 
 	function getCreativityOptions(): CreativityReference[] {
@@ -488,9 +493,7 @@
 		providerName = pName;
 		modelName = mName;
 		const base = [providerName, modelName].filter(Boolean).join(" · ");
-		const extras = [creativityBadge, systemPromptBadge]
-			.filter(Boolean)
-			.join(" · ");
+		const extras = [creativityBadge].filter(Boolean).join(" · ");
 		providerLabel = extras ? `${base} · ${extras}` : base;
 	}
 
@@ -513,6 +516,8 @@
 		});
 	}
 
+	restoreSelectedSystemPrompt();
+
 	onMount(() => {
 		// Auto-focus the content element
 		queueMicrotask(() => {
@@ -524,6 +529,29 @@
 			}
 		});
 	});
+
+	function restoreSelectedSystemPrompt() {
+		if (!selectedSystemPromptId || !getSystemPrompts) {
+			selectedSystemPromptName = "";
+			selectedSystemPromptValue = undefined;
+			return;
+		}
+
+		const availablePrompts = getSystemPrompts();
+		const matchedPrompt = availablePrompts.find(
+			(prompt) => prompt.id === selectedSystemPromptId,
+		);
+
+		if (!matchedPrompt) {
+			void onSystemPromptChange?.(null);
+			selectedSystemPromptName = "";
+			selectedSystemPromptValue = undefined;
+			return;
+		}
+
+		selectedSystemPromptName = matchedPrompt.name;
+		selectedSystemPromptValue = matchedPrompt.system;
+	}
 
 	function handleDropdownNavigation(event: KeyboardEvent) {
 		if (activeDropdown === "none" || filteredItems.length === 0)
@@ -1114,18 +1142,39 @@
 		if (!allSystemPrompts || allSystemPrompts.length === 0) return;
 		const q = getCommandQuery("system");
 		const normalizedQuery = q.toLowerCase();
-		const matches = allSystemPrompts
+		const resetOption = allSystemPrompts.find(
+			(s) => s.id === CLEAR_SYSTEM_PROMPT_ID,
+		);
+		const promptOptions = allSystemPrompts.filter(
+			(s) => s.id !== CLEAR_SYSTEM_PROMPT_ID,
+		);
+		const matches = promptOptions
 			.filter((s) =>
 				normalizedQuery
 					? s.name.toLowerCase().includes(normalizedQuery)
 					: true,
 			)
 			.sort((a, b) => a.name.localeCompare(b.name))
-			.slice(0, MAX_DROPDOWN_RESULTS);
-		updateFilteredDropdownItems(matches);
+			.slice(
+				0,
+				resetOption &&
+					(!normalizedQuery ||
+						resetOption.name
+							.toLowerCase()
+							.includes(normalizedQuery))
+					? MAX_DROPDOWN_RESULTS - 1
+					: MAX_DROPDOWN_RESULTS,
+			);
+		const visibleMatches =
+			resetOption &&
+			(!normalizedQuery ||
+				resetOption.name.toLowerCase().includes(normalizedQuery))
+				? [resetOption, ...matches]
+				: matches;
+		updateFilteredDropdownItems(visibleMatches);
 		if (q) {
 			const norm = (s: string) => s.toLowerCase();
-			const exact = matches.find((s) => norm(s.name) === norm(q));
+			const exact = promptOptions.find((s) => norm(s.name) === norm(q));
 			if (exact) {
 				void selectSystemPrompt(exact);
 			}
@@ -1135,7 +1184,17 @@
 	async function showSystemDropdown() {
 		if (!getSystemPrompts) return;
 		try {
-			allSystemPrompts = getSystemPrompts();
+			const prompts = getSystemPrompts();
+			allSystemPrompts = selectedSystemPromptName
+				? [
+						{
+							id: CLEAR_SYSTEM_PROMPT_ID,
+							name: I18n.t("commands.actionPalette.clearSystemPrompt"),
+							system: "",
+						},
+						...prompts,
+					]
+				: prompts;
 			applySystemFilter();
 			if (filteredItems.length > 0) {
 				activeDropdown = "system";
@@ -1148,9 +1207,15 @@
 
 	async function selectSystemPrompt(option: SystemPromptReference) {
 		try {
+			if (option.id === CLEAR_SYSTEM_PROMPT_ID) {
+				await clearSystemPromptSelection();
+				removeCommandAndQuery("system");
+				hideDropdown();
+				return;
+			}
 			selectedSystemPromptValue = option.system;
-			systemPromptBadge = option.name;
-			setProviderBadgeLabel(providerName, modelName);
+			selectedSystemPromptName = option.name;
+			await onSystemPromptChange?.(option.id);
 			highlightBadgeTemporarily();
 			removeCommandAndQuery("system");
 			hideDropdown();
@@ -1158,6 +1223,13 @@
 			console.error("Error selecting system prompt:", error);
 			hideDropdown();
 		}
+	}
+
+	async function clearSystemPromptSelection() {
+		selectedSystemPromptValue = undefined;
+		selectedSystemPromptName = "";
+		await onSystemPromptChange?.(null);
+		highlightBadgeTemporarily();
 	}
 
 	function formatSystemPreview(text: string) {
@@ -1549,28 +1621,42 @@
 							event.key === "Enter" && handleSelection(item)}
 					>
 						<span class="local-gpt-system-name">{item.name}</span>
-						<span class="local-gpt-system-detail"
-							>{formatSystemPreview(item.system)}</span
-						>
+						{#if item.id !== CLEAR_SYSTEM_PROMPT_ID}
+							<span class="local-gpt-system-detail"
+								>{formatSystemPreview(item.system)}</span
+							>
+						{/if}
 					</div>
 				{/if}
 			{/each}
 		</div>
 	{/if}
 
-	{#if providerLabel}
-		<div class="local-gpt-provider-badge" aria-hidden="true">
+	<div class="local-gpt-provider-badge">
+		{#if selectedSystemPromptName}
+			<div
+				class={badgeHighlight
+					? "local-gpt-system-indicator local-gpt-badge-highlight"
+					: "local-gpt-system-indicator"}
+			>
+				<span class="local-gpt-system-indicator-label">
+					{selectedSystemPromptName}
+				</span>
+			</div>
+		{:else}
 			<div class="local-gpt-provider-badge-hint">
 				{I18n.t("commands.actionPalette.hint")}
 			</div>
+		{/if}
+
+		{#if providerLabel}
 			<div
 				class={badgeHighlight
 					? "local-gpt-provider-badge-label local-gpt-badge-highlight"
 					: "local-gpt-provider-badge-label"}
-				title={I18n.t("commands.actionPalette.providerTooltip")}
 			>
 				{providerLabel}
 			</div>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>

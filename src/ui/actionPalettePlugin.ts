@@ -64,7 +64,11 @@ export interface ActionPaletteOptions {
 	/**
 	 * Function to get available system prompts
 	 */
-	getSystemPrompts?: () => { name: string; system: string }[];
+	getSystemPrompts?: () => { id: string; name: string; system: string }[];
+	selectedSystemPromptId?: string | null;
+	onSystemPromptChange?: (
+		systemPromptId: string | null,
+	) => Promise<void> | void;
 }
 
 class SvelteActionPaletteWidget extends WidgetType {
@@ -96,6 +100,8 @@ class SvelteActionPaletteWidget extends WidgetType {
 				onModelChange: this.options.onModelChange,
 				onCreativityChange: this.options.onCreativityChange,
 				getSystemPrompts: this.options.getSystemPrompts,
+				selectedSystemPromptId: this.options.selectedSystemPromptId,
+				onSystemPromptChange: this.options.onSystemPromptChange,
 			},
 		});
 

@@ -3,10 +3,7 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { tick } from "svelte";
 import ActionPalette from "../src/ui/ActionPalette.svelte";
-import {
-	addToPromptHistory,
-	resetPromptHistory,
-} from "../src/ui/actionPaletteHistory";
+import { addToPromptHistory, resetPromptHistory } from "../src/ui/actionPaletteHistory";
 import { I18n } from "../src/i18n";
 
 const setCaretToEnd = (element: HTMLElement) => {
@@ -87,8 +84,13 @@ describe("ActionPalette component", () => {
 	});
 
 	test("selects a system prompt via command dropdown and submits it", async () => {
+		const systemPromptChange = vi.fn();
 		const { target, component } = createComponent({
-			getSystemPrompts: () => [{ name: "Preset", system: "You are kind" }],
+			getSystemPrompts: () => [
+				{ id: "preset", name: "Preset", system: "You are kind" },
+			],
+			providerLabel: "OpenRouter · z-ai/glm-4.7 · ⚪ None",
+			onSystemPromptChange: systemPromptChange,
 		});
 		const submitSpy = vi.fn();
 		component.$on("submit", (event) => submitSpy(event.detail));
@@ -131,14 +133,106 @@ describe("ActionPalette component", () => {
 		expect(submitSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ systemPrompt: "You are kind" }),
 		);
+		expect(systemPromptChange).toHaveBeenCalledWith("preset");
+		component.$destroy();
+	});
+
+	test("restores the persisted system prompt and shows its indicator", async () => {
+		const systemPromptChange = vi.fn();
+		const { target, component } = createComponent({
+			getSystemPrompts: () => [
+				{ id: "preset", name: "Preset", system: "You are kind" },
+			],
+			providerLabel: "OpenRouter · z-ai/glm-4.7 · ⚪ None",
+			selectedSystemPromptId: "preset",
+			onSystemPromptChange: systemPromptChange,
+		});
+		const submitSpy = vi.fn();
+		component.$on("submit", (event) => submitSpy(event.detail));
+		await tick();
+
+		const indicator = requireElement<HTMLElement>(
+			target,
+			".local-gpt-system-indicator",
+		);
+		expect(indicator.textContent).toContain("Preset");
+		expect(target.querySelector(".local-gpt-provider-badge-hint")).toBeNull();
+		const providerLabel = requireElement<HTMLElement>(
+			target,
+			".local-gpt-provider-badge-label",
+		);
+		expect(providerLabel.textContent).toContain("OpenRouter");
+		expect(providerLabel.textContent).toContain("z-ai/glm-4.7");
+		expect(providerLabel.textContent).toContain("None");
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+
+		expect(submitSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ systemPrompt: "You are kind" }),
+		);
+		expect(systemPromptChange).not.toHaveBeenCalled();
+		component.$destroy();
+	});
+
+	test("resets the persisted system prompt from the system menu", async () => {
+		const systemPromptChange = vi.fn();
+		const { target, component } = createComponent({
+			getSystemPrompts: () => [
+				{ id: "preset", name: "Preset", system: "You are kind" },
+			],
+			selectedSystemPromptId: "preset",
+			onSystemPromptChange: systemPromptChange,
+		});
+		await tick();
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.focus();
+		await typeIntoPalette(textbox, "/system");
+
+		const systemItems = Array.from(
+			target.querySelectorAll(".local-gpt-system-name"),
+		);
+		const clearItem = systemItems.find(
+			(el) =>
+				el.textContent?.trim() ===
+				I18n.t("commands.actionPalette.clearSystemPrompt"),
+		) as HTMLElement;
+		clearItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		await tick();
+
+		expect(target.querySelector(".local-gpt-system-indicator")).toBeNull();
+		expect(systemPromptChange).toHaveBeenCalledWith(null);
+		const hint = requireElement<HTMLElement>(
+			target,
+			".local-gpt-provider-badge-hint",
+		);
+		expect(hint.textContent).toContain("Use /");
+		expect(hint.textContent).toContain("@");
 		component.$destroy();
 	});
 
 	test("filters system prompts by name only", async () => {
 		const { target, component } = createComponent({
 			getSystemPrompts: () => [
-				{ name: "Continue writing", system: "Continue the text" },
-				{ name: "Find action items", system: "Find actions in text" },
+				{
+					id: "continue",
+					name: "Continue writing",
+					system: "Continue the text",
+				},
+				{
+					id: "actions",
+					name: "Find action items",
+					system: "Find actions in text",
+				},
 			],
 		});
 
@@ -156,6 +250,55 @@ describe("ActionPalette component", () => {
 			.filter(Boolean) as string[];
 
 		expect(systemItems).toEqual(["Continue writing"]);
+		component.$destroy();
+	});
+
+	test("does not auto-clear when a real prompt matches the clear label", async () => {
+		const clearLabel = I18n.t("commands.actionPalette.clearSystemPrompt");
+		const systemPromptChange = vi.fn();
+		const { target, component } = createComponent({
+			getSystemPrompts: () => [
+				{ id: "existing", name: "Preset", system: "You are kind" },
+				{ id: "real-clear", name: clearLabel, system: "Use the real prompt" },
+			],
+			selectedSystemPromptId: "existing",
+			onSystemPromptChange: systemPromptChange,
+		});
+		const submitSpy = vi.fn();
+		component.$on("submit", (event) => submitSpy(event.detail));
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.focus();
+		await typeIntoPalette(textbox, `/system ${clearLabel}`);
+		await tick();
+
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+
+		expect(submitSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ systemPrompt: "Use the real prompt" }),
+		);
+		expect(systemPromptChange).toHaveBeenCalledWith("real-clear");
+		component.$destroy();
+	});
+
+	test("drops stale persisted ids that are missing from the current prompt list", async () => {
+		const systemPromptChange = vi.fn();
+		const { target, component } = createComponent({
+			getSystemPrompts: () => [
+				{ id: "preset", name: "Preset", system: "You are kind" },
+			],
+			selectedSystemPromptId: "missing-id",
+			onSystemPromptChange: systemPromptChange,
+		});
+		await tick();
+
+		expect(target.querySelector(".local-gpt-system-indicator")).toBeNull();
+		expect(systemPromptChange).toHaveBeenCalledWith(null);
 		component.$destroy();
 	});
 

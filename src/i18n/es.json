@@ -8,9 +8,9 @@
 			"changeModel": "Cambiar el modelo",
 			"changeCreativity": "Cambiar creatividad",
 			"changeSystemPrompt": "Cambiar mensaje del sistema",
+			"clearSystemPrompt": "Borrar mensaje del sistema",
 			"unknownModel": "Modelo desconocido",
-			"hint": "Use / para comandos, @ para archivos",
-			"providerTooltip": "Cambiar mediante comandos /"
+			"hint": "Use / para comandos, @ para archivos"
 		}
 	},
 	"statusBar": {

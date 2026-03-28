@@ -8,9 +8,9 @@
 			"changeModel": "Changer de modèle",
 			"changeCreativity": "Changer la créativité",
 			"changeSystemPrompt": "Changer l'invite système",
+			"clearSystemPrompt": "Effacer l'invite système",
 			"unknownModel": "Modèle inconnu",
-			"hint": "Utilisez / pour les commandes, @ pour les fichiers",
-			"providerTooltip": "Changer via les commandes /"
+			"hint": "Utilisez / pour les commandes, @ pour les fichiers"
 		}
 	},
 	"statusBar": {
