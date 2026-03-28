@@ -8,9 +8,9 @@
 			"changeModel": "Wijzig model",
 			"changeCreativity": "Wijzig creativiteit",
 			"changeSystemPrompt": "Wijzig systeemprompt",
+			"clearSystemPrompt": "Systeemprompt wissen",
 			"unknownModel": "Onbekend model",
-			"hint": "Gebruik / voor commando's, @ voor bestanden",
-			"providerTooltip": "Wijzigen via / commando's"
+			"hint": "Gebruik / voor commando's, @ voor bestanden"
 		}
 	},
 	"statusBar": {

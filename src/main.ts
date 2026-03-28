@@ -15,7 +15,11 @@ import {
 } from "./ui/actionPalettePlugin";
 import { IAIDocument, LocalGPTAction, LocalGPTSettings } from "./interfaces";
 import { populateActionContextMenu } from "./actionMenu";
-import { getRunnableActions } from "./actionUtils";
+import {
+	ensureActionIds,
+	getActionIdentifier,
+	getRunnableActions,
+} from "./actionUtils";
 
 import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
 import { logger } from "./logger";
@@ -87,6 +91,13 @@ export default class LocalGPT extends Plugin {
 		this.statusBarItem = this.addStatusBarItem();
 		this.statusBarItem.addClass("local-gpt-status");
 		this.statusBarItem.hide();
+	}
+
+	private getLegacyActionPaletteSystemPromptStorageKey(): string {
+		const vaultName = this.app?.vault?.getName?.();
+		return vaultName
+			? `${this.manifest.id}:action-palette-system-prompt:${vaultName}`
+			: `${this.manifest.id}:action-palette-system-prompt`;
 	}
 
 	processText(text: string, selectedText: string) {
@@ -315,9 +326,20 @@ export default class LocalGPT extends Plugin {
 						return getRunnableActions(this.settings.actions)
 							.filter((action) => action.system)
 							.map((action) => ({
+								id: getActionIdentifier(action),
 								name: action.name,
 								system: action.system!,
 							}));
+					},
+					selectedSystemPromptId:
+						this.settings.actionPalette?.systemPromptActionId ??
+						null,
+					onSystemPromptChange: async (systemPromptId) => {
+						this.settings.actionPalette = {
+							...(this.settings.actionPalette || {}),
+							systemPromptActionId: systemPromptId,
+						};
+						await this.saveData(this.settings);
 					},
 				});
 				this.app.workspace.updateOptions();
@@ -829,8 +851,11 @@ export default class LocalGPT extends Plugin {
 		const { settings, changed } = await this.migrateSettings(loadedData);
 
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, settings);
+		const { actions: actionsWithIds, changed: actionIdsChanged } =
+			ensureActionIds(this.settings.actions || []);
+		this.settings.actions = actionsWithIds;
 
-		if (changed) {
+		if (changed || actionIdsChanged) {
 			await this.saveData(this.settings);
 		}
 	}
@@ -870,16 +895,34 @@ export default class LocalGPT extends Plugin {
 			return { settings: loadedData, changed: false };
 		}
 
-		let changed = false;
-		changed = this.migrateToVersion2(loadedData) || changed;
-		changed = this.migrateToVersion3(loadedData) || changed;
-		changed = this.migrateToVersion4(loadedData) || changed;
-		changed = this.migrateToVersion5(loadedData) || changed;
-		changed = this.migrateToVersion6(loadedData) || changed;
-		changed = (await this.migrateToVersion7(loadedData)) || changed;
-		changed = this.migrateToVersion8(loadedData) || changed;
+		const preAsyncMigrations = [
+			this.migrateToVersion2,
+			this.migrateToVersion3,
+			this.migrateToVersion4,
+			this.migrateToVersion5,
+			this.migrateToVersion6,
+		];
+		const postAsyncMigrations = [
+			this.migrateToVersion8,
+			this.migrateToVersion9,
+			this.migrateToVersion10,
+		];
+		const changed = preAsyncMigrations.reduce(
+			(hasChanged, migrate) =>
+				migrate.call(this, loadedData) || hasChanged,
+			false,
+		);
+		const changedAsync = await this.migrateToVersion7(loadedData);
+		const changedPostAsync = postAsyncMigrations.reduce(
+			(hasChanged, migrate) =>
+				migrate.call(this, loadedData) || hasChanged,
+			false,
+		);
 
-		return { settings: loadedData, changed };
+		return {
+			settings: loadedData,
+			changed: changed || changedAsync || changedPostAsync,
+		};
 	}
 
 	private migrateToVersion2(settings: LocalGPTSettings): boolean {
@@ -1110,6 +1153,65 @@ export default class LocalGPT extends Plugin {
 
 		settings._version = 8;
 		return true;
+	}
+
+	private migrateToVersion9(settings: LocalGPTSettings): boolean {
+		if (settings._version && settings._version >= 9) {
+			return false;
+		}
+
+		const { actions } = ensureActionIds(settings.actions || []);
+		settings.actions = actions;
+		settings._version = 9;
+		return true;
+	}
+
+	private migrateToVersion10(settings: LocalGPTSettings): boolean {
+		if (settings._version && settings._version >= 10) {
+			return false;
+		}
+
+		(settings as any).actionPalette = (settings as any).actionPalette || {};
+		if ((settings as any).actionPalette.systemPromptActionId == null) {
+			(settings as any).actionPalette.systemPromptActionId =
+				this.readLegacyActionPaletteSystemPromptId();
+		}
+		this.clearLegacyActionPaletteSystemPromptId();
+
+		settings._version = 10;
+		return true;
+	}
+
+	private readLegacyActionPaletteSystemPromptId(): string | null {
+		try {
+			const raw = window.localStorage.getItem(
+				this.getLegacyActionPaletteSystemPromptStorageKey(),
+			);
+			if (!raw) {
+				return null;
+			}
+			const parsed = JSON.parse(raw);
+			return parsed && typeof parsed.id === "string" ? parsed.id : null;
+		} catch (error) {
+			console.error(
+				"Failed to migrate Action Palette system prompt selection:",
+				error,
+			);
+			return null;
+		}
+	}
+
+	private clearLegacyActionPaletteSystemPromptId() {
+		try {
+			window.localStorage.removeItem(
+				this.getLegacyActionPaletteSystemPromptStorageKey(),
+			);
+		} catch (error) {
+			console.error(
+				"Failed to clean up legacy Action Palette system prompt selection:",
+				error,
+			);
+		}
 	}
 
 	async checkUpdates() {

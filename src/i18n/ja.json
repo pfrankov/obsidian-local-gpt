@@ -8,9 +8,9 @@
 			"changeModel": "モデルを変更",
 			"changeCreativity": "創造性を変更",
 			"changeSystemPrompt": "システムプロンプトを変更",
+			"clearSystemPrompt": "システムプロンプトをクリア",
 			"unknownModel": "不明なモデル",
-			"hint": "コマンドには /、ファイルには @ を使用",
-			"providerTooltip": "/ コマンドで変更"
+			"hint": "コマンドには /、ファイルには @ を使用"
 		}
 	},
 	"statusBar": {

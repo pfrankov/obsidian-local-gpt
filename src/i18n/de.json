@@ -8,9 +8,9 @@
 			"changeModel": "Modell wechseln",
 			"changeCreativity": "Kreativität ändern",
 			"changeSystemPrompt": "System-Prompt wechseln",
+			"clearSystemPrompt": "System-Prompt löschen",
 			"unknownModel": "Unbekanntes Modell",
-			"hint": "Nutzen Sie / für Befehle, @ für Dateien",
-			"providerTooltip": "Ändern über / Befehle"
+			"hint": "Nutzen Sie / für Befehle, @ für Dateien"
 		}
 	},
 	"statusBar": {

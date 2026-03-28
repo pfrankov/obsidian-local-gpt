@@ -8,9 +8,9 @@
 			"changeModel": "切换模型",
 			"changeCreativity": "更改创造力",
 			"changeSystemPrompt": "更改系统提示",
+			"clearSystemPrompt": "清除系统提示",
 			"unknownModel": "未知模型",
-			"hint": "使用 / 输入命令，@ 引用文件",
-			"providerTooltip": "通过 / 命令更改"
+			"hint": "使用 / 输入命令，@ 引用文件"
 		}
 	},
 	"statusBar": {

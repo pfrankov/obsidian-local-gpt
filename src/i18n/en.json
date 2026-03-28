@@ -8,9 +8,9 @@
 			"changeModel": "Change the model",
 			"changeCreativity": "Change creativity",
 			"changeSystemPrompt": "Change system prompt",
+			"clearSystemPrompt": "Clear system prompt",
 			"unknownModel": "Unknown model",
-			"hint": "Use / for commands, @ for files",
-			"providerTooltip": "Change via / commands"
+			"hint": "Use / for commands, @ for files"
 		}
 	},
 	"statusBar": {

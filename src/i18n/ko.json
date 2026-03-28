@@ -8,9 +8,9 @@
 			"changeModel": "모델 변경",
 			"changeCreativity": "창의성 변경",
 			"changeSystemPrompt": "시스템 프롬프트 변경",
+			"clearSystemPrompt": "시스템 프롬프트 지우기",
 			"unknownModel": "알 수 없는 모델",
-			"hint": "명령어는 /, 파일은 @ 사용",
-			"providerTooltip": "/ 명령어로 변경"
+			"hint": "명령어는 /, 파일은 @ 사용"
 		}
 	},
 	"statusBar": {

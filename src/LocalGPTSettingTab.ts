@@ -15,7 +15,12 @@ import { CommunityActionRef, LocalGPTAction } from "./interfaces";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import { I18n } from "./i18n";
 import Sortable from "sortablejs";
-import { isSeparatorAction, moveAction } from "./actionUtils";
+import {
+	ensureActionId,
+	ensureActionIds,
+	isSeparatorAction,
+	moveAction,
+} from "./actionUtils";
 import { detectDominantLanguage } from "./languageDetection";
 import {
 	CommunityAction,
@@ -352,39 +357,40 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 								);
 								return;
 							}
+							const actionToSave = ensureActionId(actionToEdit);
 
 							if (!isExistingAction) {
 								if (
 									this.plugin.settings.actions.find(
 										(action) =>
-											action.name === actionToEdit.name,
+											action.name === actionToSave.name,
 									)
 								) {
 									new Notice(
 										I18n.t("notices.actionNameExists", {
-											name: actionToEdit.name,
+											name: actionToSave.name,
 										}),
 									);
 									return;
 								}
 
-								await this.addNewAction(actionToEdit);
+								await this.addNewAction(actionToSave);
 							} else {
 								if (
 									this.plugin.settings.actions.filter(
 										(action) =>
-											action.name === actionToEdit.name,
+											action.name === actionToSave.name,
 									).length > 1
 								) {
 									new Notice(
 										I18n.t("notices.actionNameExists", {
-											name: actionToEdit.name,
+											name: actionToSave.name,
 										}),
 									);
 									return;
 								}
 
-								dropCommunityLinkIfModified(actionToEdit);
+								dropCommunityLinkIfModified(actionToSave);
 
 								const index =
 									this.plugin.settings.actions.findIndex(
@@ -394,12 +400,12 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 								if (index >= 0) {
 									this.plugin.settings.actions[index] =
-										actionToEdit;
+										actionToSave;
 								}
 							}
 
 							await this.plugin.saveSettings();
-							closeActionEditor(actionToEdit);
+							closeActionEditor(actionToSave);
 						}),
 				);
 		};
@@ -1923,10 +1929,11 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							button.setDisabled(true);
 							button.buttonEl.setAttribute("disabled", "true");
 							button.buttonEl.classList.remove("mod-warning");
-							this.plugin.settings.actions =
+							this.plugin.settings.actions = ensureActionIds(
 								DEFAULT_SETTINGS.actions.map((action) => ({
 									...action,
-								}));
+								})),
+							).actions;
 							await this.plugin.saveSettings();
 							this.isConfirmingReset = false;
 							this.display();
@@ -1936,35 +1943,36 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	}
 
 	async addNewAction(editingAction: LocalGPTAction) {
+		const actionWithId = ensureActionId(editingAction);
 		const alreadyExistingActionIndex =
 			this.plugin.settings.actions.findIndex(
-				(action) => action.name === editingAction.name,
+				(action) => action.name === actionWithId.name,
 			);
 
 		if (alreadyExistingActionIndex >= 0) {
 			this.plugin.settings.actions[alreadyExistingActionIndex] =
-				editingAction;
+				actionWithId;
 			new Notice(
-				I18n.t("notices.actionRewritten", { name: editingAction.name }),
+				I18n.t("notices.actionRewritten", { name: actionWithId.name }),
 			);
 		} else {
 			this.plugin.settings.actions = [
-				editingAction,
+				actionWithId,
 				...this.plugin.settings.actions,
 			];
 			new Notice(
-				I18n.t("notices.actionAdded", { name: editingAction.name }),
+				I18n.t("notices.actionAdded", { name: actionWithId.name }),
 			);
 		}
 		await this.plugin.saveSettings();
 	}
 
 	async addSeparator() {
-		const separatorAction: LocalGPTAction = {
+		const separatorAction: LocalGPTAction = ensureActionId({
 			name: "separator",
 			prompt: "",
 			separator: true,
-		};
+		});
 		this.plugin.settings.actions = [
 			separatorAction,
 			...this.plugin.settings.actions,

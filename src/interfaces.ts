@@ -4,6 +4,9 @@ export interface LocalGPTSettings {
 		embedding: string | null;
 		vision: string | null;
 	};
+	actionPalette?: {
+		systemPromptActionId?: string | null;
+	};
 	defaults: {
 		creativity: string;
 		/**
@@ -26,6 +29,7 @@ export interface CommunityActionRef {
 }
 
 export interface LocalGPTAction {
+	id?: string;
 	name: string;
 	prompt: string;
 	temperature?: number;
@@ -69,6 +73,7 @@ export interface CreativityReference {
 }
 
 export interface SystemPromptReference {
+	id: string;
 	name: string;
 	system: string;
 }
