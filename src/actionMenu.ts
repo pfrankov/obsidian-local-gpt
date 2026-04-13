@@ -1,4 +1,4 @@
-import { LocalGPTAction } from "./interfaces";
+import type { LocalGPTAction } from "./interfaces";
 import { isSeparatorAction } from "./actionUtils";
 
 export interface MenuItemLike {

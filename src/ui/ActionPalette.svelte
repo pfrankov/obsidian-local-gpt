@@ -80,6 +80,10 @@
 	export let onSystemPromptChange:
 		| ((systemPromptId: string | null) => Promise<void> | void)
 		| undefined = undefined;
+	export let onSubmit:
+		| ((event: ActionPaletteSubmitEvent) => void)
+		| undefined = undefined;
+	export let onCancel: (() => void) | undefined = undefined;
 
 	// Event dispatcher
 	const dispatch = createEventDispatcher<PaletteEvents>();
@@ -627,6 +631,7 @@
 
 			case "Escape":
 				event.preventDefault();
+				onCancel?.();
 				dispatch("cancel");
 				break;
 		}
@@ -1416,11 +1421,13 @@
 		addToPromptHistory(textContent);
 		historyIndex = getPromptHistoryLength();
 		draftBeforeHistory = textContent;
-		dispatch("submit", {
+		const payload = {
 			text: textContent,
 			selectedFiles,
 			systemPrompt: selectedSystemPromptValue,
-		});
+		};
+		onSubmit?.(payload);
+		dispatch("submit", payload);
 	}
 
 	// Handle backspace/delete to clean up broken file mentions

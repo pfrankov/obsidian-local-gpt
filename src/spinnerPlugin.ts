@@ -1,13 +1,12 @@
 import { RangeSetBuilder, EditorState } from "@codemirror/state";
 import {
 	Decoration,
-	DecorationSet,
 	EditorView,
-	PluginValue,
 	ViewPlugin,
 	ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
+import type { DecorationSet, PluginValue } from "@codemirror/view";
 import { getIcon, getIconIds, setIcon } from "obsidian";
 import { I18n } from "./i18n";
 

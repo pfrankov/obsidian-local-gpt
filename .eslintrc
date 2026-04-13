@@ -9,8 +9,7 @@
     "extends": [
       "eslint:recommended",
       "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended",
-      "plugin:sonarjs/recommended"
+      "plugin:@typescript-eslint/recommended"
     ], 
     "parserOptions": {
         "sourceType": "module"
@@ -25,6 +24,7 @@
     "rules": {
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
+      "@typescript-eslint/no-unused-expressions": ["error", { "allowShortCircuit": true, "allowTernary": true }],
       "@typescript-eslint/ban-ts-comment": "off",
       "no-prototype-builtins": "off",
       "@typescript-eslint/no-empty-function": "off",

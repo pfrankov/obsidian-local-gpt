@@ -4,12 +4,8 @@ import {
 	StateEffect,
 	StateField,
 } from "@codemirror/state";
-import {
-	Decoration,
-	DecorationSet,
-	EditorView,
-	WidgetType,
-} from "@codemirror/view";
+import { Decoration, EditorView, WidgetType } from "@codemirror/view";
+import type { DecorationSet } from "@codemirror/view";
 import { I18n } from "../i18n";
 import ActionPalette from "./ActionPalette.svelte";
 
@@ -102,27 +98,21 @@ class SvelteActionPaletteWidget extends WidgetType {
 				getSystemPrompts: this.options.getSystemPrompts,
 				selectedSystemPromptId: this.options.selectedSystemPromptId,
 				onSystemPromptChange: this.options.onSystemPromptChange,
-			},
-		});
-
-		this.app.$on(
-			"submit",
-			(
-				e: CustomEvent<{
+				onSubmit: (event: {
 					text: string;
 					selectedFiles: string[];
 					systemPrompt?: string;
-				}>,
-			) => {
-				this.options.onSubmit?.(
-					e.detail.text,
-					e.detail.selectedFiles,
-					e.detail.systemPrompt,
-				);
+				}) => {
+					this.options.onSubmit?.(
+						event.text,
+						event.selectedFiles,
+						event.systemPrompt,
+					);
+				},
+				onCancel: () => {
+					this.options.onCancel?.();
+				},
 			},
-		);
-		this.app.$on("cancel", () => {
-			this.options.onCancel?.();
 		});
 
 		return this.container;

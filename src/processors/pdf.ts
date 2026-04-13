@@ -1,5 +1,5 @@
 import { logger } from "../logger.js";
-import * as pdfjs from "pdfjs-dist";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // @ts-ignore
 import WorkerMessageHandler from "./pdf.worker.js";
@@ -37,7 +37,9 @@ export async function extractTextFromPDF(
 		return fullText;
 	} catch (error) {
 		logger.error("Error extracting text from PDF", { error });
-		throw new Error(`Failed to extract text from PDF: ${error.message}`);
+		const errorMessage =
+			error instanceof Error ? error.message : String(error);
+		throw new Error(`Failed to extract text from PDF: ${errorMessage}`);
 	}
 }
 

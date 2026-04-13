@@ -22,6 +22,11 @@ export default defineConfig({
 	plugins: [
 		svelte({
 			preprocess: sveltePreprocess(),
+			compilerOptions: {
+				compatibility: {
+					componentApi: 4,
+				},
+			},
 		}),
 	],
 	test: {

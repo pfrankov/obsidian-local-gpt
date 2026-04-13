@@ -10,6 +10,7 @@ import {
 import { IAIDocument, IAIProvidersRetrievalResult } from '../src/interfaces';
 import { extractTextFromPDF } from '../src/processors/pdf';
 import { fileCache } from '../src/indexedDB';
+import { logger } from '../src/logger';
 import { TFile, Vault, MetadataCache } from 'obsidian';
 import * as ragModule from '../src/rag';
 
@@ -17,7 +18,7 @@ vi.mock('obsidian');
 vi.mock('../src/processors/pdf');
 vi.mock('../src/indexedDB');
 vi.mock('../src/logger');
-vi.mock('pdfjs-dist', () => ({
+vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
 	getDocument: vi.fn(),
 	GlobalWorkerOptions: {
 		workerPort: null
@@ -463,6 +464,35 @@ describe('RAG Functions', () => {
 
 			expect(result).toBe('');
 			expect(consoleSpy).toHaveBeenCalledWith('Error in searchDocuments:', expect.any(Error));
+			consoleSpy.mockRestore();
+		});
+
+		it('should suppress console errors for not-implemented retrieval (501)', async () => {
+			const notImplementedError = Object.assign(
+				new Error('Request failed, status 501'),
+				{ status: 501 },
+			);
+			mockAIProviders.retrieve.mockRejectedValue(notImplementedError);
+			const abortController = new AbortController();
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
+
+			const result = await searchDocuments(
+				'query',
+				[],
+				mockAIProviders,
+				mockEmbeddingProvider,
+				abortController,
+				vi.fn(),
+				vi.fn(),
+				10000
+			);
+
+			expect(result).toBe('');
+			expect(consoleSpy).not.toHaveBeenCalled();
+			expect(logger.warn).toHaveBeenCalledWith(
+				'RAG retrieval is not supported by the selected provider; skipping context retrieval',
+				notImplementedError,
+			);
 			consoleSpy.mockRestore();
 		});
 

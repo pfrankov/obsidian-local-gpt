@@ -29,6 +29,7 @@
 - Mocks: use `tests/__mocks__/` and provider mocks under `obsidian-ai-providers/` (mapped in `jest.config.js`).
 - Examples: run a single test `npm test -- -t "RAG Functions"`; watch `npm test -- --watch`.
 - Required: run `npm run check` after every change before responding; if it cannot be run, state the reason explicitly.
+- For every bug fix or production incident, add/update an automated regression test that reproduces the failure and protects the fix whenever technically feasible.
 - Aim to cover new logic (RAG selection, request handling, utils). No coverage threshold enforced.
 
 ## Commit & Pull Request Guidelines

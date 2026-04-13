@@ -58,20 +58,20 @@ export class TFile {
   
   constructor() {}
 }
-export const Vault = vi.fn().mockImplementation(() => ({
-  cachedRead: vi.fn().mockImplementation((file) => {
+export class Vault {
+  cachedRead = vi.fn().mockImplementation((file) => {
     if (file.extension === 'unsupported') {
       throw new Error('Unsupported file type');
     }
     return Promise.resolve('Mocked content');
-  }),
-  getAbstractFileByPath: vi.fn().mockReturnValue(new TFile()),
-  readBinary: vi.fn().mockResolvedValue(new ArrayBuffer(8))
-}));
-export const MetadataCache = vi.fn().mockImplementation(() => ({
-  getFirstLinkpathDest: vi.fn().mockReturnValue(new TFile()),
-  resolvedLinks: { 'mock/backlink.md': { 'mock/path.md': 1 } }
-}));
+  });
+  getAbstractFileByPath = vi.fn().mockReturnValue(new TFile());
+  readBinary = vi.fn().mockResolvedValue(new ArrayBuffer(8));
+}
+export class MetadataCache {
+  getFirstLinkpathDest = vi.fn().mockReturnValue(new TFile());
+  resolvedLinks = { 'mock/backlink.md': { 'mock/path.md': 1 } };
+}
 export const requestUrl = vi.fn();
 export const PluginSettingTab = vi.fn().mockImplementation(() => {
   return {

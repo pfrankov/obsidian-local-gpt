@@ -1,5 +1,6 @@
-import { TFile, Vault, MetadataCache } from "obsidian";
-import { IAIDocument, IAIProvidersRetrievalResult } from "./interfaces";
+import { TFile } from "obsidian";
+import type { Vault, MetadataCache } from "obsidian";
+import type { IAIDocument, IAIProvidersRetrievalResult } from "./interfaces";
 import { logger } from "./logger";
 import { extractTextFromPDF } from "./processors/pdf";
 import { fileCache } from "./indexedDB";
@@ -322,10 +323,39 @@ export async function searchDocuments(
 		return formatResults(results, contextLimit);
 	} catch (error) {
 		if (!abortController?.signal.aborted) {
+			if (isRetrieveNotImplementedError(error)) {
+				logger.warn(
+					"RAG retrieval is not supported by the selected provider; skipping context retrieval",
+					error,
+				);
+				return "";
+			}
 			console.error("Error in searchDocuments:", error);
 		}
 		return "";
 	}
+}
+
+function isRetrieveNotImplementedError(error: unknown): boolean {
+	if (!error || typeof error !== "object") {
+		return false;
+	}
+
+	const e = error as {
+		status?: number;
+		statusCode?: number;
+		message?: string;
+		summary?: string;
+		detail?: string;
+	};
+	if (e.status === 501 || e.statusCode === 501) {
+		return true;
+	}
+
+	const text = [e.message, e.summary, e.detail]
+		.filter((value): value is string => typeof value === "string")
+		.join(" ");
+	return /\b501\b/.test(text);
 }
 
 function formatResults(

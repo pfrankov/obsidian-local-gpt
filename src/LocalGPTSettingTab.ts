@@ -11,7 +11,7 @@ import {
 } from "obsidian";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
-import { CommunityActionRef, LocalGPTAction } from "./interfaces";
+import type { CommunityActionRef, LocalGPTAction } from "./interfaces";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import { I18n } from "./i18n";
 import Sortable from "sortablejs";
@@ -23,11 +23,11 @@ import {
 } from "./actionUtils";
 import { detectDominantLanguage } from "./languageDetection";
 import {
-	CommunityAction,
 	CommunityActionsService,
 	buildCommunityActionKey,
 	buildCommunityActionSignature,
 } from "./CommunityActionsService";
+import type { CommunityAction } from "./CommunityActionsService";
 
 const SEPARATOR = "✂️";
 

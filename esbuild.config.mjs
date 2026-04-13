@@ -57,11 +57,19 @@ const context = await esbuild.context({
 		sveltePlugin({
 			preprocess: sveltePreprocess({
 				typescript: true
-			})
+			}),
+			compilerOptions: {
+				compatibility: {
+					componentApi: 4,
+				},
+			},
 		}),
 		inlineWorkerPlugin({
-			target: 'es2018',
-			format: 'cjs',
+			// pdfjs worker (v5+) relies on import.meta.url
+			// Keep worker build target modern even if main bundle target is older.
+			target: "es2020",
+			// import.meta is preserved only in ESM output.
+			format: "esm",
 		}),
 		copyFilesPlugin([
 			{ from: './manifest.json', to: './dist/manifest.json' }

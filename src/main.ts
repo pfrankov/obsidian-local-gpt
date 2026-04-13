@@ -13,7 +13,11 @@ import {
 	showActionPalette,
 	hideActionPalette,
 } from "./ui/actionPalettePlugin";
-import { IAIDocument, LocalGPTAction, LocalGPTSettings } from "./interfaces";
+import type {
+	IAIDocument,
+	LocalGPTAction,
+	LocalGPTSettings,
+} from "./interfaces";
 import { populateActionContextMenu } from "./actionMenu";
 import {
 	ensureActionIds,
@@ -25,9 +29,8 @@ import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
 import { logger } from "./logger";
 import { I18n } from "./i18n";
 import { fileCache } from "./indexedDB";
-import {
-	initAI,
-	waitForAI,
+import { initAI, waitForAI } from "@obsidian-ai-providers/sdk";
+import type {
 	IAIProvider,
 	IAIProvidersService,
 } from "@obsidian-ai-providers/sdk";
@@ -48,14 +51,14 @@ const MIN_BASE_SPEED = 0.02 / 16;
 const MAX_BASE_SPEED = 3 / 16;
 
 export default class LocalGPT extends Plugin {
-	settings: LocalGPTSettings;
+	settings!: LocalGPTSettings;
 	actionPaletteProviderId: string | null = null;
 	actionPaletteModel: string | null = null;
 	actionPaletteModelProviderId: string | null = null;
 	actionPaletteCreativityKey: string | null = null; // "", "low", "medium", "high"
 	abortControllers: AbortController[] = [];
-	updatingInterval: number;
-	private statusBarItem: HTMLElement;
+	updatingInterval!: number;
+	private statusBarItem!: HTMLElement;
 	private currentPercentage = 0;
 	private targetPercentage = 0;
 	private frameId: number | null = null;

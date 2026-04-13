@@ -1,4 +1,4 @@
-import { LocalGPTAction } from "./interfaces";
+import type { LocalGPTAction } from "./interfaces";
 
 export const isSeparatorAction = (action: LocalGPTAction): boolean =>
 	Boolean(action.separator);

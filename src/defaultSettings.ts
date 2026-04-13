@@ -1,4 +1,4 @@
-import { LocalGPTSettings } from "./interfaces";
+import type { LocalGPTSettings } from "./interfaces";
 
 export const DEFAULT_SETTINGS: LocalGPTSettings = {
 	aiProviders: {

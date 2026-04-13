@@ -85,15 +85,15 @@ describe("ActionPalette component", () => {
 
 	test("selects a system prompt via command dropdown and submits it", async () => {
 		const systemPromptChange = vi.fn();
+		const submitSpy = vi.fn();
 		const { target, component } = createComponent({
 			getSystemPrompts: () => [
 				{ id: "preset", name: "Preset", system: "You are kind" },
 			],
 			providerLabel: "OpenRouter · z-ai/glm-4.7 · ⚪ None",
 			onSystemPromptChange: systemPromptChange,
+			onSubmit: submitSpy,
 		});
-		const submitSpy = vi.fn();
-		component.$on("submit", (event) => submitSpy(event.detail));
 
 		const textbox = requireElement<HTMLDivElement>(
 			target,
@@ -125,10 +125,11 @@ describe("ActionPalette component", () => {
 		presetItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await tick();
 
-		setCaretToEnd(textbox);
-		textbox.dispatchEvent(
-			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-		);
+			setCaretToEnd(textbox);
+			textbox.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			await tick();
 
 		expect(submitSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ systemPrompt: "You are kind" }),
@@ -139,6 +140,7 @@ describe("ActionPalette component", () => {
 
 	test("restores the persisted system prompt and shows its indicator", async () => {
 		const systemPromptChange = vi.fn();
+		const submitSpy = vi.fn();
 		const { target, component } = createComponent({
 			getSystemPrompts: () => [
 				{ id: "preset", name: "Preset", system: "You are kind" },
@@ -146,9 +148,8 @@ describe("ActionPalette component", () => {
 			providerLabel: "OpenRouter · z-ai/glm-4.7 · ⚪ None",
 			selectedSystemPromptId: "preset",
 			onSystemPromptChange: systemPromptChange,
+			onSubmit: submitSpy,
 		});
-		const submitSpy = vi.fn();
-		component.$on("submit", (event) => submitSpy(event.detail));
 		await tick();
 
 		const indicator = requireElement<HTMLElement>(
@@ -169,9 +170,10 @@ describe("ActionPalette component", () => {
 			target,
 			".local-gpt-action-palette",
 		);
-		textbox.dispatchEvent(
-			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-		);
+			textbox.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			await tick();
 
 		expect(submitSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ systemPrompt: "You are kind" }),
@@ -256,6 +258,7 @@ describe("ActionPalette component", () => {
 	test("does not auto-clear when a real prompt matches the clear label", async () => {
 		const clearLabel = I18n.t("commands.actionPalette.clearSystemPrompt");
 		const systemPromptChange = vi.fn();
+		const submitSpy = vi.fn();
 		const { target, component } = createComponent({
 			getSystemPrompts: () => [
 				{ id: "existing", name: "Preset", system: "You are kind" },
@@ -263,9 +266,8 @@ describe("ActionPalette component", () => {
 			],
 			selectedSystemPromptId: "existing",
 			onSystemPromptChange: systemPromptChange,
+			onSubmit: submitSpy,
 		});
-		const submitSpy = vi.fn();
-		component.$on("submit", (event) => submitSpy(event.detail));
 
 		const textbox = requireElement<HTMLDivElement>(
 			target,
@@ -275,9 +277,10 @@ describe("ActionPalette component", () => {
 		await typeIntoPalette(textbox, `/system ${clearLabel}`);
 		await tick();
 
-		textbox.dispatchEvent(
-			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-		);
+			textbox.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			await tick();
 
 		expect(submitSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ systemPrompt: "Use the real prompt" }),
@@ -303,9 +306,8 @@ describe("ActionPalette component", () => {
 	});
 
 	test("Shift+Enter inserts newline instead of submitting", async () => {
-		const { target, component } = createComponent();
 		const submitSpy = vi.fn();
-		component.$on("submit", submitSpy);
+		const { target, component } = createComponent({ onSubmit: submitSpy });
 
 		const textbox = requireElement<HTMLDivElement>(
 			target,

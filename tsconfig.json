@@ -9,6 +9,7 @@
     "allowJs": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "importHelpers": true,
     "isolatedModules": true,
