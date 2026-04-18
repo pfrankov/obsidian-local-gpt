@@ -1,6 +1,6 @@
 {
   "name": "obsidian-local-gpt",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Local GPT assistance for maximum privacy and offline access",
   "main": "main.js",
   "scripts": {
@@ -52,7 +52,7 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
-    "@obsidian-ai-providers/sdk": "^1.6.0",
+    "@obsidian-ai-providers/sdk": "^1.7.0",
     "idb": "^8.0.3",
     "pdfjs-dist": "^5.6.205",
     "sortablejs": "^1.15.7"
