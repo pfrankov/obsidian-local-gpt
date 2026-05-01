@@ -1,4 +1,4 @@
-import { Editor, Menu, Notice, Plugin, requestUrl, TFile } from "obsidian";
+import { Editor, Notice, Plugin, requestUrl } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
 import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "./spinnerPlugin";
@@ -8,24 +8,10 @@ import {
 	requestPositionTracker,
 	trackSelectionRange,
 } from "./requestPositionTracker";
-import {
-	actionPalettePlugin,
-	showActionPalette,
-	hideActionPalette,
-} from "./ui/actionPalettePlugin";
-import type {
-	IAIDocument,
-	LocalGPTAction,
-	LocalGPTSettings,
-} from "./interfaces";
-import { populateActionContextMenu } from "./actionMenu";
-import {
-	ensureActionIds,
-	getActionIdentifier,
-	getRunnableActions,
-} from "./actionUtils";
+import { actionPalettePlugin } from "./ui/actionPalettePlugin";
+import type { LocalGPTAction, LocalGPTSettings } from "./interfaces";
+import { ensureActionIds } from "./actionUtils";
 
-import { getLinkedFiles, startProcessing, searchDocuments } from "./rag";
 import { logger } from "./logger";
 import { I18n } from "./i18n";
 import { fileCache } from "./indexedDB";
@@ -34,23 +20,22 @@ import type {
 	IAIProvider,
 	IAIProvidersService,
 } from "@obsidian-ai-providers/sdk";
-import { preparePrompt } from "./utils";
+import { ProgressStatusBar } from "./progressStatusBar";
+import { migrateSettings } from "./settingsMigration";
+import {
+	getActionPaletteInitialSelectedFiles,
+	registerLocalGPTCommands,
+} from "./localGptCommands";
+import { enhanceWithContext as enhanceContext } from "./contextEnhancer";
+import { extractImagesFromSelection } from "./selectionImages";
+import {
+	executeProviderRequest,
+	overrideProviderModel,
+	selectProvider,
+} from "./providerRequest";
+import { removeThinkingTags } from "./textProcessing";
 
 type SelectionContextMode = "selection" | "selection-or-document";
-
-/**
- * Remove all thinking tags and their content from text
- * Used for final output processing
- *
- * @param text Text that may contain thinking tags
- * @returns Clean text without thinking tags and their content
- */
-function removeThinkingTags(text: string): string {
-	return text.replace(/^<think>[\s\S]*?<\/think>\s*/, "");
-}
-
-const MIN_BASE_SPEED = 0.02 / 16;
-const MAX_BASE_SPEED = 3 / 16;
 
 export default class LocalGPT extends Plugin {
 	settings!: LocalGPTSettings;
@@ -60,17 +45,7 @@ export default class LocalGPT extends Plugin {
 	actionPaletteCreativityKey: string | null = null; // "", "low", "medium", "high"
 	abortControllers: AbortController[] = [];
 	updatingInterval!: number;
-	private statusBarItem!: HTMLElement;
-	private currentPercentage = 0;
-	private targetPercentage = 0;
-	private frameId: number | null = null;
-	private lastFrameTime: number | null = null;
-	private displayedPercentage = 0; // fractional internal value
-	private baseSpeed = 0; // percent per ms (smoothed)
-	private lastTargetUpdateTime: number | null = null;
-	private progressFinished = false; // controls when we can show 100%
-	private totalProgressSteps = 0;
-	private completedProgressSteps = 0;
+	private progressStatusBar!: ProgressStatusBar;
 
 	async onload() {
 		initAI(this.app, this, async () => {
@@ -93,9 +68,7 @@ export default class LocalGPT extends Plugin {
 	}
 
 	private initializeStatusBar() {
-		this.statusBarItem = this.addStatusBarItem();
-		this.statusBarItem.addClass("local-gpt-status");
-		this.statusBarItem.hide();
+		this.progressStatusBar = new ProgressStatusBar(this.addStatusBarItem());
 	}
 
 	private getLegacyActionPaletteSystemPromptStorageKey(): string {
@@ -119,252 +92,14 @@ export default class LocalGPT extends Plugin {
 	}
 
 	private addCommands() {
-		this.addCommand({
-			id: "context-menu",
-			name: I18n.t("commands.showContextMenu"),
-			editorCallback: (editor: Editor) => {
-				// @ts-expect-error, not typed
-				const editorView = editor.cm;
-
-				const cursorPositionFrom = editor.getCursor("from");
-				const cursorPositionTo = editor.getCursor("to");
-
-				const contextMenu = new Menu();
-
-				populateActionContextMenu(
-					contextMenu,
-					this.settings.actions,
-					(action) => this.runAction(action, editor),
-				);
-
-				const fromRect = editorView.coordsAtPos(
-					editor.posToOffset(cursorPositionFrom),
-				);
-				const toRect = editorView.coordsAtPos(
-					editor.posToOffset(cursorPositionTo),
-				);
-				contextMenu.showAtPosition({
-					x: fromRect.left,
-					y: toRect.top + (editorView.defaultLineHeight || 0),
-				});
-			},
-		});
-
-		getRunnableActions(this.settings.actions).forEach((action, index) => {
-			this.addCommand({
-				id: `quick-access-${index + 1}`,
-				name: `${index + 1} | ${action.name}`,
-				editorCallback: (editor: Editor) => {
-					this.runAction(action, editor);
-				},
-			});
-		});
-
-		this.addCommand({
-			id: "local-gpt-action-palette",
-			name: I18n.t("commands.actionPalette.name"),
-			editorCallback: async (editor: Editor) => {
-				// @ts-expect-error, not typed
-				const editorView = editor.cm;
-				const cursorPositionFrom = editor.getCursor("from");
-				const insertPos = editor.posToOffset({
-					line: cursorPositionFrom.line,
-					ch: 0,
-				});
-				const initialSelectedFiles =
-					this.getActionPaletteInitialSelectedFiles(editor);
-
-				let modelLabel = "";
-				let currentProviderId: string | undefined;
-				try {
-					const aiRequestWaiter = await waitForAI();
-					const aiProviders: IAIProvidersService =
-						await aiRequestWaiter.promise;
-					const selectedProviderId =
-						this.actionPaletteProviderId ||
-						this.settings.aiProviders.main;
-					const provider = aiProviders.providers.find(
-						(p: IAIProvider) => p.id === selectedProviderId,
-					);
-					if (provider) {
-						currentProviderId = provider.id;
-						const modelToShow =
-							this.actionPaletteModelProviderId === provider.id
-								? this.actionPaletteModel || provider.model
-								: provider.model;
-						// Compose creativity label for badge
-						const creativityKey =
-							this.actionPaletteCreativityKey ??
-							this.settings.defaults.creativity ??
-							"";
-						const creativityLabelMap: Record<string, string> = {
-							"": I18n.t("settings.creativityNone"),
-							low: I18n.t("settings.creativityLow"),
-							medium: I18n.t("settings.creativityMedium"),
-							high: I18n.t("settings.creativityHigh"),
-						};
-						const creativityLabel =
-							creativityLabelMap[creativityKey] || "";
-
-						modelLabel = [
-							provider.name,
-							modelToShow,
-							creativityLabel,
-						]
-							.filter(Boolean)
-							.join(" · ");
-					}
-				} catch (e) {
-					void e;
-				}
-
-				showActionPalette(editorView, insertPos, {
-					onSubmit: (
-						text: string,
-						selectedFiles: string[] = [],
-						systemPrompt?: string,
-					) => {
-						const overrideProviderId =
-							this.actionPaletteProviderId ||
-							this.settings.aiProviders.main;
-						// Palette-only creativity override
-						const creativityKey =
-							this.actionPaletteCreativityKey ??
-							this.settings.defaults.creativity ??
-							"";
-						const temperatureOverride = (CREATIVITY as any)[
-							creativityKey
-						]?.temperature as number | undefined;
-
-						this.runFreeform(
-							editor,
-							text,
-							selectedFiles,
-							overrideProviderId,
-							temperatureOverride,
-							systemPrompt,
-						).finally(() => {});
-
-						hideActionPalette(editorView);
-						this.app.workspace.updateOptions();
-					},
-					onCancel: () => {
-						hideActionPalette(editorView);
-						this.app.workspace.updateOptions();
-					},
-					placeholder: I18n.t("commands.actionPalette.placeholder"),
-					modelLabel: modelLabel,
-					providerId: currentProviderId,
-					getFiles: () => {
-						return this.app.vault
-							.getMarkdownFiles()
-							.concat(
-								this.app.vault
-									.getFiles()
-									.filter((f) => f.extension === "pdf"),
-							)
-							.map((file) => ({
-								path: file.path,
-								basename: file.basename,
-								extension: file.extension,
-							}));
-					},
-					getProviders: async () => {
-						try {
-							const aiRequestWaiter = await waitForAI();
-							const aiProviders: IAIProvidersService =
-								await aiRequestWaiter.promise;
-
-							return aiProviders.providers
-								.filter((p) => Boolean(p.model))
-								.map((p) => ({
-									id: p.id,
-									name:
-										p.model ||
-										I18n.t(
-											"commands.actionPalette.unknownModel",
-										),
-									providerName: p.name,
-									providerUrl:
-										(p as unknown as { url?: string })
-											.url || "",
-								}));
-						} catch (error) {
-							console.error("Error fetching models:", error);
-							return [];
-						}
-					},
-					getModels: async (providerId: string) => {
-						try {
-							const aiRequestWaiter = await waitForAI();
-							const aiProviders: IAIProvidersService =
-								await aiRequestWaiter.promise;
-							const provider = aiProviders.providers.find(
-								(p: IAIProvider) => p.id === providerId,
-							);
-							if (!provider) return [];
-							const models =
-								provider.availableModels ||
-								(await aiProviders.fetchModels(provider));
-							return models.map((m) => ({ id: m, name: m }));
-						} catch (error) {
-							console.error("Error fetching models:", error);
-							return [];
-						}
-					},
-					onProviderChange: async (providerId: string) => {
-						// Only override Action Palette provider, keep settings unchanged
-						this.actionPaletteProviderId = providerId;
-						this.actionPaletteModel = null;
-						this.actionPaletteModelProviderId = null;
-					},
-					onModelChange: async (model: string) => {
-						const providerId =
-							this.actionPaletteProviderId ||
-							this.settings.aiProviders.main;
-						this.actionPaletteModel = model;
-						this.actionPaletteModelProviderId = providerId;
-					},
-					onCreativityChange: async (creativityKey: string) => {
-						// Only override Action Palette creativity, keep settings unchanged
-						this.actionPaletteCreativityKey = creativityKey;
-					},
-					getSystemPrompts: () => {
-						return getRunnableActions(this.settings.actions)
-							.filter((action) => action.system)
-							.map((action) => ({
-								id: getActionIdentifier(action),
-								name: action.name,
-								system: action.system!,
-							}));
-					},
-					selectedSystemPromptId:
-						this.settings.actionPalette?.systemPromptActionId ??
-						null,
-					onSystemPromptChange: async (systemPromptId) => {
-						this.settings.actionPalette = {
-							...(this.settings.actionPalette || {}),
-							systemPromptActionId: systemPromptId,
-						};
-						await this.saveData(this.settings);
-					},
-					initialSelectedFiles,
-				});
-				this.app.workspace.updateOptions();
-			},
-		});
+		registerLocalGPTCommands(this);
 	}
 
 	private getActionPaletteInitialSelectedFiles(editor: Editor): string[] {
-		if (editor.getSelection()) {
-			return [];
-		}
-
-		const activeFile = this.app.workspace.getActiveFile();
-		return activeFile ? [activeFile.path] : [];
+		return getActionPaletteInitialSelectedFiles(this, editor);
 	}
 
-	private async runFreeform(
+	async runFreeform(
 		editor: Editor,
 		userInput: string,
 		selectedFiles: string[] = [],
@@ -444,7 +179,10 @@ export default class LocalGPT extends Plugin {
 
 		try {
 			const { cleanedText, imagesInBase64 } =
-				await this.extractImagesFromSelection(selectedTextRef.value);
+				await extractImagesFromSelection(
+					this.app,
+					selectedTextRef.value,
+				);
 			selectedTextRef.value = cleanedText;
 
 			logger.time("Processing Embeddings");
@@ -472,28 +210,34 @@ export default class LocalGPT extends Plugin {
 				contextQuery,
 			);
 
-			const provider = this.selectProvider(
+			const provider = selectProvider(
 				aiProviders,
+				this.settings,
 				imagesInBase64.length > 0,
 				params.overrideProviderId,
 			);
-			const adjustedProvider = this.overrideProviderModel(
+			const adjustedProvider = overrideProviderModel(
 				provider,
-				params,
+				params.overrideProviderId,
+				this.actionPaletteModel,
+				this.actionPaletteModelProviderId,
 			);
 
 			let fullText = "";
 			try {
-				fullText = await this.executeProviderRequest(
+				fullText = await executeProviderRequest({
 					aiProviders,
-					adjustedProvider,
-					params,
-					cleanedText,
+					provider: adjustedProvider,
+					settings: this.settings,
+					prompt: params.prompt,
+					system: params.system,
+					temperature: params.temperature,
+					selectedText: cleanedText,
 					context,
 					imagesInBase64,
 					abortController,
 					onUpdate,
-				);
+				});
 			} finally {
 				hideSpinner && hideSpinner();
 				this.app.workspace.updateOptions();
@@ -585,135 +329,6 @@ export default class LocalGPT extends Plugin {
 		return { abortController, hideSpinner, onUpdate };
 	}
 
-	private async extractImagesFromSelection(
-		selectedText: string,
-	): Promise<{ cleanedText: string; imagesInBase64: string[] }> {
-		const regexp = /!\[\[(.+?\.(?:png|jpe?g))]]/gi;
-		const fileNames = Array.from(
-			selectedText.matchAll(regexp),
-			(match) => match[1],
-		);
-
-		const cleanedText = selectedText.replace(regexp, "");
-		const imagesInBase64 =
-			(
-				await Promise.all<string>(
-					fileNames.map((fileName) =>
-						this.readImageAsDataUrl(fileName),
-					),
-				)
-			).filter(Boolean) || [];
-
-		return { cleanedText, imagesInBase64 };
-	}
-
-	private async readImageAsDataUrl(fileName: string): Promise<string> {
-		const filePath = this.app.metadataCache.getFirstLinkpathDest(
-			fileName,
-			// @ts-ignore
-			this.app.workspace.getActiveFile().path,
-		);
-
-		if (!filePath) {
-			return "";
-		}
-
-		return this.app.vault.adapter
-			.readBinary(filePath.path)
-			.then((buffer) => {
-				const extension = filePath.extension.toLowerCase();
-				const mimeType = extension === "jpg" ? "jpeg" : extension;
-				const blob = new Blob([buffer], {
-					type: `image/${mimeType}`,
-				});
-				return new Promise((resolve) => {
-					const reader = new FileReader();
-					reader.onloadend = () => resolve(reader.result as string);
-					reader.readAsDataURL(blob);
-				});
-			});
-	}
-
-	private selectProvider(
-		aiProviders: IAIProvidersService,
-		hasImages: boolean,
-		overrideProviderId?: string | null,
-	): IAIProvider {
-		const visionCandidate = hasImages
-			? aiProviders.providers.find(
-					(p: IAIProvider) =>
-						p.id === this.settings.aiProviders.vision,
-				)
-			: undefined;
-		const preferredProviderId =
-			overrideProviderId || this.settings.aiProviders.main;
-		const fallback = aiProviders.providers.find(
-			(p) => p.id === preferredProviderId,
-		);
-
-		const provider = visionCandidate || fallback;
-		if (!provider) {
-			throw new Error("No AI provider found");
-		}
-		return provider;
-	}
-
-	private overrideProviderModel(
-		provider: IAIProvider,
-		params: {
-			overrideProviderId?: string | null;
-		},
-	): IAIProvider {
-		if (
-			this.actionPaletteModel &&
-			params.overrideProviderId &&
-			this.actionPaletteModelProviderId === params.overrideProviderId
-		) {
-			return { ...provider, model: this.actionPaletteModel };
-		}
-		return provider;
-	}
-
-	private async executeProviderRequest(
-		aiProviders: IAIProvidersService,
-		provider: IAIProvider,
-		params: { prompt: string; system?: string; temperature?: number },
-		selectedText: string,
-		context: string,
-		imagesInBase64: string[],
-		abortController: AbortController,
-		onUpdate: (updatedString: string) => void,
-	): Promise<string> {
-		try {
-			return await aiProviders.execute({
-				provider,
-				prompt: preparePrompt(params.prompt, selectedText, context),
-				images: imagesInBase64,
-				systemPrompt: params.system,
-				options: {
-					temperature:
-						params.temperature ??
-						CREATIVITY[this.settings.defaults.creativity]
-							.temperature,
-				},
-				onProgress: (_chunk: string, accumulatedText: string) => {
-					onUpdate(accumulatedText);
-				},
-				abortController,
-			});
-		} catch (error) {
-			if (!abortController.signal.aborted) {
-				new Notice(
-					I18n.t("notices.errorGenerating", {
-						message: (error as any).message,
-					}),
-				);
-			}
-			logger.separator();
-			return "";
-		}
-	}
-
 	private applyTextResult(
 		editor: Editor,
 		replaceSelection: boolean | undefined,
@@ -748,137 +363,26 @@ export default class LocalGPT extends Plugin {
 		selectedFiles: string[] | undefined,
 		queryText: string,
 	): Promise<string> {
-		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile || !aiProvider || abortController?.signal.aborted) {
-			return "";
-		}
-
-		const allLinkedFiles = this.collectLinkedFilesForContext(
+		return enhanceContext({
+			app: this.app,
+			settings: this.settings,
 			selectedText,
+			aiProviders,
+			aiProvider,
+			abortController,
 			selectedFiles,
-			activeFile.path,
-		);
-		if (allLinkedFiles.length === 0) {
-			return "";
-		}
-
-		try {
-			this.initializeProgress();
-
-			const processedDocs = await startProcessing(
-				allLinkedFiles,
-				this.app.vault,
-				this.app.metadataCache,
-				activeFile,
-				this.updateCompletedSteps.bind(this),
-				selectedFiles?.includes(activeFile.path) ?? false,
-			);
-
-			if (this.shouldAbortProcessing(processedDocs, abortController)) {
-				return this.finishContextProcessing("");
-			}
-
-			const retrieveDocuments = Array.from(processedDocs.values());
-
-			if (abortController?.signal.aborted) {
-				return this.finishContextProcessing("");
-			}
-
-			const contextLimit = this.resolveContextLimit();
-
-			const relevantContext = await searchDocuments(
-				queryText,
-				retrieveDocuments,
-				aiProviders,
-				aiProvider,
-				abortController,
-				this.updateCompletedSteps.bind(this),
-				this.addTotalProgressSteps.bind(this),
-				contextLimit,
-			);
-
-			return this.finishContextProcessing(relevantContext.trim() || "");
-		} catch (error) {
-			return this.handleContextError(error, abortController);
-		}
-	}
-
-	private collectLinkedFilesForContext(
-		selectedText: string,
-		selectedFiles: string[] | undefined,
-		activeFilePath: string,
-	): TFile[] {
-		const linkedFiles = getLinkedFiles(
-			selectedText,
-			this.app.vault,
-			this.app.metadataCache,
-			activeFilePath,
-		);
-
-		const additionalFiles =
-			selectedFiles
-				?.map((filePath) =>
-					this.app.vault.getAbstractFileByPath(filePath),
-				)
-				.filter(
-					(file): file is TFile =>
-						file !== null &&
-						file instanceof TFile &&
-						(file.extension === "md" || file.extension === "pdf"),
-				) || [];
-
-		return [...linkedFiles, ...additionalFiles];
-	}
-
-	private shouldAbortProcessing(
-		processedDocs: Map<string, IAIDocument>,
-		abortController: AbortController,
-	): boolean {
-		return processedDocs.size === 0 || abortController?.signal.aborted;
-	}
-
-	private resolveContextLimit(): number {
-		const preset = this.settings?.defaults?.contextLimit as
-			| "local"
-			| "cloud"
-			| "advanced"
-			| "max";
-		const map: Record<string, number> = {
-			local: 10_000,
-			cloud: 32_000,
-			advanced: 100_000,
-			max: 3_000_000,
-		};
-		return map[preset];
-	}
-
-	private finishContextProcessing(result: string): string {
-		this.hideStatusBar();
-		return result;
-	}
-
-	private handleContextError(
-		error: unknown,
-		abortController: AbortController,
-	): string {
-		this.hideStatusBar();
-		if (!abortController?.signal.aborted) {
-			console.error("Error processing RAG:", error);
-			new Notice(
-				I18n.t("notices.errorProcessingRag", {
-					message: (error as any).message,
-				}),
-			);
-		}
-		return "";
+			queryText,
+			initializeProgress: () => this.initializeProgress(),
+			updateCompletedSteps: (steps) => this.updateCompletedSteps(steps),
+			addTotalProgressSteps: (steps) => this.addTotalProgressSteps(steps),
+			hideStatusBar: () => this.hideStatusBar(),
+		});
 	}
 
 	onunload() {
 		document.removeEventListener("keydown", this.escapeHandler);
 		window.clearInterval(this.updatingInterval);
-		if (this.frameId !== null) {
-			cancelAnimationFrame(this.frameId);
-		}
+		this.progressStatusBar?.dispose();
 	}
 
 	async loadSettings() {
@@ -895,358 +399,11 @@ export default class LocalGPT extends Plugin {
 		}
 	}
 
-	// Legacy provider defaults used by older settings migrations
-	private readonly legacyDefaultProviders = {
-		ollama: {
-			url: "http://localhost:11434",
-			defaultModel: "gemma2",
-			embeddingModel: "",
-			type: "ollama",
-		},
-		ollama_fallback: {
-			url: "http://localhost:11434",
-			defaultModel: "gemma2",
-			embeddingModel: "",
-			type: "ollama",
-		},
-		openaiCompatible: {
-			url: "http://localhost:8080/v1",
-			apiKey: "",
-			embeddingModel: "",
-			type: "openaiCompatible",
-		},
-		openaiCompatible_fallback: {
-			url: "http://localhost:8080/v1",
-			apiKey: "",
-			embeddingModel: "",
-			type: "openaiCompatible",
-		},
-	} as const;
-
-	private async migrateSettings(
-		loadedData?: LocalGPTSettings,
-	): Promise<{ settings?: LocalGPTSettings; changed: boolean }> {
-		if (!loadedData) {
-			return { settings: loadedData, changed: false };
-		}
-
-		const preAsyncMigrations = [
-			this.migrateToVersion2,
-			this.migrateToVersion3,
-			this.migrateToVersion4,
-			this.migrateToVersion5,
-			this.migrateToVersion6,
-		];
-		const postAsyncMigrations = [
-			this.migrateToVersion8,
-			this.migrateToVersion9,
-			this.migrateToVersion10,
-		];
-		const changed = preAsyncMigrations.reduce(
-			(hasChanged, migrate) =>
-				migrate.call(this, loadedData) || hasChanged,
-			false,
+	private async migrateSettings(loadedData?: LocalGPTSettings) {
+		return migrateSettings(
+			loadedData,
+			this.getLegacyActionPaletteSystemPromptStorageKey(),
 		);
-		const changedAsync = await this.migrateToVersion7(loadedData);
-		const changedPostAsync = postAsyncMigrations.reduce(
-			(hasChanged, migrate) =>
-				migrate.call(this, loadedData) || hasChanged,
-			false,
-		);
-
-		return {
-			settings: loadedData,
-			changed: changed || changedAsync || changedPostAsync,
-		};
-	}
-
-	private migrateToVersion2(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 1) {
-			return false;
-		}
-
-		const providers: Record<string, any> = JSON.parse(
-			JSON.stringify(this.legacyDefaultProviders),
-		);
-
-		(settings as any).providers = providers;
-		(settings as any).providers.ollama.ollamaUrl = (
-			settings as any
-		).ollamaUrl;
-		delete (settings as any).ollamaUrl;
-		(settings as any).providers.ollama.defaultModel = (
-			settings as any
-		).defaultModel;
-		delete (settings as any).defaultModel;
-		(settings as any).providers.openaiCompatible &&
-			((settings as any).providers.openaiCompatible.apiKey = "");
-
-		settings._version = 2;
-		return true;
-	}
-
-	private migrateToVersion3(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 3) {
-			return false;
-		}
-		(settings as any).defaultProvider =
-			(settings as any).selectedProvider || "ollama";
-		delete (settings as any).selectedProvider;
-
-		const providers = (settings as any).providers;
-		if (providers) {
-			Object.keys(providers).forEach((key) => {
-				providers[key].type = key;
-			});
-		}
-
-		settings._version = 3;
-		return true;
-	}
-
-	private migrateToVersion4(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 4) {
-			return false;
-		}
-
-		(settings as any).defaults = {
-			provider: (settings as any).defaultProvider || "ollama",
-			fallbackProvider: (settings as any).fallbackProvider || "",
-			creativity: "low",
-		};
-		delete (settings as any).defaultProvider;
-		delete (settings as any).fallbackProvider;
-
-		settings._version = 4;
-		return true;
-	}
-
-	private migrateToVersion5(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 5) {
-			return false;
-		}
-
-		const providers = (settings as any).providers;
-		if (providers) {
-			Object.keys(this.legacyDefaultProviders).forEach((provider) => {
-				if (providers[provider]) {
-					providers[provider].embeddingModel = (
-						this.legacyDefaultProviders as any
-					)[provider].embeddingModel;
-				}
-			});
-		}
-
-		settings._version = 5;
-		setTimeout(() => {
-			new Notice(
-				`🎉 LocalGPT can finally use\ncontext from links!\nCheck the Settings!`,
-				0,
-			);
-		}, 10000);
-		return true;
-	}
-
-	private migrateToVersion6(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 6) {
-			return false;
-		}
-
-		const providers = (settings as any).providers;
-		if (providers) {
-			Object.keys(this.legacyDefaultProviders).forEach((provider) => {
-				if (providers[provider]?.type === "ollama") {
-					providers[provider].url = providers[provider].ollamaUrl;
-					delete providers[provider].ollamaUrl;
-				}
-				if (providers[provider]?.type === "openaiCompatible") {
-					providers[provider].url =
-						providers[provider].url.replace(/\/+$/i, "") + "/v1";
-				}
-			});
-		}
-
-		settings._version = 6;
-		return true;
-	}
-
-	private async migrateToVersion7(
-		settings: LocalGPTSettings,
-	): Promise<boolean> {
-		if (settings._version && settings._version >= 7) {
-			return false;
-		}
-
-		new Notice(I18n.t("notices.importantUpdate"), 0);
-		const aiRequestWaiter = await waitForAI();
-		const aiProviders = await aiRequestWaiter.promise;
-
-		settings.aiProviders = {
-			main: null,
-			embedding: null,
-			vision: null,
-		};
-
-		const oldProviders = (settings as any).providers;
-		const oldDefaults = (settings as any).defaults;
-
-		if (oldProviders && oldDefaults?.provider) {
-			await this.migrateLegacyProviderConfig(
-				settings,
-				aiProviders,
-				oldProviders,
-				oldDefaults,
-			);
-		}
-
-		delete (settings as any).defaults;
-		delete (settings as any).providers;
-
-		settings._version = 7;
-		return true;
-	}
-
-	private async migrateLegacyProviderConfig(
-		settings: LocalGPTSettings,
-		aiProviders: any,
-		oldProviders: Record<string, any>,
-		oldDefaults: Record<string, any>,
-	) {
-		const provider = oldDefaults.provider;
-		const typesMap: { [key: string]: string } = {
-			ollama: "ollama",
-			openaiCompatible: "openai",
-		};
-
-		const providerConfig = oldProviders[provider];
-		if (!providerConfig) {
-			return;
-		}
-		const type = typesMap[providerConfig.type];
-		await this.createMigratedProvider(
-			settings,
-			aiProviders,
-			provider,
-			providerConfig,
-			type,
-			"main",
-			providerConfig.defaultModel,
-		);
-		await this.createMigratedProvider(
-			settings,
-			aiProviders,
-			provider,
-			providerConfig,
-			type,
-			"embedding",
-			providerConfig.embeddingModel,
-		);
-	}
-
-	private async createMigratedProvider(
-		settings: LocalGPTSettings,
-		aiProviders: any,
-		provider: string,
-		providerConfig: any,
-		type: string,
-		targetKey: "main" | "embedding",
-		model?: string,
-	) {
-		if (!model) {
-			return;
-		}
-		let adjustedModel = model;
-		if (type === "ollama" && !adjustedModel.endsWith(":latest")) {
-			adjustedModel = `${adjustedModel}:latest`;
-		}
-		const id = `id-${Date.now().toString()}`;
-		const newProvider = await (aiProviders as any).migrateProvider({
-			id,
-			name:
-				targetKey === "main"
-					? `Local GPT ${provider}`
-					: `Local GPT ${provider} embeddings`,
-			apiKey: providerConfig.apiKey,
-			url: providerConfig.url,
-			type,
-			model: adjustedModel,
-		});
-
-		if (newProvider) {
-			settings.aiProviders[targetKey] = newProvider.id;
-		}
-	}
-
-	private migrateToVersion8(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 8) {
-			return false;
-		}
-
-		(settings as any).defaults = (settings as any).defaults || {};
-		(settings as any).defaults.contextLimit =
-			(settings as any).defaults.contextLimit || "local";
-
-		settings._version = 8;
-		return true;
-	}
-
-	private migrateToVersion9(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 9) {
-			return false;
-		}
-
-		const { actions } = ensureActionIds(settings.actions || []);
-		settings.actions = actions;
-		settings._version = 9;
-		return true;
-	}
-
-	private migrateToVersion10(settings: LocalGPTSettings): boolean {
-		if (settings._version && settings._version >= 10) {
-			return false;
-		}
-
-		(settings as any).actionPalette = (settings as any).actionPalette || {};
-		if ((settings as any).actionPalette.systemPromptActionId == null) {
-			(settings as any).actionPalette.systemPromptActionId =
-				this.readLegacyActionPaletteSystemPromptId();
-		}
-		this.clearLegacyActionPaletteSystemPromptId();
-
-		settings._version = 10;
-		return true;
-	}
-
-	private readLegacyActionPaletteSystemPromptId(): string | null {
-		try {
-			const raw = window.localStorage.getItem(
-				this.getLegacyActionPaletteSystemPromptStorageKey(),
-			);
-			if (!raw) {
-				return null;
-			}
-			const parsed = JSON.parse(raw);
-			return parsed && typeof parsed.id === "string" ? parsed.id : null;
-		} catch (error) {
-			console.error(
-				"Failed to migrate Action Palette system prompt selection:",
-				error,
-			);
-			return null;
-		}
-	}
-
-	private clearLegacyActionPaletteSystemPromptId() {
-		try {
-			window.localStorage.removeItem(
-				this.getLegacyActionPaletteSystemPromptStorageKey(),
-			);
-		} catch (error) {
-			console.error(
-				"Failed to clean up legacy Action Palette system prompt selection:",
-				error,
-			);
-		}
 	}
 
 	async checkUpdates() {
@@ -1296,166 +453,22 @@ export default class LocalGPT extends Plugin {
 	}
 
 	private initializeProgress() {
-		this.totalProgressSteps = 0;
-		this.completedProgressSteps = 0;
-		this.currentPercentage = 0;
-		this.targetPercentage = 0;
-		this.displayedPercentage = 0;
-		this.baseSpeed = 0;
-		this.lastTargetUpdateTime = null;
-		this.lastFrameTime = null;
-		this.progressFinished = false;
-		this.stopAnimation();
-		this.statusBarItem.show();
-		this.updateStatusBar();
+		this.progressStatusBar?.initialize();
 	}
 
 	private addTotalProgressSteps(steps: number) {
-		this.totalProgressSteps += steps;
-		this.updateProgressBar();
+		this.progressStatusBar?.addTotalProgressSteps(steps);
 	}
 
 	private updateCompletedSteps(steps: number) {
-		this.completedProgressSteps += steps;
-		// Maintain invariant: total >= completed (dynamic totals may appear late)
-		if (this.completedProgressSteps > this.totalProgressSteps) {
-			this.totalProgressSteps = this.completedProgressSteps;
-		}
-		this.updateProgressBar();
-	}
-
-	private updateProgressBar() {
-		const newTarget = this.calculateTargetPercentage();
-		if (newTarget === this.targetPercentage) {
-			return;
-		}
-		const now = performance.now();
-		this.baseSpeed = this.calculateBaseSpeed(newTarget, now);
-		this.targetPercentage = newTarget;
-		this.lastTargetUpdateTime = now;
-		this.ensureAnimationLoop();
-	}
-
-	private calculateTargetPercentage(): number {
-		if (this.totalProgressSteps <= 0) {
-			return 0;
-		}
-		const ratio = Math.min(
-			this.completedProgressSteps / this.totalProgressSteps,
-			1,
-		);
-		return Math.floor(ratio * 100);
-	}
-
-	private calculateBaseSpeed(newTarget: number, now: number): number {
-		if (this.lastTargetUpdateTime === null) {
-			return this.baseSpeed;
-		}
-		const dt = now - this.lastTargetUpdateTime;
-		const diff = newTarget - this.targetPercentage;
-		if (dt <= 0 || diff <= 0) {
-			return this.baseSpeed;
-		}
-		const instantaneous = diff / dt;
-		const blended =
-			this.baseSpeed === 0
-				? instantaneous
-				: this.baseSpeed * 0.75 + instantaneous * 0.25;
-
-		return Math.min(MAX_BASE_SPEED, Math.max(MIN_BASE_SPEED, blended));
-	}
-
-	private ensureAnimationLoop() {
-		if (this.frameId !== null) {
-			return;
-		}
-		this.lastFrameTime = null;
-		this.frameId = requestAnimationFrame(this.animationLoop);
-	}
-
-	private updateStatusBar() {
-		const shown = this.progressFinished
-			? this.currentPercentage
-			: Math.min(this.currentPercentage, 99);
-		this.statusBarItem.setAttr(
-			"data-text",
-			shown
-				? I18n.t("statusBar.enhancingWithProgress", {
-						percent: String(shown),
-					})
-				: I18n.t("statusBar.enhancing"),
-		);
-		this.statusBarItem.setText(` `);
-	}
-
-	private animationLoop = (time: number) => {
-		if (this.lastFrameTime === null) {
-			this.lastFrameTime = time;
-		}
-		const delta = time - this.lastFrameTime;
-		this.lastFrameTime = time;
-		const target = this.targetPercentage;
-		if (delta > 0 && this.displayedPercentage < target) {
-			let speed = this.baseSpeed;
-			if (speed === 0) {
-				// Initial guess: reach target in ~400ms
-				speed = (target - this.displayedPercentage) / 400;
-			}
-			this.displayedPercentage = Math.min(
-				target,
-				this.displayedPercentage + speed * delta,
-			);
-			const rounded = Math.floor(this.displayedPercentage);
-			if (rounded !== this.currentPercentage) {
-				this.currentPercentage = rounded;
-				this.updateStatusBar();
-			}
-		}
-		if (this.displayedPercentage >= target) {
-			this.displayedPercentage = target;
-			this.currentPercentage = target;
-			this.updateStatusBar();
-		}
-		if (
-			this.currentPercentage < this.targetPercentage ||
-			this.displayedPercentage < this.targetPercentage
-		) {
-			this.frameId = requestAnimationFrame(this.animationLoop);
-			return;
-		}
-		this.stopAnimation();
-	};
-
-	private stopAnimation() {
-		if (this.frameId !== null) {
-			cancelAnimationFrame(this.frameId);
-		}
-		this.frameId = null;
-		this.lastFrameTime = null;
+		this.progressStatusBar?.updateCompletedSteps(steps);
 	}
 
 	private hideStatusBar() {
-		this.statusBarItem.hide();
-		this.totalProgressSteps = 0;
-		this.completedProgressSteps = 0;
-		this.currentPercentage = 0;
-		this.targetPercentage = 0;
-		this.displayedPercentage = 0;
-		this.baseSpeed = 0;
-		this.lastTargetUpdateTime = null;
-		this.lastFrameTime = null;
-		this.progressFinished = false;
-		this.stopAnimation();
+		this.progressStatusBar?.hide();
 	}
 
 	private markProgressFinished() {
-		if (this.progressFinished) {
-			return;
-		}
-		this.progressFinished = true;
-		this.currentPercentage = 100;
-		this.displayedPercentage = 100;
-		this.targetPercentage = 100;
-		this.updateStatusBar();
+		this.progressStatusBar?.markFinished();
 	}
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, tick } from "svelte";
 	import { I18n } from "../i18n";
+	import ActionPaletteDropdowns from "./ActionPaletteDropdowns.svelte";
 	import {
 		addToPromptHistory,
 		getPromptHistoryEntry,
@@ -23,39 +24,32 @@
 		SystemPromptReference,
 		TextToken,
 	} from "../interfaces";
-
-	type DropdownItem =
-		| FileReference
-		| CommandReference
-		| ProviderReference
-		| ModelReference
-		| CreativityReference
-		| SystemPromptReference;
-	type DropdownKind =
-		| "none"
-		| "file"
-		| "command"
-		| "provider"
-		| "model"
-		| "creativity"
-		| "system";
-	type SelectionHandler = (
-		item: DropdownItem,
-	) => void | Promise<void> | undefined;
-	type PaletteEvents = {
-		submit: ActionPaletteSubmitEvent;
-		cancel: void;
-	};
-
-	// Constants
-	const MAX_DROPDOWN_RESULTS = 15;
-	const FILE_MENTION_REGEX = /@([^@]+?\.[a-zA-Z0-9]+)(?=\s|$|@)/g;
-	const MENTION_PREFIX = "@";
-	const SPACE_AFTER_MENTION = " ";
-	const COMMAND_REGEX = /\/([^\/\s]+)(?=\s|$|\/)/g;
-	const COMMAND_PREFIX = "/";
-	const SPACE_AFTER_COMMAND = " ";
-	const CLEAR_SYSTEM_PROMPT_ID = "__clear_system_prompt__";
+	import type {
+		DropdownItem,
+		DropdownKind,
+		PaletteEvents,
+		SelectionHandler,
+	} from "./actionPaletteTypes";
+	import {
+		CLEAR_SYSTEM_PROMPT_ID,
+		COMMAND_PREFIX,
+		MAX_DROPDOWN_RESULTS,
+		MENTION_PREFIX,
+		SPACE_AFTER_COMMAND,
+		SPACE_AFTER_MENTION,
+		SYSTEM_PREVIEW_LENGTH,
+	} from "./actionPaletteTypes";
+	import {
+		createFileRemovalPattern,
+		getCommandQuery as getCommandQueryFromText,
+		getFileMention,
+		getFullFileName,
+		isCharacterWhitespace,
+		isCompleteCommand as isCompleteCommandText,
+		isCompleteMention as isCompleteMentionText,
+		parseTextToTokens as parseTextToTokenResult,
+		renderTokensAsHtml as renderTokenHtml,
+	} from "./actionPaletteText";
 
 	// Exported props
 	export let placeholder: string = I18n.t(
@@ -205,7 +199,6 @@
 	let modelName = (providerLabel.split(" · ")[1] || "").trim();
 	let creativityBadge = (providerLabel.split(" · ")[2] || "").trim();
 	let selectedSystemPromptName = "";
-	const SYSTEM_PREVIEW_LENGTH = 80;
 
 	$: if (contentElement && !initializedContent) {
 		initializedContent = true;
@@ -219,29 +212,6 @@
 			{ id: "medium", name: I18n.t("settings.creativityMedium") },
 			{ id: "high", name: I18n.t("settings.creativityHigh") },
 		];
-	}
-
-	function getFullFileName(file: FileReference) {
-		return `${file.basename}.${file.extension}`;
-	}
-
-	function findMatchingFile(
-		fileName: string,
-		availableFiles: FileReference[],
-	): FileReference | undefined {
-		const normalizedFileName = fileName.toLowerCase();
-		const matchingFiles = availableFiles.filter(
-			(file) =>
-				getFullFileName(file).toLowerCase() === normalizedFileName,
-		);
-		return (
-			matchingFiles.find((file) => selectedFiles.includes(file.path)) ||
-			matchingFiles[0]
-		);
-	}
-
-	function getFileMention(file: FileReference) {
-		return `${MENTION_PREFIX}${getFullFileName(file)}`;
 	}
 
 	function applyInitialSelectedFiles() {
@@ -275,30 +245,6 @@
 
 		const prefix = `${mentionsToInsert.join(SPACE_AFTER_MENTION)}${SPACE_AFTER_MENTION}`;
 		textContent = textContent ? `${prefix}${textContent}` : prefix;
-	}
-
-	function extractMentionsFromText(text: string) {
-		if (!getFiles) {
-			return { mentions: [], newSelectedFiles: [] };
-		}
-
-		const availableFiles = getFiles();
-		const mentions: string[] = [];
-		const newSelectedFiles: string[] = [];
-		const mentionMatches = Array.from(text.matchAll(FILE_MENTION_REGEX));
-
-		for (const match of mentionMatches) {
-			const fileName = (match[1] || "").trim();
-			const matchedFile = findMatchingFile(fileName, availableFiles);
-
-			if (matchedFile && !selectedFiles.includes(matchedFile.path)) {
-				newSelectedFiles.push(matchedFile.path);
-			}
-
-			mentions.push(match[0]);
-		}
-
-		return { mentions, newSelectedFiles };
 	}
 
 	function getAvailableCommands(): CommandReference[] {
@@ -347,113 +293,14 @@
 	}
 
 	function parseTextToTokens(text: string): TextToken[] {
-		const tokens: TextToken[] = [];
-
-		// Handle file mentions if getFiles is available
-		if (getFiles) {
-			const availableFiles = getFiles();
-			const { newSelectedFiles } = extractMentionsFromText(text);
-
-			// Update selected files with newly discovered ones
-			if (newSelectedFiles.length > 0) {
-				selectedFiles = [...selectedFiles, ...newSelectedFiles];
-			}
-		}
-
-		// Get all matches (both file mentions and commands)
-		const mentionMatches = getFiles
-			? (Array.from(text.matchAll(FILE_MENTION_REGEX)) as RegExpMatchArray[])
-			: [];
-		const commandMatches = Array.from(
-			text.matchAll(COMMAND_REGEX),
-		) as RegExpMatchArray[];
-
-		// Combine all matches and sort by position
-		const allMatches = [
-			...mentionMatches.map((match) => ({ type: "file", match })),
-			...commandMatches.map((match) => ({ type: "command", match })),
-		].sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0));
-
-		let lastIndex = 0;
-
-		for (const { type, match } of allMatches) {
-			const matchStart = match.index ?? 0;
-			const matchEnd = matchStart + match[0].length;
-
-			// Add text before this match
-			if (matchStart > lastIndex) {
-				tokens.push({
-					type: "text",
-					content: text.substring(lastIndex, matchStart),
-					start: lastIndex,
-					end: matchStart,
-				});
-			}
-
-			if (type === "file" && getFiles) {
-				const fileName = (match[1] || "").trim();
-				const availableFiles = getFiles();
-				const matchedFile = findMatchingFile(fileName, availableFiles);
-
-				if (matchedFile) {
-					// Valid file mention
-					tokens.push({
-						type: "file",
-						content: match[0],
-						start: matchStart,
-						end: matchEnd,
-						filePath: matchedFile.path,
-					});
-				} else {
-					// Invalid file mention - treat as text
-					tokens.push({
-						type: "text",
-						content: match[0],
-						start: matchStart,
-						end: matchEnd,
-					});
-				}
-			} else if (type === "command") {
-				const commandName = (match[1] || "").trim();
-				const availableCommands = getAvailableCommands();
-				const matchedCommand = availableCommands.find(
-					(cmd) => cmd.name === commandName,
-				);
-
-				if (matchedCommand) {
-					// Valid command
-					tokens.push({
-						type: "command",
-						content: match[0],
-						start: matchStart,
-						end: matchEnd,
-						commandName: matchedCommand.name,
-					});
-				} else {
-					// Invalid command - treat as text
-					tokens.push({
-						type: "text",
-						content: match[0],
-						start: matchStart,
-						end: matchEnd,
-					});
-				}
-			}
-
-			lastIndex = matchEnd;
-		}
-
-		// Add remaining text
-		if (lastIndex < text.length) {
-			tokens.push({
-				type: "text",
-				content: text.substring(lastIndex),
-				start: lastIndex,
-				end: text.length,
-			});
-		}
-
-		return tokens;
+		const result = parseTextToTokenResult(
+			text,
+			getFiles?.() ?? [],
+			selectedFiles,
+			getAvailableCommands(),
+		);
+		selectedFiles = result.selectedFiles;
+		return result.tokens;
 	}
 
 	function getCurrentCursorPosition(): number {
@@ -509,28 +356,8 @@
 		}
 	}
 
-	function escapeHtmlContent(text: string) {
-		const temporaryElement = document.createElement("div");
-		temporaryElement.textContent = text;
-		return temporaryElement.innerHTML;
-	}
-
 	function renderTokensAsHtml() {
-		return textTokens
-			.map((token) => {
-				if (token.type === "file") {
-					return `<span class="file-mention" data-path="${
-						token.filePath
-					}">${escapeHtmlContent(token.content)}</span>`;
-				}
-				if (token.type === "command") {
-					return `<span class="command-mention" data-command="${
-						token.commandName
-					}">${escapeHtmlContent(token.content)}</span>`;
-				}
-				return escapeHtmlContent(token.content);
-			})
-			.join("");
+		return renderTokenHtml(textTokens);
 	}
 
 	function updateContentDisplay() {
@@ -799,43 +626,29 @@
 		}
 	}
 
-	function isCharacterWhitespace(character: string) {
-		return /\s/.test(character);
-	}
-
 	function isCompleteMention(mentionText: string) {
 		if (!getFiles) return false;
 
-		return selectedFiles.some((filePath) => {
-			const file = getFiles()?.find((f) => f.path === filePath);
-			if (!file) return false;
-
-			const fullFileName = getFullFileName(file);
-			return mentionText === `${MENTION_PREFIX}${fullFileName}`;
-		});
+		return isCompleteMentionText(
+			mentionText,
+			getFiles(),
+			selectedFiles,
+		);
 	}
 
 	function isCompleteCommand(commandText: string) {
-		const availableCommands = getAvailableCommands();
-		return availableCommands.some(
-			(cmd) => commandText === `${COMMAND_PREFIX}${cmd.name}`,
+		return isCompleteCommandText(
+			commandText,
+			getAvailableCommands(),
 		);
 	}
 
 	function getCommandQuery(commandName: string): string {
-		const beforeCursor = textContent.substring(0, cursorPosition);
-		const token = `${COMMAND_PREFIX}${commandName}`;
-		const foundIndex = beforeCursor.lastIndexOf(token);
-		if (foundIndex === -1) return "";
-		const charBefore = foundIndex > 0 ? beforeCursor[foundIndex - 1] : " ";
-		if (foundIndex > 0 && !isCharacterWhitespace(charBefore)) return "";
-		const afterNameIndex = foundIndex + token.length;
-		const afterName = textContent.substring(afterNameIndex);
-		const hasSpace = afterName.startsWith(SPACE_AFTER_COMMAND);
-		const queryStart = hasSpace
-			? afterNameIndex + SPACE_AFTER_COMMAND.length
-			: afterNameIndex;
-		return textContent.substring(queryStart, cursorPosition).trim().toLowerCase();
+		return getCommandQueryFromText(
+			commandName,
+			textContent,
+			cursorPosition,
+		);
 	}
 
 	function filterAvailableCommands(query: string): CommandReference[] {
@@ -1424,15 +1237,6 @@
 		}
 	}
 
-	function createFileRemovalPattern(file: FileReference) {
-		const fullFileName = getFullFileName(file);
-		const escapedFileName = fullFileName.replace(
-			/[.*+?^${}()|[\]\\]/g,
-			"\\$&",
-		);
-		return new RegExp(`${MENTION_PREFIX}${escapedFileName}\\s?`, "g");
-	}
-
 	function removeCommandFromText(
 		commandStartIndex: number,
 		commandLength: number,
@@ -1521,175 +1325,24 @@
 		spellcheck="false"
 	></div>
 	{#if activeDropdown !== "none" && filteredItems.length > 0}
-		<div
-			bind:this={dropdownElement}
-			class="local-gpt-dropdown"
-			style="display: {activeDropdown === 'file' ? 'block' : 'none'}"
-		>
-			{#each fileItems as item, index}
-				{#if activeDropdown === "file"}
-					<div
-						class="local-gpt-dropdown-item {index === selectedIndex
-							? 'local-gpt-selected'
-							: ''}"
-						role="option"
-						tabindex="0"
-						aria-selected={index === selectedIndex}
-						on:click={() => handleSelection(item)}
-						on:keydown={(event) =>
-							event.key === "Enter" && handleSelection(item)}
-					>
-						<span class="local-gpt-file-name"
-							>{item.basename}.{item.extension}</span
-						>
-						<span class="local-gpt-file-path">{item.path}</span>
-					</div>
-				{/if}
-			{/each}
-		</div>
-
-		<div
-			bind:this={commandDropdownElement}
-			class="local-gpt-dropdown"
-			style="display: {activeDropdown === 'command' ? 'block' : 'none'}"
-		>
-			{#each commandItems as item, index}
-				{#if activeDropdown === "command"}
-					<div
-						class="local-gpt-dropdown-item {index === selectedIndex
-							? 'local-gpt-selected'
-							: ''}"
-						role="option"
-						tabindex="0"
-						aria-selected={index === selectedIndex}
-						on:click={() => handleSelection(item)}
-						on:keydown={(event) =>
-							event.key === "Enter" && handleSelection(item)}
-					>
-						<span class="local-gpt-command-name">/{item.name}</span>
-						<span class="local-gpt-command-description"
-							>{item.description}</span
-						>
-					</div>
-				{/if}
-			{/each}
-		</div>
-
-		<div
-			bind:this={providerDropdownElement}
-			class="local-gpt-dropdown"
-			style="display: {activeDropdown === 'provider' ? 'block' : 'none'}"
-		>
-			{#each providerItems as item, index}
-				{#if activeDropdown === "provider"}
-					<div
-						class="local-gpt-dropdown-item {index === selectedIndex
-							? 'local-gpt-selected'
-							: ''}"
-						role="option"
-						tabindex="0"
-						aria-selected={index === selectedIndex}
-						on:click={() => handleSelection(item)}
-						on:keydown={(event) =>
-							event.key === "Enter" && handleSelection(item)}
-					>
-						<div class="local-gpt-provider-header">
-							<span class="local-gpt-provider-name"
-								>{item.providerName}</span
-							>
-							{#if item.providerUrl}
-								<span class="local-gpt-provider-url"
-									>{item.providerUrl}</span
-								>
-							{/if}
-						</div>
-						<span class="local-gpt-provider-model">{item.name}</span
-						>
-					</div>
-				{/if}
-			{/each}
-		</div>
-
-		<div
-			bind:this={modelDropdownElement}
-			class="local-gpt-dropdown"
-			style="display: {activeDropdown === 'model' ? 'block' : 'none'}"
-		>
-			{#each modelItems as item, index}
-				{#if activeDropdown === "model"}
-					<div
-						class="local-gpt-dropdown-item {index === selectedIndex
-							? 'local-gpt-selected'
-							: ''}"
-						role="option"
-						tabindex="0"
-						aria-selected={index === selectedIndex}
-						on:click={() => handleSelection(item)}
-						on:keydown={(event) =>
-							event.key === "Enter" && handleSelection(item)}
-					>
-						<span class="local-gpt-model-name">{item.name}</span>
-					</div>
-				{/if}
-			{/each}
-		</div>
-
-		<div
-			bind:this={creativityDropdownElement}
-			class="local-gpt-dropdown"
-			style="display: {activeDropdown === 'creativity'
-				? 'block'
-				: 'none'}"
-		>
-			{#each creativityItems as item, index}
-				{#if activeDropdown === "creativity"}
-					<div
-						class="local-gpt-dropdown-item {index === selectedIndex
-							? 'local-gpt-selected'
-							: ''}"
-						role="option"
-						tabindex="0"
-						aria-selected={index === selectedIndex}
-						on:click={() => handleSelection(item)}
-						on:keydown={(event) =>
-							event.key === "Enter" && handleSelection(item)}
-					>
-						<span class="local-gpt-creativity-name"
-							>{item.name}</span
-						>
-					</div>
-				{/if}
-			{/each}
-		</div>
-
-		<div
-			bind:this={systemDropdownElement}
-			class="local-gpt-dropdown"
-			style="display: {activeDropdown === 'system' ? 'block' : 'none'}"
-		>
-			{#each systemItems as item, index}
-				{#if activeDropdown === "system"}
-					<div
-						class="local-gpt-dropdown-item {index === selectedIndex
-							? 'local-gpt-selected'
-							: ''}"
-						role="option"
-						tabindex="0"
-						aria-selected={index === selectedIndex}
-						on:click={() => handleSelection(item)}
-						on:keydown={(event) =>
-							event.key === "Enter" && handleSelection(item)}
-					>
-						<span class="local-gpt-system-name">{item.name}</span>
-						{#if item.id !== CLEAR_SYSTEM_PROMPT_ID}
-							<span class="local-gpt-system-detail"
-								>{formatSystemPreview(item.system)}</span
-							>
-						{/if}
-					</div>
-				{/if}
-			{/each}
-		</div>
+		<ActionPaletteDropdowns
+			{activeDropdown}
+			{selectedIndex}
+			{fileItems}
+			{commandItems}
+			{providerItems}
+			{modelItems}
+			{creativityItems}
+			{systemItems}
+			onSelect={handleSelection}
+			{formatSystemPreview}
+			bind:dropdownElement
+			bind:commandDropdownElement
+			bind:providerDropdownElement
+			bind:modelDropdownElement
+			bind:creativityDropdownElement
+			bind:systemDropdownElement
+		/>
 	{/if}
 
 	<div class="local-gpt-provider-badge">
