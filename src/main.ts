@@ -36,6 +36,8 @@ import type {
 } from "@obsidian-ai-providers/sdk";
 import { preparePrompt } from "./utils";
 
+type SelectionContextMode = "selection" | "selection-or-document";
+
 /**
  * Remove all thinking tags and their content from text
  * Used for final output processing
@@ -169,6 +171,8 @@ export default class LocalGPT extends Plugin {
 					line: cursorPositionFrom.line,
 					ch: 0,
 				});
+				const initialSelectedFiles =
+					this.getActionPaletteInitialSelectedFiles(editor);
 
 				let modelLabel = "";
 				let currentProviderId: string | undefined;
@@ -344,10 +348,20 @@ export default class LocalGPT extends Plugin {
 						};
 						await this.saveData(this.settings);
 					},
+					initialSelectedFiles,
 				});
 				this.app.workspace.updateOptions();
 			},
 		});
+	}
+
+	private getActionPaletteInitialSelectedFiles(editor: Editor): string[] {
+		if (editor.getSelection()) {
+			return [];
+		}
+
+		const activeFile = this.app.workspace.getActiveFile();
+		return activeFile ? [activeFile.path] : [];
 	}
 
 	private async runFreeform(
@@ -366,6 +380,7 @@ export default class LocalGPT extends Plugin {
 				selectedFiles,
 				overrideProviderId: overrideProviderId || undefined,
 				temperature: customTemperature,
+				selectionContextMode: "selection",
 			},
 			editor,
 		);
@@ -380,6 +395,7 @@ export default class LocalGPT extends Plugin {
 				temperature:
 					action.temperature ||
 					CREATIVITY[this.settings.defaults.creativity].temperature,
+				selectionContextMode: "selection-or-document",
 			},
 			editor,
 		);
@@ -393,6 +409,7 @@ export default class LocalGPT extends Plugin {
 			temperature?: number;
 			selectedFiles?: string[];
 			overrideProviderId?: string | null;
+			selectionContextMode: SelectionContextMode;
 		},
 		editor: Editor,
 	) {
@@ -401,7 +418,7 @@ export default class LocalGPT extends Plugin {
 			cursorOffsetFrom,
 			cursorOffsetTo,
 			selectedTextRef,
-		} = this.extractSelectionContext(editor);
+		} = this.extractSelectionContext(editor, params.selectionContextMode);
 		const { abortController, hideSpinner, onUpdate } =
 			this.createExecutionContext(
 				editorView,
@@ -443,12 +460,16 @@ export default class LocalGPT extends Plugin {
 					provider.id === this.settings.aiProviders.embedding,
 			);
 
+			const contextQuery = cleanedText.trim()
+				? cleanedText
+				: params.prompt;
 			const context = await this.enhanceWithContext(
 				cleanedText,
 				aiProviders,
 				embeddingProvider,
 				abortController,
 				params.selectedFiles,
+				contextQuery,
 			);
 
 			const provider = this.selectProvider(
@@ -507,11 +528,20 @@ export default class LocalGPT extends Plugin {
 		}
 	}
 
-	private extractSelectionContext(editor: Editor) {
+	private extractSelectionContext(
+		editor: Editor,
+		selectionContextMode: SelectionContextMode,
+	) {
 		// @ts-expect-error, not typed
 		const editorView = editor.cm;
 		const selection = editor.getSelection();
-		const selectedTextRef = { value: selection || editor.getValue() };
+		const selectedTextRef = {
+			value:
+				selection ||
+				(selectionContextMode === "selection-or-document"
+					? editor.getValue()
+					: ""),
+		};
 		const cursorPositionFrom = editor.getCursor("from");
 		const cursorPositionTo = editor.getCursor("to");
 		const cursorOffsetFrom = editor.posToOffset(cursorPositionFrom);
@@ -715,7 +745,8 @@ export default class LocalGPT extends Plugin {
 		aiProviders: IAIProvidersService,
 		aiProvider: IAIProvider | undefined,
 		abortController: AbortController,
-		selectedFiles?: string[],
+		selectedFiles: string[] | undefined,
+		queryText: string,
 	): Promise<string> {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile || !aiProvider || abortController?.signal.aborted) {
@@ -740,6 +771,7 @@ export default class LocalGPT extends Plugin {
 				this.app.metadataCache,
 				activeFile,
 				this.updateCompletedSteps.bind(this),
+				selectedFiles?.includes(activeFile.path) ?? false,
 			);
 
 			if (this.shouldAbortProcessing(processedDocs, abortController)) {
@@ -755,7 +787,7 @@ export default class LocalGPT extends Plugin {
 			const contextLimit = this.resolveContextLimit();
 
 			const relevantContext = await searchDocuments(
-				selectedText,
+				queryText,
 				retrieveDocuments,
 				aiProviders,
 				aiProvider,

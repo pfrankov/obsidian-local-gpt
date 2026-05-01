@@ -14,6 +14,7 @@ export interface ProcessingContext {
 	vault: Vault;
 	metadataCache: MetadataCache;
 	activeFile: TFile;
+	includeActiveFileContent: boolean;
 }
 
 export async function startProcessing(
@@ -21,11 +22,17 @@ export async function startProcessing(
 	vault: Vault,
 	metadataCache: MetadataCache,
 	activeFile: TFile,
-	updateCompletedSteps?: (steps: number) => void,
+	updateCompletedSteps: ((steps: number) => void) | undefined,
+	includeActiveFileContent: boolean,
 ): Promise<Map<string, IAIDocument>> {
 	logger.info("Starting RAG processing");
 	const processedDocs = new Map<string, IAIDocument>();
-	const context: ProcessingContext = { vault, metadataCache, activeFile };
+	const context: ProcessingContext = {
+		vault,
+		metadataCache,
+		activeFile,
+		includeActiveFileContent,
+	};
 
 	await Promise.all(
 		linkedFiles.map(async (file) => {
@@ -71,7 +78,10 @@ export async function processDocumentForRAG(
 	}
 
 	try {
-		if (file.path === context.activeFile.path) {
+		if (
+			file.path === context.activeFile.path &&
+			!context.includeActiveFileContent
+		) {
 			await traverseLinkedGraph(file, context, processedDocs, depth, {
 				includeBacklinks: false,
 			});

@@ -2,66 +2,18 @@
 
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { tick } from "svelte";
-import ActionPalette from "../src/ui/ActionPalette.svelte";
-import { addToPromptHistory, resetPromptHistory } from "../src/ui/actionPaletteHistory";
+import {
+	addToPromptHistory,
+	resetPromptHistory,
+} from "../src/ui/actionPaletteHistory";
 import { I18n } from "../src/i18n";
-
-const setCaretToEnd = (element: HTMLElement) => {
-	const range = document.createRange();
-	range.selectNodeContents(element);
-	range.collapse(false);
-	const selection = window.getSelection();
-	selection?.removeAllRanges();
-	selection?.addRange(range);
-};
-
-const setCaretAtIndex = (element: HTMLElement, index: number) => {
-	const range = document.createRange();
-	const textNode = element.firstChild;
-	if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-		const clampedIndex = Math.max(
-			0,
-			Math.min(index, textNode.textContent?.length ?? 0),
-		);
-		range.setStart(textNode, clampedIndex);
-		range.setEnd(textNode, clampedIndex);
-		const selection = window.getSelection();
-		selection?.removeAllRanges();
-		selection?.addRange(range);
-	}
-};
-
-const requireElement = <T extends Element>(
-	container: ParentNode,
-	selector: string,
-) => {
-	const el = container.querySelector(selector);
-	if (!el) {
-		throw new Error(`Element not found: ${selector}`);
-	}
-	return el as T;
-};
-
-const createComponent = (props: Record<string, unknown> = {}) => {
-	const target = document.createElement("div");
-	document.body.appendChild(target);
-	// Cast to any to align with the testing runtime signature
-	const component = new (ActionPalette as any)({ target, props });
-	return { target, component };
-};
-
-const typeIntoPalette = async (textbox: HTMLDivElement, text: string) => {
-	textbox.textContent = text;
-	setCaretToEnd(textbox);
-	textbox.dispatchEvent(
-		new InputEvent("input", {
-			bubbles: true,
-			data: text.slice(-1),
-			inputType: "insertText",
-		}),
-	);
-	await tick();
-};
+import {
+	createComponent,
+	requireElement,
+	setCaretAtIndex,
+	setCaretToEnd,
+	typeIntoPalette,
+} from "./helpers/actionPalette";
 
 afterEach(() => {
 	document.body.innerHTML = "";
@@ -79,6 +31,135 @@ describe("ActionPalette component", () => {
 
 		expect(textbox.dataset.placeholder).toBe(
 			I18n.t("commands.actionPalette.placeholder"),
+		);
+		component.$destroy();
+	});
+
+	test("focuses the prompt input when opened without initial document files", async () => {
+		const { target, component } = createComponent();
+		await tick();
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+
+		expect(document.activeElement).toBe(textbox);
+		component.$destroy();
+	});
+
+	test("submits the initially selected document through the file context list", async () => {
+		const submitSpy = vi.fn();
+		const { target, component } = createComponent({
+			getFiles: () => [
+				{
+					path: "notes/active.md",
+					basename: "active",
+					extension: "md",
+				},
+			],
+			initialSelectedFiles: ["notes/active.md"],
+			onSubmit: submitSpy,
+		});
+		await tick();
+
+		const chip = requireElement<HTMLSpanElement>(
+			target,
+			".local-gpt-action-palette .file-mention",
+		);
+		expect(chip.textContent).toContain("active.md");
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+		await tick();
+
+		expect(submitSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ selectedFiles: ["notes/active.md"] }),
+		);
+		component.$destroy();
+	});
+
+	test("keeps the initially selected file path when filenames collide", async () => {
+		const submitSpy = vi.fn();
+		const { target, component } = createComponent({
+			getFiles: () => [
+				{
+					path: "archive/active.md",
+					basename: "active",
+					extension: "md",
+				},
+				{
+					path: "notes/active.md",
+					basename: "active",
+					extension: "md",
+				},
+			],
+			initialSelectedFiles: ["notes/active.md"],
+			onSubmit: submitSpy,
+		});
+		await tick();
+
+		const chip = requireElement<HTMLSpanElement>(
+			target,
+			".local-gpt-action-palette .file-mention",
+		);
+		expect(chip.dataset.path).toBe("notes/active.md");
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+		await tick();
+
+		expect(submitSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ selectedFiles: ["notes/active.md"] }),
+		);
+		component.$destroy();
+	});
+
+	test("removes the initially selected document from the file context list", async () => {
+		const submitSpy = vi.fn();
+		const { target, component } = createComponent({
+			getFiles: () => [
+				{
+					path: "notes/active.md",
+					basename: "active",
+					extension: "md",
+				},
+			],
+			initialSelectedFiles: ["notes/active.md"],
+			onSubmit: submitSpy,
+		});
+		await tick();
+
+		const chip = requireElement<HTMLSpanElement>(
+			target,
+			".local-gpt-action-palette .file-mention",
+		);
+		chip.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		await tick();
+
+		expect(target.querySelector(".file-mention")).toBeNull();
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+		await tick();
+
+		expect(submitSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ selectedFiles: [] }),
 		);
 		component.$destroy();
 	});
@@ -103,7 +184,11 @@ describe("ActionPalette component", () => {
 		setCaretToEnd(textbox);
 		textbox.textContent = "/";
 		textbox.dispatchEvent(
-			new InputEvent("input", { bubbles: true, data: "/", inputType: "insertText" }),
+			new InputEvent("input", {
+				bubbles: true,
+				data: "/",
+				inputType: "insertText",
+			}),
 		);
 		await tick();
 
@@ -113,7 +198,9 @@ describe("ActionPalette component", () => {
 		const systemCommand = commandItems.find((el) =>
 			el.textContent?.trim().includes("/system"),
 		) as HTMLElement;
-		systemCommand?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		systemCommand?.dispatchEvent(
+			new MouseEvent("click", { bubbles: true }),
+		);
 		await tick();
 
 		const systemItems = Array.from(
@@ -125,11 +212,11 @@ describe("ActionPalette component", () => {
 		presetItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await tick();
 
-			setCaretToEnd(textbox);
-			textbox.dispatchEvent(
-				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-			);
-			await tick();
+		setCaretToEnd(textbox);
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+		await tick();
 
 		expect(submitSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ systemPrompt: "You are kind" }),
@@ -157,7 +244,9 @@ describe("ActionPalette component", () => {
 			".local-gpt-system-indicator",
 		);
 		expect(indicator.textContent).toContain("Preset");
-		expect(target.querySelector(".local-gpt-provider-badge-hint")).toBeNull();
+		expect(
+			target.querySelector(".local-gpt-provider-badge-hint"),
+		).toBeNull();
 		const providerLabel = requireElement<HTMLElement>(
 			target,
 			".local-gpt-provider-badge-label",
@@ -170,10 +259,10 @@ describe("ActionPalette component", () => {
 			target,
 			".local-gpt-action-palette",
 		);
-			textbox.dispatchEvent(
-				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-			);
-			await tick();
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+		await tick();
 
 		expect(submitSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ systemPrompt: "You are kind" }),
@@ -262,7 +351,11 @@ describe("ActionPalette component", () => {
 		const { target, component } = createComponent({
 			getSystemPrompts: () => [
 				{ id: "existing", name: "Preset", system: "You are kind" },
-				{ id: "real-clear", name: clearLabel, system: "Use the real prompt" },
+				{
+					id: "real-clear",
+					name: clearLabel,
+					system: "Use the real prompt",
+				},
 			],
 			selectedSystemPromptId: "existing",
 			onSystemPromptChange: systemPromptChange,
@@ -277,10 +370,10 @@ describe("ActionPalette component", () => {
 		await typeIntoPalette(textbox, `/system ${clearLabel}`);
 		await tick();
 
-			textbox.dispatchEvent(
-				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-			);
-			await tick();
+		textbox.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+		await tick();
 
 		expect(submitSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ systemPrompt: "Use the real prompt" }),

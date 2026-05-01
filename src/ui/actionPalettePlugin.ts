@@ -65,6 +65,7 @@ export interface ActionPaletteOptions {
 	onSystemPromptChange?: (
 		systemPromptId: string | null,
 	) => Promise<void> | void;
+	initialSelectedFiles?: string[];
 }
 
 class SvelteActionPaletteWidget extends WidgetType {
@@ -98,6 +99,7 @@ class SvelteActionPaletteWidget extends WidgetType {
 				getSystemPrompts: this.options.getSystemPrompts,
 				selectedSystemPromptId: this.options.selectedSystemPromptId,
 				onSystemPromptChange: this.options.onSystemPromptChange,
+				initialSelectedFiles: this.options.initialSelectedFiles,
 				onSubmit: (event: {
 					text: string;
 					selectedFiles: string[];

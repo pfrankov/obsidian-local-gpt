@@ -375,6 +375,8 @@ async function runCase(
 			vault,
 			metadataCache,
 			activeFile,
+			undefined,
+			false,
 		)) as unknown as Map<string, { content: string }>;
 	} finally {
 		getContentSpy.mockRestore();

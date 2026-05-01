@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher, tick } from "svelte";
+	import { createEventDispatcher, tick } from "svelte";
 	import { I18n } from "../i18n";
 	import {
 		addToPromptHistory,
@@ -77,6 +77,7 @@
 		| GetSystemPromptsCallback
 		| undefined = undefined;
 	export let selectedSystemPromptId: string | null = null;
+	export let initialSelectedFiles: string[] = [];
 	export let onSystemPromptChange:
 		| ((systemPromptId: string | null) => Promise<void> | void)
 		| undefined = undefined;
@@ -188,6 +189,7 @@
 	let selectedSystemPromptValue: string | undefined = undefined;
 	let historyIndex = getPromptHistoryLength();
 	let draftBeforeHistory = value;
+	let initializedContent = false;
 
 	// File and content state
 	let selectedFiles: string[] = [];
@@ -205,6 +207,11 @@
 	let selectedSystemPromptName = "";
 	const SYSTEM_PREVIEW_LENGTH = 80;
 
+	$: if (contentElement && !initializedContent) {
+		initializedContent = true;
+		initializeContent();
+	}
+
 	function getCreativityOptions(): CreativityReference[] {
 		return [
 			{ id: "", name: I18n.t("settings.creativityNone") },
@@ -214,15 +221,60 @@
 		];
 	}
 
+	function getFullFileName(file: FileReference) {
+		return `${file.basename}.${file.extension}`;
+	}
+
 	function findMatchingFile(
 		fileName: string,
 		availableFiles: FileReference[],
 	): FileReference | undefined {
 		const normalizedFileName = fileName.toLowerCase();
-		return availableFiles.find((file) => {
-			const fullFileName = `${file.basename}.${file.extension}`;
-			return fullFileName.toLowerCase() === normalizedFileName;
-		});
+		const matchingFiles = availableFiles.filter(
+			(file) =>
+				getFullFileName(file).toLowerCase() === normalizedFileName,
+		);
+		return (
+			matchingFiles.find((file) => selectedFiles.includes(file.path)) ||
+			matchingFiles[0]
+		);
+	}
+
+	function getFileMention(file: FileReference) {
+		return `${MENTION_PREFIX}${getFullFileName(file)}`;
+	}
+
+	function applyInitialSelectedFiles() {
+		if (!getFiles || initialSelectedFiles.length === 0) {
+			return;
+		}
+
+		const availableFiles = getFiles();
+		const filesToAdd = initialSelectedFiles
+			.map((filePath) =>
+				availableFiles.find((file) => file.path === filePath),
+			)
+			.filter((file): file is FileReference => Boolean(file))
+			.filter((file) => !selectedFiles.includes(file.path));
+
+		if (filesToAdd.length === 0) {
+			return;
+		}
+
+		selectedFiles = [
+			...selectedFiles,
+			...filesToAdd.map((file) => file.path),
+		];
+
+		const mentionsToInsert = filesToAdd
+			.map(getFileMention)
+			.filter((mention) => !textContent.includes(mention));
+		if (mentionsToInsert.length === 0) {
+			return;
+		}
+
+		const prefix = `${mentionsToInsert.join(SPACE_AFTER_MENTION)}${SPACE_AFTER_MENTION}`;
+		textContent = textContent ? `${prefix}${textContent}` : prefix;
 	}
 
 	function extractMentionsFromText(text: string) {
@@ -520,19 +572,20 @@
 		});
 	}
 
-	restoreSelectedSystemPrompt();
-
-	onMount(() => {
-		// Auto-focus the content element
-		queueMicrotask(() => {
+	function initializeContent() {
+		if (value) {
+			textContent = value;
+		}
+		applyInitialSelectedFiles();
+		textTokens = parseTextToTokens(textContent);
+		updateContentDisplay();
+		tick().then(() => {
 			contentElement?.focus();
-			if (value) {
-				textContent = value;
-				textTokens = parseTextToTokens(textContent);
-				updateContentDisplay();
-			}
+			setCursorPosition(textContent.length);
 		});
-	});
+	}
+
+	restoreSelectedSystemPrompt();
 
 	function restoreSelectedSystemPrompt() {
 		if (!selectedSystemPromptId || !getSystemPrompts) {
@@ -757,7 +810,7 @@
 			const file = getFiles()?.find((f) => f.path === filePath);
 			if (!file) return false;
 
-			const fullFileName = `${file.basename}.${file.extension}`;
+			const fullFileName = getFullFileName(file);
 			return mentionText === `${MENTION_PREFIX}${fullFileName}`;
 		});
 	}
@@ -807,7 +860,7 @@
 
 		return availableFiles
 			.filter((file) => {
-				const fullFileName = `${file.basename}.${file.extension}`;
+				const fullFileName = getFullFileName(file);
 				const isQueryMatch =
 					file.basename.toLowerCase().includes(normalizedQuery) ||
 					fullFileName.toLowerCase().includes(normalizedQuery);
@@ -901,7 +954,7 @@
 		}
 
 		// Build new text with file mention
-		const fullFileName = `${file.basename}.${file.extension}`;
+		const fullFileName = getFullFileName(file);
 		const beforeMention = textContent.substring(0, mentionStartIndex);
 		const afterCursor = textContent.substring(cursorPosition);
 		const newText =
@@ -1372,7 +1425,7 @@
 	}
 
 	function createFileRemovalPattern(file: FileReference) {
-		const fullFileName = `${file.basename}.${file.extension}`;
+		const fullFileName = getFullFileName(file);
 		const escapedFileName = fullFileName.replace(
 			/[.*+?^${}()|[\]\\]/g,
 			"\\$&",
