@@ -31,6 +31,22 @@ _No speedup. MacBook Pro 13, M1, 16GB, Ollama, bakllava._
     2. Select Embedding provider in plugin's settings and try to use the largest model with largest context window.
   </p>
 </details>
+<details>
+  <summary>How to use (llmman)</summary>
+  <p>
+    <a href="https://github.com/llmmanorg/llmman">llmman</a> serves the Ollama API on port <code>17434</code>, so text and vision models work with an <code>Ollama</code> provider pointed at <code>http://localhost:17434</code>.
+  </p>
+  <p>
+    1. Install Embedding model:
+  </p>
+  <ul>
+    <li>For English: <code>llmman pull hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF</code> (fastest)</li>
+    <li>For other languages: <code>llmman pull hf.co/gpustack/bge-m3-GGUF</code> (slower, but more accurate)</li>
+  </ul>
+  <p>
+    2. llmman does not serve Ollama's <code>/api/embed</code>, so in AI Providers create an <code>OpenAI compatible</code> provider with URL <code>http://localhost:17434/v1</code> (any API key works) and select it as Embedding provider in plugin's settings.
+  </p>
+</details>
 
 ### Default actions
 - Continue writing
