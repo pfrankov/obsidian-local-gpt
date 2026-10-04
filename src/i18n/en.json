@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "Change system prompt",
 			"clearSystemPrompt": "Clear system prompt",
 			"unknownModel": "Unknown model",
-			"hint": "Use / for commands, @ for files"
+			"hint": "Use / for commands, @ for files",
+			"changeReasoning": "Reasoning for this request"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"resetActions": "Reset actions",
 		"resetActionsDesc": "🚨 Reset all actions to the default. This cannot be undone and will delete all your custom actions.",
 		"reset": "Reset",
-		"confirmReset": "Confirm reset"
+		"confirmReset": "Confirm reset",
+		"reasoningEffort": "Reasoning",
+		"reasoningEffortDesc": "Local GPT only; unsupported modes use API default.",
+		"reasoningEffortDefault": "API default",
+		"reasoningEffortInherit": "Provider setting",
+		"reasoningEffortLow": "Low",
+		"reasoningEffortHigh": "High",
+		"reasoningEffortMax": "Max",
+		"reasoningUnavailable": "unavailable",
+		"creativityDefault": "API default",
+		"creativityInherit": "Default setting"
 	}
 }

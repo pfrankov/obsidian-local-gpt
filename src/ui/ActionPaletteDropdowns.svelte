@@ -16,6 +16,8 @@
 	export let commandItems: CommandReference[];
 	export let providerItems: ProviderReference[];
 	export let modelItems: ModelReference[];
+	export let reasoningItems: CreativityReference[] = [];
+	export let reasoningDropdownElement: HTMLDivElement | null = null;
 	export let creativityItems: CreativityReference[];
 	export let systemItems: SystemPromptReference[];
 	export let onSelect: (item: DropdownItem) => void;
@@ -154,6 +156,28 @@
 					event.key === "Enter" && onSelect(item)}
 			>
 				<span class="local-gpt-creativity-name">{item.name}</span>
+			</div>
+		{/if}
+	{/each}
+</div>
+
+<div
+	bind:this={reasoningDropdownElement}
+	class="local-gpt-dropdown"
+	style="display: {activeDropdown === 'reasoning' ? 'block' : 'none'}"
+>
+	{#each reasoningItems as item, index}
+		{#if activeDropdown === "reasoning"}
+			<div
+				class="local-gpt-dropdown-item {selectedClass(index)}"
+				role="option"
+				tabindex="0"
+				aria-selected={index === selectedIndex}
+				on:click={() => onSelect(item)}
+				on:keydown={(event) =>
+					event.key === "Enter" && onSelect(item)}
+			>
+				<span class="local-gpt-reasoning-name">{item.name}</span>
 			</div>
 		{/if}
 	{/each}

@@ -1372,3 +1372,22 @@
 		opacity: 0;
 	}
 }
+
+.local-gpt-reasoning-badge,
+.local-gpt-request-status {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 3px 7px;
+	margin: 4px 0;
+	max-width: 100%;
+	white-space: normal;
+}
+.local-gpt-request-status {
+	display: inline-block;
+	margin-right: 6px;
+}
+.local-gpt-reasoning-badge:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+}

@@ -1,14 +1,31 @@
+export type ReasoningEffort = string;
+
+export interface ReasoningSelection {
+	mode: string;
+	providerId: string;
+	model?: string;
+}
+
+export interface ReasoningPaletteSnapshot {
+	providerId: string;
+	model?: string;
+	modes: string[];
+	effectiveMode?: string;
+}
+
 export interface LocalGPTSettings {
 	aiProviders: {
 		main: string | null;
 		embedding: string | null;
 		vision: string | null;
 	};
+	/** LocalGPT-only defaults, keyed by AI Providers provider ID. */
+	providerReasoningEffort?: Record<string, ReasoningEffort>;
 	actionPalette?: {
 		systemPromptActionId?: string | null;
 	};
 	defaults: {
-		creativity: string;
+		creativity?: string;
 		/**
 		 * Preset that controls the overall limit for context chunks in Enhanced Actions (RAG).
 		 * Values: 'local' | 'cloud' | 'advanced' | 'max'
@@ -32,7 +49,10 @@ export interface LocalGPTAction {
 	id?: string;
 	name: string;
 	prompt: string;
-	temperature?: number;
+	/** Missing inherits configured Creativity; null explicitly uses API default. */
+	temperature?: number | null;
+	/** Missing inherits the provider setting; default omits the API parameter. */
+	reasoningEffort?: ReasoningEffort | "default";
 	system?: string;
 	replace?: boolean;
 	separator?: boolean;
@@ -88,6 +108,7 @@ export interface TextToken {
 }
 
 export interface ActionPaletteSubmitEvent {
+	reasoningSelection?: ReasoningSelection;
 	text: string;
 	selectedFiles: string[];
 	systemPrompt?: string;

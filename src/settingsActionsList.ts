@@ -20,6 +20,7 @@ interface PendingActionScroll {
 }
 
 interface RenderActionsListOptions {
+	reasoningModes?: string[];
 	containerEl: HTMLElement;
 	plugin: LocalGPT;
 	editExistingAction?: LocalGPTAction;
@@ -168,6 +169,7 @@ export function renderActionsList(options: RenderActionsListOptions) {
 			actionRow.controlEl.remove();
 			actionRow.infoEl.empty();
 			renderActionEditorForm({
+				reasoningModes: options.reasoningModes,
 				container: actionRow.infoEl,
 				plugin: options.plugin,
 				actionToEdit: action,

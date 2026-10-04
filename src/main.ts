@@ -1,6 +1,7 @@
+import { reasoningEffortLabel } from "./reasoningEffort";
 import { Editor, Notice, Plugin, requestUrl } from "obsidian";
 import { LocalGPTSettingTab } from "./LocalGPTSettingTab";
-import { CREATIVITY, DEFAULT_SETTINGS } from "defaultSettings";
+import { DEFAULT_SETTINGS } from "defaultSettings";
 import { spinnerPlugin } from "./spinnerPlugin";
 import {
 	getTrackedRange,
@@ -9,7 +10,11 @@ import {
 	trackSelectionRange,
 } from "./requestPositionTracker";
 import { actionPalettePlugin } from "./ui/actionPalettePlugin";
-import type { LocalGPTAction, LocalGPTSettings } from "./interfaces";
+import type {
+	LocalGPTAction,
+	LocalGPTSettings,
+	ReasoningSelection,
+} from "./interfaces";
 import { ensureActionIds } from "./actionUtils";
 
 import { logger } from "./logger";
@@ -104,12 +109,14 @@ export default class LocalGPT extends Plugin {
 		userInput: string,
 		selectedFiles: string[] = [],
 		overrideProviderId?: string | null,
-		customTemperature?: number,
+		customTemperature?: number | null,
 		systemPrompt?: string,
+		reasoningSelection?: ReasoningSelection,
 	) {
 		return this.executeAction(
 			{
 				prompt: userInput,
+				reasoningSelection,
 				system: systemPrompt,
 				replace: false,
 				selectedFiles,
@@ -125,11 +132,10 @@ export default class LocalGPT extends Plugin {
 		return this.executeAction(
 			{
 				prompt: action.prompt,
+				reasoningEffort: action.reasoningEffort,
 				system: action.system,
 				replace: !!action.replace,
-				temperature:
-					action.temperature ||
-					CREATIVITY[this.settings.defaults.creativity].temperature,
+				temperature: action.temperature,
 				selectionContextMode: "selection-or-document",
 			},
 			editor,
@@ -141,7 +147,9 @@ export default class LocalGPT extends Plugin {
 			prompt: string;
 			system?: string;
 			replace?: boolean;
-			temperature?: number;
+			temperature?: number | null;
+			reasoningEffort?: LocalGPTAction["reasoningEffort"];
+			reasoningSelection?: ReasoningSelection;
 			selectedFiles?: string[];
 			overrideProviderId?: string | null;
 			selectionContextMode: SelectionContextMode;
@@ -154,7 +162,7 @@ export default class LocalGPT extends Plugin {
 			cursorOffsetTo,
 			selectedTextRef,
 		} = this.extractSelectionContext(editor, params.selectionContextMode);
-		const { abortController, hideSpinner, onUpdate } =
+		const { abortController, hideSpinner, onUpdate, onReasoningResolved } =
 			this.createExecutionContext(
 				editorView,
 				cursorOffsetTo,
@@ -232,6 +240,9 @@ export default class LocalGPT extends Plugin {
 					prompt: params.prompt,
 					system: params.system,
 					temperature: params.temperature,
+					reasoningEffort: params.reasoningEffort,
+					reasoningSelection: params.reasoningSelection,
+					onReasoningResolved,
 					selectedText: cleanedText,
 					context,
 					imagesInBase64,
@@ -318,15 +329,20 @@ export default class LocalGPT extends Plugin {
 
 		const onUpdate = (updatedString: string) => {
 			if (!spinner) return;
-			spinner.processText(
-				updatedString,
-				(text: string) => this.processText(text, selectedTextRef.value),
-				cursorOffsetTo,
+			hideSpinner?.processText?.(updatedString, (text: string) =>
+				this.processText(text, selectedTextRef.value),
 			);
 			this.app.workspace.updateOptions();
 		};
 
-		return { abortController, hideSpinner, onUpdate };
+		const onReasoningResolved = (provider: IAIProvider, mode?: string) => {
+			if (abortController.signal.aborted) return;
+			hideSpinner?.setStatus?.(
+				`${provider.model || provider.name} · ${I18n.t("settings.reasoningEffort")}: ${reasoningEffortLabel(mode)}`,
+			);
+			this.app.workspace.updateOptions();
+		};
+		return { abortController, hideSpinner, onUpdate, onReasoningResolved };
 	}
 
 	private applyTextResult(
@@ -390,6 +406,7 @@ export default class LocalGPT extends Plugin {
 		const { settings, changed } = await this.migrateSettings(loadedData);
 
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, settings);
+		this.settings.defaults = { ...this.settings.defaults };
 		const { actions: actionsWithIds, changed: actionIdsChanged } =
 			ensureActionIds(this.settings.actions || []);
 		this.settings.actions = actionsWithIds;

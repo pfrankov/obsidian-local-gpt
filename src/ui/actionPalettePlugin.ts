@@ -1,3 +1,7 @@
+import type {
+	ReasoningSelection,
+	ReasoningPaletteSnapshot,
+} from "../interfaces";
 import {
 	EditorSelection,
 	RangeSetBuilder,
@@ -10,10 +14,12 @@ import { I18n } from "../i18n";
 import ActionPalette from "./ActionPalette.svelte";
 
 export interface ActionPaletteOptions {
+	getReasoningSnapshot?: () => Promise<ReasoningPaletteSnapshot>;
 	onSubmit: (
 		text: string,
 		selectedFiles?: string[],
 		systemPrompt?: string,
+		reasoningSelection?: ReasoningSelection,
 	) => void;
 	onCancel?: () => void;
 	placeholder?: string;
@@ -90,6 +96,7 @@ class SvelteActionPaletteWidget extends WidgetType {
 					I18n.t("commands.actionPalette.placeholder"),
 				providerLabel: this.options.modelLabel || "",
 				providerId: this.options.providerId,
+				getReasoningSnapshot: this.options.getReasoningSnapshot,
 				getFiles: this.options.getFiles,
 				getProviders: this.options.getProviders,
 				onProviderChange: this.options.onProviderChange,
@@ -104,11 +111,13 @@ class SvelteActionPaletteWidget extends WidgetType {
 					text: string;
 					selectedFiles: string[];
 					systemPrompt?: string;
+					reasoningSelection?: ReasoningSelection;
 				}) => {
 					this.options.onSubmit?.(
 						event.text,
 						event.selectedFiles,
 						event.systemPrompt,
+						event.reasoningSelection,
 					);
 				},
 				onCancel: () => {

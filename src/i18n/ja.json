@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "システムプロンプトを変更",
 			"clearSystemPrompt": "システムプロンプトをクリア",
 			"unknownModel": "不明なモデル",
-			"hint": "コマンドには /、ファイルには @ を使用"
+			"hint": "コマンドには /、ファイルには @ を使用",
+			"changeReasoning": "このリクエストの推論"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"communityActionsConflictNote": "この名前のアクションは既に存在します。インストールすると上書きされます。",
 		"communityActionsSyncSummary": "{{updated}} 件のアクションを更新しました。{{skipped}} 件の変更されたアクションをスキップしました。",
 		"communityActionsUpdated": "{{count}} 件のコミュニティアクションを更新しました。",
-		"communityActionsSkipped": "{{count}} 件の変更されたコミュニティアクションをスキップしました。"
+		"communityActionsSkipped": "{{count}} 件の変更されたコミュニティアクションをスキップしました。",
+		"reasoningEffort": "推論",
+		"reasoningEffortDesc": "Local GPTのみ：未対応のモードはAPIの既定値を使用します。",
+		"reasoningEffortDefault": "API の既定値",
+		"reasoningEffortInherit": "プロバイダー設定",
+		"reasoningEffortLow": "低",
+		"reasoningEffortHigh": "高",
+		"reasoningEffortMax": "最大",
+		"reasoningUnavailable": "利用不可",
+		"creativityDefault": "API の既定値",
+		"creativityInherit": "既定の設定"
 	}
 }

@@ -17,6 +17,7 @@ import { getFullFileName } from "./actionPaletteText";
 
 export function getCreativityOptions(): CreativityReference[] {
 	return [
+		{ id: "default", name: I18n.t("settings.creativityDefault") },
 		{ id: "", name: I18n.t("settings.creativityNone") },
 		{ id: "low", name: I18n.t("settings.creativityLow") },
 		{ id: "medium", name: I18n.t("settings.creativityMedium") },
@@ -41,6 +42,10 @@ export function getAvailableCommands(): CommandReference[] {
 		{
 			name: "system",
 			description: I18n.t("commands.actionPalette.changeSystemPrompt"),
+		},
+		{
+			name: "reasoning",
+			description: I18n.t("commands.actionPalette.changeReasoning"),
 		},
 	];
 }

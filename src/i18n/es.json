@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "Cambiar mensaje del sistema",
 			"clearSystemPrompt": "Borrar mensaje del sistema",
 			"unknownModel": "Modelo desconocido",
-			"hint": "Use / para comandos, @ para archivos"
+			"hint": "Use / para comandos, @ para archivos",
+			"changeReasoning": "Razonamiento para esta solicitud"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"communityActionsConflictNote": "Ya existe una acción con este nombre. Instalarla la sobrescribirá.",
 		"communityActionsSyncSummary": "{{updated}} acciones actualizadas. {{skipped}} modificadas omitidas.",
 		"communityActionsUpdated": "Se actualizaron {{count}} acciones de la comunidad.",
-		"communityActionsSkipped": "Se omitieron {{count}} acciones de la comunidad modificadas."
+		"communityActionsSkipped": "Se omitieron {{count}} acciones de la comunidad modificadas.",
+		"reasoningEffort": "Razonamiento",
+		"reasoningEffortDesc": "Solo Local GPT; los modos no compatibles usan el valor predeterminado de la API.",
+		"reasoningEffortDefault": "Predeterminado de la API",
+		"reasoningEffortInherit": "Ajuste del proveedor",
+		"reasoningEffortLow": "Bajo",
+		"reasoningEffortHigh": "Alto",
+		"reasoningEffortMax": "Máximo",
+		"reasoningUnavailable": "no disponible",
+		"creativityDefault": "Predeterminado de API",
+		"creativityInherit": "Ajuste predeterminado"
 	}
 }

@@ -1,4 +1,10 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import {
+	supportsReasoningEffort,
+	getReasoningModes,
+	isReasoningEffort,
+	reasoningEffortOptions,
+} from "./reasoningEffort";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import type { LocalGPTAction } from "./interfaces";
@@ -27,6 +33,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	editEnabled = false;
 	editExistingAction?: LocalGPTAction;
 	modelsOptions: Record<string, string> = {};
+	private reasoningModes: string[] = [];
 	// Controls visibility of the Advanced settings section
 	private isAdvancedMode = false;
 	private pendingScroll?: {
@@ -54,6 +61,20 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		try {
 			const aiProvidersWaiter = await waitForAI();
 			const aiProvidersResponse = await aiProvidersWaiter.promise;
+			this.reasoningModes = [
+				...new Set(
+					aiProvidersResponse.providers.flatMap((provider) =>
+						[
+							aiProvidersResponse.getModelCapabilities({
+								provider,
+							}),
+							...Object.values(
+								aiProvidersResponse.getModels({ provider }),
+							),
+						].flatMap((caps) => caps?.reasoningModes || []),
+					),
+				),
+			];
 
 			const providers = aiProvidersResponse.providers.reduce(
 				(
@@ -121,11 +142,52 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						}),
 				);
 
+			for (const provider of aiProvidersResponse.providers.filter(
+				supportsReasoningEffort,
+			)) {
+				new Setting(containerEl)
+					.setName(
+						`${I18n.t("settings.reasoningEffort")} · ${provider.name}`,
+					)
+					.setDesc(I18n.t("settings.reasoningEffortDesc"))
+					.addDropdown((dropdown) =>
+						dropdown
+							.addOptions(
+								reasoningEffortOptions(
+									getReasoningModes(provider),
+								),
+							)
+							.setValue(
+								this.plugin.settings.providerReasoningEffort?.[
+									provider.id
+								] ?? "default",
+							)
+							.onChange(async (value) => {
+								const efforts =
+									(this.plugin.settings.providerReasoningEffort ??=
+										{});
+								if (
+									isReasoningEffort(value) &&
+									getReasoningModes(provider).includes(value)
+								) {
+									efforts[provider.id] = value;
+								} else {
+									delete efforts[provider.id];
+								}
+								await this.plugin.saveSettings();
+							}),
+					);
+			}
+
 			new Setting(containerEl)
 				.setName(I18n.t("settings.creativity"))
 				.setDesc("")
 				.addDropdown((dropdown) => {
 					dropdown
+						.addOption(
+							"default",
+							I18n.t("settings.creativityDefault"),
+						)
 						.addOption("", I18n.t("settings.creativityNone"))
 						.addOptions({
 							low: I18n.t("settings.creativityLow"),
@@ -133,8 +195,8 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							high: I18n.t("settings.creativityHigh"),
 						})
 						.setValue(
-							String(this.plugin.settings.defaults.creativity) ||
-								"",
+							this.plugin.settings.defaults.creativity ??
+								"default",
 						)
 						.onChange(async (value) => {
 							this.plugin.settings.defaults.creativity = value;
@@ -149,7 +211,6 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		const editingAction: LocalGPTAction = this.editExistingAction || {
 			name: "",
 			prompt: "",
-			temperature: undefined,
 			system: "",
 			replace: false,
 		};
@@ -313,6 +374,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				);
 		} else {
 			renderActionEditorForm({
+				reasoningModes: this.reasoningModes,
 				container: containerEl,
 				plugin: this.plugin,
 				actionToEdit: editingAction,
@@ -324,6 +386,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		}
 
 		renderActionsList({
+			reasoningModes: this.reasoningModes,
 			containerEl,
 			plugin: this.plugin,
 			editExistingAction: this.editExistingAction,

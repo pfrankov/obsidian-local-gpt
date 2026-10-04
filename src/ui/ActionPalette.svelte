@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
+	import { createEventDispatcher, onDestroy } from "svelte";
 	import { I18n } from "../i18n";
 	import ActionPaletteDropdowns from "./ActionPaletteDropdowns.svelte";
 	import type {
 		ActionPaletteSubmitEvent,
+		ReasoningPaletteSnapshot,
 		CommandReference,
 		CreativityReference,
 		FileReference,
@@ -31,6 +32,7 @@
 	export let placeholder: string = I18n.t(
 		"commands.actionPalette.placeholder",
 	);
+	export let getReasoningSnapshot: (() => Promise<ReasoningPaletteSnapshot>) | undefined = undefined;
 	export let value = "";
 	export let providerLabel = "";
 	export let providerId: string | undefined = undefined;
@@ -63,6 +65,8 @@
 	let commandDropdownElement: HTMLDivElement | null = null;
 	let providerDropdownElement: HTMLDivElement | null = null;
 	let modelDropdownElement: HTMLDivElement | null = null;
+	let reasoningDropdownElement: HTMLDivElement | null = null;
+	let reasoningItems: CreativityReference[] = [];
 	let creativityDropdownElement: HTMLDivElement | null = null;
 	let systemDropdownElement: HTMLDivElement | null = null;
 
@@ -76,6 +80,7 @@
 
 	const controller = new ActionPaletteController(state, {
 		getValue: () => value,
+		getReasoningSnapshot: () => getReasoningSnapshot,
 		getProviderId: () => providerId,
 		setProviderId: (nextProviderId) => {
 			providerId = nextProviderId;
@@ -103,6 +108,7 @@
 				provider: providerDropdownElement,
 				model: modelDropdownElement,
 				creativity: creativityDropdownElement,
+				reasoning: reasoningDropdownElement,
 				system: systemDropdownElement,
 			}),
 		dispatchSubmit: (payload) => dispatch("submit", payload),
@@ -113,6 +119,9 @@
 	});
 
 	controller.restoreSelectedSystemPrompt();
+	void controller.refreshReasoning();
+	onDestroy(() => controller.resetReasoning());
+	$: reasoningItems = state.activeDropdown === "reasoning" ? state.filteredItems as CreativityReference[] : [];
 
 	$: if (contentElement && !state.initializedContent) {
 		controller.initializeContent();
@@ -181,6 +190,7 @@
 			{providerItems}
 			{modelItems}
 			{creativityItems}
+			{reasoningItems}
 			{systemItems}
 			onSelect={handleSelection}
 			{formatSystemPreview}
@@ -188,11 +198,17 @@
 			bind:commandDropdownElement
 			bind:providerDropdownElement
 			bind:modelDropdownElement
+			bind:reasoningDropdownElement
 			bind:creativityDropdownElement
 			bind:systemDropdownElement
 		/>
 	{/if}
 
+	{#if state.reasoningLabel}
+		<button type="button" class="local-gpt-reasoning-badge" title={I18n.t("commands.actionPalette.changeReasoning")} on:click={() => controller.activateCommandDropdown("reasoning")}>
+			{state.reasoningLabel}
+		</button>
+	{/if}
 	<div class="local-gpt-provider-badge">
 		{#if state.selectedSystemPromptName}
 			<div

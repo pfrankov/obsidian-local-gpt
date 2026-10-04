@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "시스템 프롬프트 변경",
 			"clearSystemPrompt": "시스템 프롬프트 지우기",
 			"unknownModel": "알 수 없는 모델",
-			"hint": "명령어는 /, 파일은 @ 사용"
+			"hint": "명령어는 /, 파일은 @ 사용",
+			"changeReasoning": "이 요청의 추론"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"communityActionsConflictNote": "이 이름의 액션이 이미 존재합니다. 설치하면 덮어씁니다.",
 		"communityActionsSyncSummary": "{{updated}}개 액션 업데이트됨. 수정된 {{skipped}}개 건너뜀.",
 		"communityActionsUpdated": "{{count}}개의 커뮤니티 액션이 업데이트되었습니다.",
-		"communityActionsSkipped": "{{count}}개의 수정된 커뮤니티 액션이 건너뛰어졌습니다."
+		"communityActionsSkipped": "{{count}}개의 수정된 커뮤니티 액션이 건너뛰어졌습니다.",
+		"reasoningEffort": "추론",
+		"reasoningEffortDesc": "Local GPT에만 적용되며, 미지원 모드는 API 기본값을 사용합니다.",
+		"reasoningEffortDefault": "API 기본값",
+		"reasoningEffortInherit": "공급자 설정",
+		"reasoningEffortLow": "낮음",
+		"reasoningEffortHigh": "높음",
+		"reasoningEffortMax": "최대",
+		"reasoningUnavailable": "사용 불가",
+		"creativityDefault": "API 기본값",
+		"creativityInherit": "기본 설정"
 	}
 }

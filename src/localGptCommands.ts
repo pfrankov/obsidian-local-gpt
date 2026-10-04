@@ -1,3 +1,6 @@
+import type { ReasoningSelection } from "./interfaces";
+import { getReasoningModes, resolveReasoningEffort } from "./reasoningEffort";
+import { selectProvider, overrideProviderModel } from "./providerRequest";
 import { Editor, Menu } from "obsidian";
 import { CREATIVITY } from "defaultSettings";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
@@ -81,10 +84,37 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 			const paletteLabel = await getActionPaletteLabel(plugin);
 
 			showActionPalette(editorView, insertPos, {
+				getReasoningSnapshot: async () => {
+					const service = await (await waitForAI()).promise;
+					const providerId =
+						plugin.actionPaletteProviderId ||
+						plugin.settings.aiProviders.main;
+					const provider = overrideProviderModel(
+						selectProvider(
+							service,
+							plugin.settings,
+							false,
+							providerId,
+						),
+						providerId,
+						plugin.actionPaletteModel,
+						plugin.actionPaletteModelProviderId,
+					);
+					return {
+						providerId: provider.id,
+						model: provider.model,
+						modes: getReasoningModes(provider),
+						effectiveMode: resolveReasoningEffort(
+							provider,
+							plugin.settings,
+						),
+					};
+				},
 				onSubmit: (
 					text: string,
 					selectedFiles: string[] = [],
 					systemPrompt?: string,
+					reasoningSelection?: ReasoningSelection,
 				) => {
 					const overrideProviderId =
 						plugin.actionPaletteProviderId ||
@@ -92,10 +122,9 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 					const creativityKey =
 						plugin.actionPaletteCreativityKey ??
 						plugin.settings.defaults.creativity ??
-						"";
-					const temperatureOverride = (CREATIVITY as any)[
-						creativityKey
-					]?.temperature as number | undefined;
+						"default";
+					const temperatureOverride =
+						CREATIVITY[creativityKey]?.temperature ?? null;
 
 					plugin
 						.runFreeform(
@@ -105,6 +134,7 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 							overrideProviderId,
 							temperatureOverride,
 							systemPrompt,
+							reasoningSelection,
 						)
 						.finally(() => {});
 
@@ -185,8 +215,9 @@ async function getActionPaletteLabel(plugin: LocalGPT) {
 			const creativityKey =
 				plugin.actionPaletteCreativityKey ??
 				plugin.settings.defaults.creativity ??
-				"";
+				"default";
 			const creativityLabelMap: Record<string, string> = {
+				default: I18n.t("settings.creativityDefault"),
 				"": I18n.t("settings.creativityNone"),
 				low: I18n.t("settings.creativityLow"),
 				medium: I18n.t("settings.creativityMedium"),

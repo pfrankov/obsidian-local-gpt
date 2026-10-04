@@ -451,3 +451,19 @@ export class ThinkingStreamWidget extends WidgetType {
 		this.stopIconCycle();
 	}
 }
+
+export class RequestStatusWidget extends WidgetType {
+	constructor(private label: string) {
+		super();
+	}
+	eq(other: RequestStatusWidget) {
+		return this.label === other.label;
+	}
+	toDOM(): HTMLElement {
+		const element = document.createElement("span");
+		element.className = "local-gpt-request-status";
+		element.textContent = this.label;
+		element.setAttribute("role", "status");
+		return element;
+	}
+}

@@ -13,7 +13,8 @@
     "test": "vitest run --coverage",
     "check": "npm run lint && npm run typecheck && npm run test",
     "full-check": "npm run format && npm run build && npm run test",
-    "prepare": "npx simple-git-hooks"
+    "prepare": "npx simple-git-hooks",
+    "review:sdk": "node scripts/prepare-review-sdk.mjs"
   },
   "keywords": [
     "obsidian",

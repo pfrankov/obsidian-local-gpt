@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "System-Prompt wechseln",
 			"clearSystemPrompt": "System-Prompt löschen",
 			"unknownModel": "Unbekanntes Modell",
-			"hint": "Nutzen Sie / für Befehle, @ für Dateien"
+			"hint": "Nutzen Sie / für Befehle, @ für Dateien",
+			"changeReasoning": "Denkmodus für diese Anfrage"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"resetActions": "Aktionen zurücksetzen",
 		"resetActionsDesc": "🚨 Setzt alle Aktionen auf die Standardeinstellungen zurück. Dies kann nicht rückgängig gemacht werden und löscht alle Ihre benutzerdefinierten Aktionen.",
 		"reset": "Zurücksetzen",
-		"confirmReset": "Zurücksetzen bestätigen"
+		"confirmReset": "Zurücksetzen bestätigen",
+		"reasoningEffort": "Denkmodus",
+		"reasoningEffortDesc": "Nur Local GPT; nicht unterstützte Modi nutzen den API-Standard.",
+		"reasoningEffortDefault": "API-Standard",
+		"reasoningEffortInherit": "Anbietereinstellung",
+		"reasoningEffortLow": "Niedrig",
+		"reasoningEffortHigh": "Hoch",
+		"reasoningEffortMax": "Maximal",
+		"reasoningUnavailable": "nicht verfügbar",
+		"creativityDefault": "API-Standard",
+		"creativityInherit": "Standardeinstellung"
 	}
 }

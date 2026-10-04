@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "Cambia prompt di sistema",
 			"clearSystemPrompt": "Cancella prompt di sistema",
 			"unknownModel": "Modello sconosciuto",
-			"hint": "Usa / per i comandi, @ per i file"
+			"hint": "Usa / per i comandi, @ per i file",
+			"changeReasoning": "Ragionamento per questa richiesta"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"communityActionsConflictNote": "Esiste già un'azione con questo nome. L'installazione la sovrascriverà.",
 		"communityActionsSyncSummary": "Aggiornate {{updated}} azioni. Saltate {{skipped}} modificate.",
 		"communityActionsUpdated": "Aggiornate {{count}} azioni della community.",
-		"communityActionsSkipped": "Saltate {{count}} azioni della community modificate."
+		"communityActionsSkipped": "Saltate {{count}} azioni della community modificate.",
+		"reasoningEffort": "Ragionamento",
+		"reasoningEffortDesc": "Solo Local GPT; le modalità non supportate usano il valore predefinito API.",
+		"reasoningEffortDefault": "Predefinito API",
+		"reasoningEffortInherit": "Impostazione del fornitore",
+		"reasoningEffortLow": "Basso",
+		"reasoningEffortHigh": "Alto",
+		"reasoningEffortMax": "Massimo",
+		"reasoningUnavailable": "non disponibile",
+		"creativityDefault": "Predefinito API",
+		"creativityInherit": "Impostazione predefinita"
 	}
 }

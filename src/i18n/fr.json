@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "Changer l'invite système",
 			"clearSystemPrompt": "Effacer l'invite système",
 			"unknownModel": "Modèle inconnu",
-			"hint": "Utilisez / pour les commandes, @ pour les fichiers"
+			"hint": "Utilisez / pour les commandes, @ pour les fichiers",
+			"changeReasoning": "Raisonnement pour cette requête"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"communityActionsConflictNote": "Une action portant ce nom existe déjà. L'installation l'écrasera.",
 		"communityActionsSyncSummary": "{{updated}} actions mises à jour. {{skipped}} modifiées ignorées.",
 		"communityActionsUpdated": "{{count}} actions de la communauté mises à jour.",
-		"communityActionsSkipped": "{{count}} actions de la communauté modifiées ignorées."
+		"communityActionsSkipped": "{{count}} actions de la communauté modifiées ignorées.",
+		"reasoningEffort": "Raisonnement",
+		"reasoningEffortDesc": "Local GPT uniquement ; les modes non pris en charge utilisent le défaut API.",
+		"reasoningEffortDefault": "Valeur par défaut de l’API",
+		"reasoningEffortInherit": "Réglage du fournisseur",
+		"reasoningEffortLow": "Faible",
+		"reasoningEffortHigh": "Élevé",
+		"reasoningEffortMax": "Maximum",
+		"reasoningUnavailable": "indisponible",
+		"creativityDefault": "Valeur par défaut de l’API",
+		"creativityInherit": "Réglage par défaut"
 	}
 }

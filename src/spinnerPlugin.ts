@@ -1,4 +1,4 @@
-import { RangeSetBuilder, EditorState } from "@codemirror/state";
+import { EditorState, type Range } from "@codemirror/state";
 import {
 	Decoration,
 	EditorView,
@@ -8,7 +8,11 @@ import {
 } from "@codemirror/view";
 import type { DecorationSet, PluginValue } from "@codemirror/view";
 import { ContentWidget } from "./spinnerContentWidget";
-import { LoaderWidget, ThinkingStreamWidget } from "./spinnerWidgets";
+import {
+	LoaderWidget,
+	ThinkingStreamWidget,
+	RequestStatusWidget,
+} from "./spinnerWidgets";
 
 /**
  * Processed result of handling text with thinking tags
@@ -31,7 +35,12 @@ export class SpinnerPlugin implements PluginValue {
 	decorations: DecorationSet;
 	private entries: Map<
 		string,
-		{ position: number; isEndOfLine: boolean; widget: WidgetType }
+		{
+			position: number;
+			isEndOfLine: boolean;
+			widget: WidgetType;
+			status?: string;
+		}
 	>;
 	private positionToId: Map<number, string>;
 	private idCounter = 0;
@@ -54,6 +63,7 @@ export class SpinnerPlugin implements PluginValue {
 		text: string,
 		processFunc?: (text: string) => string,
 		position?: number,
+		requestId?: string,
 	) {
 		const result = this.processThinkingTags(text);
 
@@ -69,6 +79,7 @@ export class SpinnerPlugin implements PluginValue {
 				displayText,
 				result.isThinking,
 				position,
+				requestId,
 			);
 			return;
 		}
@@ -77,7 +88,7 @@ export class SpinnerPlugin implements PluginValue {
 			const displayText = processFunc
 				? processFunc(result.displayText)
 				: result.displayText;
-			this.updateContent(displayText, position);
+			this.updateContent(displayText, position, requestId);
 		}
 	}
 
@@ -134,7 +145,7 @@ export class SpinnerPlugin implements PluginValue {
 		};
 	}
 
-	show(position: number): () => void {
+	show(position: number) {
 		const isEndOfLine = this.isPositionAtEndOfLine(
 			this.editorView.state,
 			position,
@@ -147,13 +158,26 @@ export class SpinnerPlugin implements PluginValue {
 		});
 		this.positionToId.set(position, id);
 		this.updateDecorations();
-		return () => this.hide(id);
+		return Object.assign(() => this.hide(id), {
+			processText: (
+				text: string,
+				processFunc?: (text: string) => string,
+			) => this.processText(text, processFunc, undefined, id),
+			setStatus: (label: string) => {
+				const entry = this.entries.get(id);
+				if (!entry) return;
+				entry.status = label;
+				this.updateDecorations();
+			},
+		});
 	}
 
 	hide(id: string) {
 		const entry = this.entries.get(id);
 		if (entry) {
-			this.positionToId.delete(entry.position);
+			for (const [position, mappedId] of this.positionToId) {
+				if (mappedId === id) this.positionToId.delete(position);
+			}
 			this.entries.delete(id);
 			this.updateDecorations();
 		}
@@ -164,6 +188,7 @@ export class SpinnerPlugin implements PluginValue {
 		answerText: string,
 		isThinking: boolean,
 		originalPosition?: number,
+		requestId?: string,
 	) {
 		let updated = false;
 
@@ -182,8 +207,8 @@ export class SpinnerPlugin implements PluginValue {
 			updated = true;
 		};
 
-		if (originalPosition !== undefined) {
-			const id = this.positionToId.get(originalPosition);
+		if (requestId !== undefined || originalPosition !== undefined) {
+			const id = requestId ?? this.positionToId.get(originalPosition!);
 			const data = id ? this.entries.get(id) : undefined;
 			if (data) updateEntry(data);
 		} else {
@@ -195,7 +220,7 @@ export class SpinnerPlugin implements PluginValue {
 		}
 	}
 
-	updateContent(text: string, originalPosition?: number) {
+	updateContent(text: string, originalPosition?: number, requestId?: string) {
 		let updated = false;
 		const updateEntry = (data: { widget: WidgetType }) => {
 			if (data.widget instanceof LoaderWidget) {
@@ -207,8 +232,8 @@ export class SpinnerPlugin implements PluginValue {
 			}
 		};
 
-		if (originalPosition !== undefined) {
-			const id = this.positionToId.get(originalPosition);
+		if (requestId !== undefined || originalPosition !== undefined) {
+			const id = requestId ?? this.positionToId.get(originalPosition!);
 			const data = id ? this.entries.get(id) : undefined;
 			if (data) updateEntry(data);
 		} else {
@@ -237,21 +262,24 @@ export class SpinnerPlugin implements PluginValue {
 	}
 
 	private updateDecorations() {
-		const builder = new RangeSetBuilder<Decoration>();
-		const sorted = [...this.entries.values()].sort(
-			(a, b) => a.position - b.position,
-		);
-		for (const data of sorted) {
-			builder.add(
-				data.position,
-				data.position,
+		const ranges: Range<Decoration>[] = [];
+		for (const data of this.entries.values()) {
+			if (data.status) {
+				ranges.push(
+					Decoration.widget({
+						widget: new RequestStatusWidget(data.status),
+						side: data.isEndOfLine ? 0 : -2,
+					}).range(data.position),
+				);
+			}
+			ranges.push(
 				Decoration.widget({
 					widget: data.widget,
 					side: data.isEndOfLine ? 1 : -1,
-				}),
+				}).range(data.position),
 			);
 		}
-		this.decorations = builder.finish();
+		this.decorations = Decoration.set(ranges, true);
 		this.editorView.requestMeasure();
 	}
 

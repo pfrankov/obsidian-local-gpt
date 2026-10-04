@@ -1,6 +1,14 @@
+import {
+	refreshReasoning,
+	resetReasoning,
+	showReasoningDropdown,
+	applyReasoningFilter,
+	selectReasoning,
+} from "./actionPaletteReasoning";
 import { tick } from "svelte";
 import type {
 	ActionPaletteSubmitEvent,
+	ReasoningPaletteSnapshot,
 	CommandReference,
 	CreativityReference,
 	FileReference,
@@ -75,6 +83,9 @@ interface DropdownController {
 }
 
 export interface ActionPaletteControllerOptions {
+	getReasoningSnapshot?: () =>
+		| (() => Promise<ReasoningPaletteSnapshot>)
+		| undefined;
 	getValue: () => string;
 	getProviderId: () => string | undefined;
 	setProviderId: (providerId: string) => void;
@@ -102,7 +113,7 @@ export interface ActionPaletteControllerOptions {
 
 export class ActionPaletteController {
 	private readonly dropdownControllers: Record<
-		"provider" | "model" | "creativity" | "system",
+		"provider" | "model" | "creativity" | "system" | "reasoning",
 		DropdownController
 	>;
 
@@ -111,6 +122,11 @@ export class ActionPaletteController {
 		readonly options: ActionPaletteControllerOptions,
 	) {
 		this.dropdownControllers = {
+			reasoning: {
+				kind: "reasoning",
+				show: () => showReasoningDropdown(this),
+				refresh: () => applyReasoningFilter(this),
+			},
 			provider: {
 				kind: "provider",
 				show: () => showProviderDropdownSelection(this),
@@ -132,6 +148,13 @@ export class ActionPaletteController {
 				refresh: () => applySystemFilterSelection(this),
 			},
 		};
+	}
+
+	refreshReasoning() {
+		return refreshReasoning(this);
+	}
+	resetReasoning() {
+		resetReasoning(this);
 	}
 
 	initializeContent() {
@@ -211,6 +234,9 @@ export class ActionPaletteController {
 
 	handleSelection(item: DropdownItem) {
 		switch (this.state.activeDropdown) {
+			case "reasoning":
+				selectReasoning(this, item as CreativityReference);
+				break;
 			case "file":
 				insertFileAtCursor(this, item as FileReference);
 				break;
@@ -270,6 +296,9 @@ export class ActionPaletteController {
 		this.state.historyIndex = getPromptHistoryLength();
 		this.state.draftBeforeHistory = this.state.textContent;
 		const payload = {
+			...(this.state.reasoningSelection
+				? { reasoningSelection: this.state.reasoningSelection }
+				: {}),
 			text: this.state.textContent,
 			selectedFiles: this.state.selectedFiles,
 			systemPrompt: this.state.selectedSystemPromptValue,

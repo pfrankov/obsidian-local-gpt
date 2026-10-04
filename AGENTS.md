@@ -40,3 +40,13 @@
 ## Security & Configuration Tips
 - Do not commit secrets or API keys. Configure providers via the “AI Providers” plugin settings, not hardcoded URLs.
 - Network calls should flow through existing helpers (`request-handler.ts`) and Obsidian APIs. Prefer mocks in tests.
+
+## Temperature semantics
+- Missing global Creativity and API default omit the temperature property entirely.
+- Missing action temperature inherits only an explicit global Creativity choice;
+  action temperature null explicitly requests omission, and every numeric value,
+  including zero, overrides the global value. Preserve these distinctions through
+  persistence, imports and community updates. Legacy empty-string Creativity means
+  numeric zero; never migrate it to omission or invent a low preset.
+- No model-name-dependent sampling changes. Provider adapters preserve supplied
+  options; keep absent temperature absent and retain unrelated request parameters.

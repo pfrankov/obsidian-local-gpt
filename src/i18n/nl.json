@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "Wijzig systeemprompt",
 			"clearSystemPrompt": "Systeemprompt wissen",
 			"unknownModel": "Onbekend model",
-			"hint": "Gebruik / voor commando's, @ voor bestanden"
+			"hint": "Gebruik / voor commando's, @ voor bestanden",
+			"changeReasoning": "Redeneren voor dit verzoek"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"communityActionsConflictNote": "Een actie met deze naam bestaat al. Installeren zal deze overschrijven.",
 		"communityActionsSyncSummary": "{{updated}} acties bijgewerkt. {{skipped}} gewijzigde overgeslagen.",
 		"communityActionsUpdated": "{{count}} community-acties bijgewerkt.",
-		"communityActionsSkipped": "{{count}} gewijzigde community-acties overgeslagen."
+		"communityActionsSkipped": "{{count}} gewijzigde community-acties overgeslagen.",
+		"reasoningEffort": "Redeneren",
+		"reasoningEffortDesc": "Alleen Local GPT; niet-ondersteunde modi gebruiken de API-standaard.",
+		"reasoningEffortDefault": "API-standaard",
+		"reasoningEffortInherit": "Providerinstelling",
+		"reasoningEffortLow": "Laag",
+		"reasoningEffortHigh": "Hoog",
+		"reasoningEffortMax": "Maximaal",
+		"reasoningUnavailable": "niet beschikbaar",
+		"creativityDefault": "API-standaard",
+		"creativityInherit": "Standaardinstelling"
 	}
 }

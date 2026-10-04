@@ -10,7 +10,8 @@
 			"changeSystemPrompt": "Сменить системную инструкцию",
 			"clearSystemPrompt": "Очистить системную инструкцию",
 			"unknownModel": "Неизвестная модель",
-			"hint": "Используйте / для команд, @ для файлов"
+			"hint": "Используйте / для команд, @ для файлов",
+			"changeReasoning": "Рассуждение для этого запроса"
 		}
 	},
 	"statusBar": {
@@ -110,6 +111,16 @@
 		"resetActions": "Сбросить действия",
 		"resetActionsDesc": "🚨 Сбросить все действия до стандартных. Это действие необратимо и удалит все ваши кастомные действия.",
 		"reset": "Сбросить",
-		"confirmReset": "Подтвердить сброс"
+		"confirmReset": "Подтвердить сброс",
+		"reasoningEffort": "Рассуждение",
+		"reasoningEffortDesc": "Только Local GPT; неподдерживаемые режимы используют значение API по умолчанию.",
+		"reasoningEffortDefault": "По умолчанию API",
+		"reasoningEffortInherit": "Настройка провайдера",
+		"reasoningEffortLow": "Низкая",
+		"reasoningEffortHigh": "Высокая",
+		"reasoningEffortMax": "Максимальная",
+		"reasoningUnavailable": "недоступно",
+		"creativityDefault": "По умолчанию API",
+		"creativityInherit": "Общая настройка"
 	}
 }

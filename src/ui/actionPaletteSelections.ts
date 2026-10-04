@@ -18,6 +18,8 @@ import type { ActionPaletteControllerOptions } from "./actionPaletteController";
 import type { ActionPaletteState } from "./actionPaletteState";
 
 interface SelectionContext {
+	refreshReasoning?(): Promise<void>;
+	resetReasoning?(): void;
 	state: ActionPaletteState;
 	options: ActionPaletteControllerOptions;
 	getCommandQuery(commandName: string): string;
@@ -34,11 +36,13 @@ export async function selectProvider(
 	provider: ProviderReference,
 ) {
 	try {
+		context.resetReasoning?.();
 		await context.options.onProviderChange()?.(provider.id);
 		context.setProviderBadgeLabel(provider.providerName, provider.name);
 		context.options.setProviderId(provider.id);
 		context.state.providerName = provider.providerName;
 		completeCommandSelection(context, "provider");
+		await context.refreshReasoning?.();
 	} catch (error) {
 		console.error("Error selecting provider:", error);
 		context.hideDropdown();
@@ -51,9 +55,11 @@ export async function selectModel(
 	model: ModelReference,
 ) {
 	try {
+		context.resetReasoning?.();
 		await context.options.onModelChange()?.(model.name);
 		context.setProviderBadgeLabel(context.state.providerName, model.name);
 		completeCommandSelection(context, "model");
+		await context.refreshReasoning?.();
 	} catch (error) {
 		console.error("Error selecting model:", error);
 		context.hideDropdown();

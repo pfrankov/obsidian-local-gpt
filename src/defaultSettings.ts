@@ -10,7 +10,6 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 		systemPromptActionId: null,
 	},
 	defaults: {
-		creativity: "low",
 		contextLimit: "local",
 	},
 	actions: [
@@ -49,7 +48,8 @@ export const DEFAULT_SETTINGS: LocalGPTSettings = {
 	_version: 10,
 };
 
-export const CREATIVITY: { [index: string]: any } = {
+export const CREATIVITY: Record<string, { temperature?: number }> = {
+	default: {},
 	"": {
 		temperature: 0,
 	},
