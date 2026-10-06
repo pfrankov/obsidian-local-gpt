@@ -116,6 +116,33 @@ describe("Action Palette CM widget identity", () => {
 		host.remove();
 	});
 
+	it("leaves other controls' tooltips intact when the palette closes", () => {
+		const { host, view } = createPaletteView();
+		showActionPalette(view, 0, { onSubmit: () => undefined });
+		const input = host.querySelector(".local-gpt-action-palette")!;
+		// Obsidian derives native hover tooltips from aria-label. Avoid creating
+		// one while retaining a named textbox for assistive technology.
+		expect(input.hasAttribute("aria-label")).toBe(false);
+		const labelId = input.getAttribute("aria-labelledby")!;
+		const label = document.getElementById(labelId)!;
+		expect(label.textContent).toBeTruthy();
+		expect(input).toHaveAccessibleName(label.textContent!);
+		const tooltip = document.createElement("div");
+		tooltip.className = "tooltip";
+		tooltip.textContent = "Another control's tooltip";
+		document.body.appendChild(tooltip);
+		hideActionPalette(view);
+		expect(document.getElementById(labelId)).toBeNull();
+		expect(tooltip.isConnected).toBe(true);
+		expect(tooltip.textContent).toBe("Another control's tooltip");
+		expect(
+			host.querySelector(".local-gpt-action-palette-container"),
+		).toBeNull();
+		view.destroy();
+		tooltip.remove();
+		host.remove();
+	});
+
 	it("keeps the host non-editable while the nested palette input stays editable", () => {
 		const { host, view } = createPaletteView("note");
 		showActionPalette(view, 0, {

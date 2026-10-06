@@ -10,6 +10,8 @@ The most casual AI assistant for Obsidian.
 
 _Action Palette_
 
+In the Action Palette, Enter submits the prompt when a `/` or `@` search has no results. Escape closes the search menu; Shift+Enter inserts a newline.
+
 ## Features
 ### Works with images  
 <img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">  

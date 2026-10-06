@@ -29,6 +29,7 @@ export function handleDropdownNavigation(
 	context: NavigationContext,
 	event: KeyboardEvent,
 ) {
+	if (event.isComposing || event.keyCode === 229) return true;
 	if (!hasActiveDropdownItems(context)) {
 		return false;
 	}
@@ -61,6 +62,7 @@ export function handleGeneralNavigation(
 	context: NavigationContext,
 	event: KeyboardEvent,
 ) {
+	if (event.isComposing || event.keyCode === 229) return;
 	if (event.key === "Enter") {
 		if (event.shiftKey) return;
 		event.preventDefault();
@@ -128,6 +130,13 @@ function handleDropdownSelection(
 ) {
 	if (event.key === "Enter" && event.shiftKey) return false;
 	if (event.key !== "Enter" && event.key !== "Tab") return false;
+	if (
+		event.key === "Enter" &&
+		context.state.filteredItems.length === 0 &&
+		["command", "file"].includes(context.state.activeDropdown)
+	) {
+		return false;
+	}
 
 	event.preventDefault();
 	event.stopPropagation();

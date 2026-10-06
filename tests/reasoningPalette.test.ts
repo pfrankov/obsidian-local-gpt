@@ -221,7 +221,7 @@ describe("reasoning palette keyboard UX", () => {
 		low.click();
 		await flush();
 		expect(document.activeElement).toBe(input);
-		expect(input.getAttribute("aria-label")).toBe(
+		expect(input).toHaveAccessibleName(
 			I18n.t("commands.actionPalette.name"),
 		);
 		input.dispatchEvent(
@@ -289,7 +289,10 @@ describe("reasoning palette keyboard UX", () => {
 		// Simulate Obsidian/CM capture-phase Mod+A competing for the event.
 		let editorSawModA = false;
 		const editorCapture = (event: KeyboardEvent) => {
-			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+			if (
+				(event.ctrlKey || event.metaKey) &&
+				event.key.toLowerCase() === "a"
+			) {
 				if (!event.defaultPrevented) {
 					editorSawModA = true;
 					note.focus();
@@ -424,7 +427,8 @@ describe("reasoning palette keyboard UX", () => {
 			target.querySelector(".local-gpt-dropdown-empty")?.textContent,
 		).toContain(I18n.t("commands.actionPalette.noMatchingCommands"));
 		expect(
-			target.querySelector(".local-gpt-provider-badge-label")?.textContent,
+			target.querySelector(".local-gpt-provider-badge-label")
+				?.textContent,
 		).toContain("Fixture");
 		expect(
 			target.querySelector(".local-gpt-reasoning-badge"),
@@ -483,7 +487,9 @@ describe("keyboard selection focus restoration", () => {
 			}),
 		);
 		await flush();
-		await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+		await new Promise((resolve) =>
+			requestAnimationFrame(() => requestAnimationFrame(resolve)),
+		);
 		await flush();
 		expect(
 			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
