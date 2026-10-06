@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "Limpar prompt do sistema",
 			"unknownModel": "Modelo desconhecido",
 			"hint": "Use / para comandos, @ para arquivos",
-			"changeReasoning": "Raciocínio para esta solicitação"
+			"changeReasoning": "Raciocínio para esta solicitação",
+			"noMatchingCommands": "Nenhum comando correspondente"
 		}
 	},
 	"statusBar": {

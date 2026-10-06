@@ -14,6 +14,7 @@ import {
 	renderTokensAsHtml as renderTokenHtml,
 } from "./actionPaletteText";
 import {
+	focusPromptInput,
 	getCurrentCursorPosition,
 	setCursorPosition,
 } from "./actionPaletteDom";
@@ -79,7 +80,7 @@ export function applyHistoryEntry(context: EditingContext, text: string) {
 	context.hideDropdown();
 	context.updateContentDisplay();
 	void tick().then(() => {
-		setCursorPosition(
+		focusPromptInput(
 			context.options.getContentElement(),
 			context.state.textContent.length,
 		);
@@ -121,7 +122,7 @@ export function insertFileAtCursor(
 	void tick().then(() => {
 		const newCursorPosition =
 			beforeMention.length + fullFileName.length + 2;
-		setCursorPosition(
+		focusPromptInput(
 			context.options.getContentElement(),
 			newCursorPosition,
 		);
@@ -176,7 +177,7 @@ export function removeCommandAndQuery(
 	);
 	context.updateContentDisplay();
 	void tick().then(() => {
-		setCursorPosition(context.options.getContentElement(), before.length);
+		focusPromptInput(context.options.getContentElement(), before.length);
 	});
 }
 
@@ -233,7 +234,7 @@ function insertCommand(context: CommandEditingContext, commandName: string) {
 	context.updateContentDisplay();
 	void tick().then(() => {
 		const newCursorPosition = beforeCommand.length + commandName.length + 2;
-		setCursorPosition(
+		focusPromptInput(
 			context.options.getContentElement(),
 			newCursorPosition,
 		);
@@ -260,7 +261,7 @@ function removeCommandFromText(
 	);
 	context.updateContentDisplay();
 	void tick().then(() => {
-		setCursorPosition(
+		focusPromptInput(
 			context.options.getContentElement(),
 			beforeCommand.length,
 		);

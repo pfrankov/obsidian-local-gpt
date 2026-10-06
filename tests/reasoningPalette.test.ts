@@ -178,3 +178,125 @@ describe("per-invocation reasoning", () => {
 		expect(context.updateFilteredDropdownItems).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("reasoning palette keyboard UX", () => {
+	it("keeps true focus in the input after selecting a mode so Ctrl+A stays local", async () => {
+		const { target, component } = createComponent({
+			getReasoningSnapshot: async () => snapshot,
+		});
+		await flush();
+		const input = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		await typeIntoPalette(input, "/reasoning ");
+		await flush();
+		const low = Array.from(
+			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
+		).find(
+			(item) =>
+				item.textContent?.trim() ===
+				I18n.t("settings.reasoningEffortLow"),
+		)!;
+		low.dispatchEvent(
+			new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+		);
+		low.click();
+		await flush();
+		expect(document.activeElement).toBe(input);
+		expect(input.getAttribute("aria-label")).toBe(
+			I18n.t("commands.actionPalette.name"),
+		);
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "a",
+				ctrlKey: true,
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		expect(document.activeElement).toBe(input);
+		component.$destroy();
+	});
+
+	it("moves the highlight with ArrowUp/ArrowDown in the reasoning picker", async () => {
+		const { target, component } = createComponent({
+			getReasoningSnapshot: async () => snapshot,
+		});
+		await flush();
+		const input = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		requireElement<HTMLButtonElement>(
+			target,
+			".local-gpt-reasoning-badge",
+		).click();
+		await flush();
+		expect(document.activeElement).toBe(input);
+		expect(
+			target.querySelector(".local-gpt-dropdown-item.local-gpt-selected")
+				?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortInherit"));
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "ArrowDown",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
+		expect(
+			target.querySelector(".local-gpt-dropdown-item.local-gpt-selected")
+				?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortDefault"));
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "ArrowDown",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
+		expect(
+			target.querySelector(".local-gpt-dropdown-item.local-gpt-selected")
+				?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortLow"));
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "Enter",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
+		expect(
+			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortLow"));
+		component.$destroy();
+	});
+
+	it("shows an empty-command state for unmatched / queries without hiding badges", async () => {
+		const { target, component } = createComponent({
+			getReasoningSnapshot: async () => snapshot,
+			providerLabel: "Fixture · model",
+		});
+		await flush();
+		const input = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		await typeIntoPalette(input, "/summ");
+		await flush();
+		expect(
+			target.querySelector(".local-gpt-dropdown-empty")?.textContent,
+		).toContain(I18n.t("commands.actionPalette.noMatchingCommands"));
+		expect(
+			target.querySelector(".local-gpt-provider-badge-label")?.textContent,
+		).toContain("Fixture");
+		expect(
+			target.querySelector(".local-gpt-reasoning-badge"),
+		).not.toBeNull();
+		component.$destroy();
+	});
+});

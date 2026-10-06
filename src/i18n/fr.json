@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "Effacer l'invite système",
 			"unknownModel": "Modèle inconnu",
 			"hint": "Utilisez / pour les commandes, @ pour les fichiers",
-			"changeReasoning": "Raisonnement pour cette requête"
+			"changeReasoning": "Raisonnement pour cette requête",
+			"noMatchingCommands": "Aucune commande correspondante"
 		}
 	},
 	"statusBar": {

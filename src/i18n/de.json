@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "System-Prompt löschen",
 			"unknownModel": "Unbekanntes Modell",
 			"hint": "Nutzen Sie / für Befehle, @ für Dateien",
-			"changeReasoning": "Denkmodus für diese Anfrage"
+			"changeReasoning": "Denkmodus für diese Anfrage",
+			"noMatchingCommands": "Keine passenden Befehle"
 		}
 	},
 	"statusBar": {

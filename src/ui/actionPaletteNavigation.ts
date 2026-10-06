@@ -93,7 +93,8 @@ export function handleHistoryNavigation(
 function hasActiveDropdownItems(context: NavigationContext) {
 	return (
 		context.state.activeDropdown !== "none" &&
-		context.state.filteredItems.length > 0
+		(context.state.filteredItems.length > 0 ||
+			context.state.activeDropdown === "command")
 	);
 }
 

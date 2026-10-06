@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "Borrar mensaje del sistema",
 			"unknownModel": "Modelo desconocido",
 			"hint": "Use / para comandos, @ para archivos",
-			"changeReasoning": "Razonamiento para esta solicitud"
+			"changeReasoning": "Razonamiento para esta solicitud",
+			"noMatchingCommands": "No hay comandos coincidentes"
 		}
 	},
 	"statusBar": {

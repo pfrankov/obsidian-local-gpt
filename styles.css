@@ -453,6 +453,12 @@
 	border-bottom: none;
 }
 
+.local-gpt-dropdown-item.local-gpt-dropdown-empty {
+	opacity: 0.7;
+	cursor: default;
+	pointer-events: none;
+}
+
 .local-gpt-dropdown-item:hover,
 .local-gpt-dropdown-item.local-gpt-selected {
 	background: var(--background-modifier-hover);

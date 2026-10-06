@@ -1,4 +1,5 @@
 import { tick } from "svelte";
+import { focusPromptInput } from "./actionPaletteDom";
 import { I18n } from "../i18n";
 import type { CreativityReference } from "../interfaces";
 import type { ActionPaletteController } from "./actionPaletteController";
@@ -64,6 +65,14 @@ export async function showReasoningDropdown(context: ActionPaletteController) {
 	)
 		return;
 	applyReasoningFilter(context);
+	void tick().then(() => {
+		focusPromptInput(
+			context.options.getContentElement(),
+			context.state.cursorPosition >= 0
+				? context.state.cursorPosition
+				: context.state.textContent.length,
+		);
+	});
 }
 
 export function applyReasoningFilter(context: ActionPaletteController) {
@@ -108,7 +117,9 @@ export function selectReasoning(
 	context.hideDropdown();
 	context.highlightBadgeTemporarily();
 	void tick().then(() => {
-		const input = context.options.getContentElement();
-		input?.focus();
+		focusPromptInput(
+			context.options.getContentElement(),
+			context.state.textContent.length,
+		);
 	});
 }

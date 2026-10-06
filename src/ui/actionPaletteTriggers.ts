@@ -74,7 +74,7 @@ export function checkForCommandTrigger(context: TriggerContext) {
 	}
 
 	if (
-		["provider", "model", "creativity", "system"].includes(
+		["provider", "model", "creativity", "system", "reasoning"].includes(
 			context.state.activeDropdown,
 		)
 	) {
@@ -110,9 +110,12 @@ function getCommandContext(context: TriggerContext) {
 }
 
 function showDropdownItems(context: TriggerContext, kind: "file" | "command") {
-	if (context.state.filteredItems.length > 0) {
+	// Keep the command menu open (with an empty state) so the badge row does not
+	// vanish when the query matches nothing. File mentions still hide when empty.
+	if (context.state.filteredItems.length > 0 || kind === "command") {
 		context.state.activeDropdown = kind;
-		context.state.selectedIndex = 0;
+		context.state.selectedIndex =
+			context.state.filteredItems.length > 0 ? 0 : -1;
 		return;
 	}
 	context.hideDropdown();

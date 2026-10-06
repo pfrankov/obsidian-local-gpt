@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "Cancella prompt di sistema",
 			"unknownModel": "Modello sconosciuto",
 			"hint": "Usa / per i comandi, @ per i file",
-			"changeReasoning": "Ragionamento per questa richiesta"
+			"changeReasoning": "Ragionamento per questa richiesta",
+			"noMatchingCommands": "Nessun comando corrispondente"
 		}
 	},
 	"statusBar": {

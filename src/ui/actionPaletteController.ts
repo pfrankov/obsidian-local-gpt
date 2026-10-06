@@ -34,10 +34,7 @@ import {
 	parseTextToTokens as parseTextToTokenResult,
 	renderTokensAsHtml as renderTokenHtml,
 } from "./actionPaletteText";
-import {
-	getCurrentCursorPosition,
-	setCursorPosition,
-} from "./actionPaletteDom";
+import { getCurrentCursorPosition, focusPromptInput } from "./actionPaletteDom";
 import {
 	buildProviderLabel,
 	getAvailableCommands,
@@ -166,8 +163,7 @@ export class ActionPaletteController {
 		this.state.textTokens = this.parseTextToTokens(this.state.textContent);
 		this.updateContentDisplay();
 		void tick().then(() => {
-			this.options.getContentElement()?.focus();
-			setCursorPosition(
+			focusPromptInput(
 				this.options.getContentElement(),
 				this.state.textContent.length,
 			);
@@ -202,6 +198,8 @@ export class ActionPaletteController {
 	}
 
 	handleKeydown(event: KeyboardEvent) {
+		// Keep keys inside the palette so CodeMirror/editor never sees them.
+		event.stopPropagation();
 		if (handleDropdownNavigation(this, event)) return;
 		if (handleHistoryNavigation(this, event)) return;
 		handleGeneralNavigation(this, event);

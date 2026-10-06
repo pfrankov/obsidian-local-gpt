@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "Clear system prompt",
 			"unknownModel": "Unknown model",
 			"hint": "Use / for commands, @ for files",
-			"changeReasoning": "Reasoning for this request"
+			"changeReasoning": "Reasoning for this request",
+			"noMatchingCommands": "No matching commands"
 		}
 	},
 	"statusBar": {

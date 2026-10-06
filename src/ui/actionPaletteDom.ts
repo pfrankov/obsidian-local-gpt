@@ -87,3 +87,15 @@ export function getDropdownElementForKind(
 	}
 	return elements[kind];
 }
+
+/** Focus the palette contenteditable and place the caret (CM must not keep keys). */
+export function focusPromptInput(
+	contentElement: HTMLDivElement | null,
+	cursorPosition?: number,
+) {
+	if (!contentElement) return;
+	contentElement.focus({ preventScroll: true });
+	if (typeof cursorPosition === "number") {
+		setCursorPosition(contentElement, cursorPosition);
+	}
+}

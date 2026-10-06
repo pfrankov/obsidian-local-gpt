@@ -87,7 +87,9 @@ export function reasoningEffortLabel(mode?: string): string {
 	return key ? I18n.t(key) : mode;
 }
 
-export function reasoningEffortOptionLabel(source: ReasoningModeSource): string {
+export function reasoningEffortOptionLabel(
+	source: ReasoningModeSource,
+): string {
 	const label = reasoningEffortLabel(source.mode);
 	if (!source.providerNames.length) return label;
 	return `${label} (${source.providerNames.join(", ")})`;

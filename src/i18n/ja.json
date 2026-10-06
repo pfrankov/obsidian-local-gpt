@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "システムプロンプトをクリア",
 			"unknownModel": "不明なモデル",
 			"hint": "コマンドには /、ファイルには @ を使用",
-			"changeReasoning": "このリクエストの推論"
+			"changeReasoning": "このリクエストの推論",
+			"noMatchingCommands": "一致するコマンドがありません"
 		}
 	},
 	"statusBar": {

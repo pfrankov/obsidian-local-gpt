@@ -71,6 +71,7 @@
 	let systemDropdownElement: HTMLDivElement | null = null;
 
 	let state = createActionPaletteState(value, providerLabel);
+	let invalidateEpoch = 0;
 	let fileItems: FileReference[] = [];
 	let commandItems: CommandReference[] = [];
 	let providerItems: ProviderReference[] = [];
@@ -114,6 +115,7 @@
 		dispatchSubmit: (payload) => dispatch("submit", payload),
 		dispatchCancel: () => dispatch("cancel"),
 		invalidate: () => {
+			invalidateEpoch += 1;
 			state = state;
 		},
 	});
@@ -173,7 +175,7 @@
 		contenteditable="true"
 		role="textbox"
 		tabindex="0"
-		aria-label={placeholder}
+		aria-label={I18n.t("commands.actionPalette.name")}
 		on:keydown={(event) => controller.handleKeydown(event)}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
@@ -181,10 +183,10 @@
 		data-placeholder={placeholder}
 		spellcheck="false"
 	></div>
-	{#if state.activeDropdown !== "none" && state.filteredItems.length > 0}
+	{#if invalidateEpoch >= 0 && state.activeDropdown !== "none" && (state.filteredItems.length > 0 || state.activeDropdown === "command")}
 		<ActionPaletteDropdowns
 			activeDropdown={state.activeDropdown}
-			selectedIndex={state.selectedIndex}
+			selectedIndex={invalidateEpoch >= 0 ? state.selectedIndex : state.selectedIndex}
 			{fileItems}
 			{commandItems}
 			{providerItems}

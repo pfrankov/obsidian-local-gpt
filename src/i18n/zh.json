@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "清除系统提示",
 			"unknownModel": "未知模型",
 			"hint": "使用 / 输入命令，@ 引用文件",
-			"changeReasoning": "本次请求的推理"
+			"changeReasoning": "本次请求的推理",
+			"noMatchingCommands": "没有匹配的命令"
 		}
 	},
 	"statusBar": {

@@ -11,7 +11,8 @@
 			"clearSystemPrompt": "Очистить системную инструкцию",
 			"unknownModel": "Неизвестная модель",
 			"hint": "Используйте / для команд, @ для файлов",
-			"changeReasoning": "Рассуждение для этого запроса"
+			"changeReasoning": "Рассуждение для этого запроса",
+			"noMatchingCommands": "Нет подходящих команд"
 		}
 	},
 	"statusBar": {
