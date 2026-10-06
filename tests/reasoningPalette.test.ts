@@ -180,6 +180,26 @@ describe("per-invocation reasoning", () => {
 });
 
 describe("reasoning palette keyboard UX", () => {
+	it("hides reasoning controls when includeReasoning is false", async () => {
+		const { target, component } = createComponent({
+			includeReasoning: false,
+			getReasoningSnapshot: undefined,
+		});
+		await flush();
+		const input = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		await typeIntoPalette(input, "/rea");
+		await flush();
+		const names = Array.from(
+			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
+		).map((item) => item.textContent?.trim() ?? "");
+		expect(names.join("\n")).not.toMatch(/reasoning/i);
+		expect(target.querySelector(".local-gpt-reasoning-badge")).toBeNull();
+		component.$destroy();
+	});
+
 	it("keeps true focus in the input after selecting a mode so Ctrl+A stays local", async () => {
 		const { target, component } = createComponent({
 			getReasoningSnapshot: async () => snapshot,

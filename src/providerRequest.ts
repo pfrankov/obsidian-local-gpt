@@ -8,6 +8,7 @@ import { I18n } from "./i18n";
 import { logger } from "./logger";
 import { preparePrompt } from "./utils";
 import { resolveReasoningEffort } from "./reasoningEffort";
+import { supportsReasoningApi } from "./aiProvidersCompat";
 import type {
 	LocalGPTAction,
 	LocalGPTSettings,
@@ -71,6 +72,25 @@ export function overrideProviderModel(
 	return provider;
 }
 
+function resolveRequestReasoningMode(
+	aiProviders: IAIProvidersService,
+	provider: IAIProvider,
+	settings: LocalGPTSettings,
+	reasoningEffort: LocalGPTAction["reasoningEffort"] | undefined,
+	reasoningSelection: ReasoningSelection | undefined,
+): string | undefined {
+	const selectedMode =
+		reasoningSelection?.providerId === provider.id &&
+		reasoningSelection.model === provider.model
+			? reasoningSelection.mode
+			: reasoningEffort;
+	const effort = resolveReasoningEffort(provider, settings, selectedMode);
+	if (effort && !supportsReasoningApi(aiProviders)) {
+		return undefined;
+	}
+	return effort;
+}
+
 export async function executeProviderRequest({
 	aiProviders,
 	provider,
@@ -89,12 +109,13 @@ export async function executeProviderRequest({
 }: ProviderRequestOptions): Promise<string> {
 	if (abortController.signal.aborted) return "";
 	const resolvedTemperature = resolveTemperature(settings, temperature);
-	const selectedMode =
-		reasoningSelection?.providerId === provider.id &&
-		reasoningSelection.model === provider.model
-			? reasoningSelection.mode
-			: reasoningEffort;
-	const effort = resolveReasoningEffort(provider, settings, selectedMode);
+	const effort = resolveRequestReasoningMode(
+		aiProviders,
+		provider,
+		settings,
+		reasoningEffort,
+		reasoningSelection,
+	);
 	try {
 		if (effort) aiProviders.checkCompatibility(5);
 		onReasoningResolved?.(provider, effort);

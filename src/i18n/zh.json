@@ -33,7 +33,8 @@
 		"actionNameExists": "名为\"{{name}}\"的操作已存在。",
 		"actionRewritten": "已重写操作\"{{name}}\"",
 		"actionAdded": "已添加操作\"{{name}}\"",
-		"copied": "已复制"
+		"copied": "已复制",
+		"aiProvidersUpdateForReasoning": "请将 AI Providers 更新到 {{version}}+ 以使用推理模式"
 	},
 	"settings": {
 		"mainProvider": "主要AI提供商",
@@ -130,6 +131,7 @@
 		"reasoningUnavailable": "不可用",
 		"creativityDefault": "API 默认值",
 		"creativityInherit": "使用全局设置",
-		"creativityDesc": "API default 不发送 temperature。「无」发送 0。操作可以继承此全局选择。"
+		"creativityDesc": "API default 不发送 temperature。「无」发送 0。操作可以继承此全局选择。",
+		"aiProvidersUpdateHeading": "推理功能需要更新版 AI Providers"
 	}
 }

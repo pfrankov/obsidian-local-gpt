@@ -83,6 +83,7 @@ export function checkForCommandTrigger(context: TriggerContext) {
 
 	context.state.filteredItems = filterAvailableCommands(
 		commandContext.textAfterCommand,
+		context.options.includeReasoning?.() ?? true,
 	);
 	showDropdownItems(context, "command");
 }

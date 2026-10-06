@@ -121,6 +121,8 @@ Follow the instructions in [AI Providers](https://github.com/pfrankov/obsidian-a
 ### Reviewing the unpublished reasoning SDK
 
 This branch depends on [AI Providers #39](https://github.com/pfrankov/obsidian-ai-providers/pull/39).
+
+Local GPT soft-loads against AI Providers service API **v4** (`initAI({ minVersion: 4 })`). Reasoning UI requires API **v5** / AI Providers **1.12.0+**; with older AI Providers, reasoning controls are hidden and a one-time notice asks the user to upgrade. Normal requests keep working without `reasoningMode`.
 Until that SDK is published, reproduce the review build with Node 24:
 
 ```sh
@@ -130,7 +132,7 @@ npm run check
 npm run build
 ```
 
-`review:sdk` fetches AI Providers commit `0261a20cd1d80a260b8f354b23cd9411d4732a8b`,
+`review:sdk` fetches AI Providers commit `73e60d54b0a27a07e68c0ae3b2fff0f313af1653`,
 installs its locked build tools without lifecycle hooks, builds its SDK, and replaces
 only the installed SDK under `node_modules`. It leaves the committed dependency lock
 unchanged. The PR check runs the same steps; running `npm ci` again resets the overlay.

@@ -11,6 +11,10 @@ import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
 import type { LocalGPTAction } from "./interfaces";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
+import {
+	aiProvidersUpgradeMessage,
+	supportsReasoningApi,
+} from "./aiProvidersCompat";
 import { I18n } from "./i18n";
 import { ensureActionId, ensureActionIds } from "./actionUtils";
 import { buildCommunityActionSignature } from "./CommunityActionsService";
@@ -64,12 +68,20 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		try {
 			const aiProvidersWaiter = await waitForAI();
 			const aiProvidersResponse = await aiProvidersWaiter.promise;
-			this.reasoningModeSources = collectReasoningModeSources(
-				aiProvidersResponse.providers,
-			);
+			const reasoningAvailable =
+				supportsReasoningApi(aiProvidersResponse);
+			this.reasoningModeSources = reasoningAvailable
+				? collectReasoningModeSources(aiProvidersResponse.providers)
+				: [];
 			this.reasoningModes = this.reasoningModeSources.map(
 				(source) => source.mode,
 			);
+
+			if (!reasoningAvailable) {
+				new Setting(containerEl)
+					.setName(I18n.t("settings.aiProvidersUpdateHeading"))
+					.setDesc(aiProvidersUpgradeMessage());
+			}
 
 			const providers = aiProvidersResponse.providers.reduce(
 				(
@@ -137,9 +149,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 						}),
 				);
 
-			for (const provider of aiProvidersResponse.providers.filter(
-				supportsReasoningEffort,
-			)) {
+			for (const provider of (reasoningAvailable
+				? aiProvidersResponse.providers
+				: []
+			).filter(supportsReasoningEffort)) {
 				new Setting(containerEl)
 					.setName(
 						`${I18n.t("settings.reasoningEffort")} · ${provider.name}`,

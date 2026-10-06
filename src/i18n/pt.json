@@ -33,7 +33,8 @@
 		"actionNameExists": "Já existe uma ação com o nome \"{{name}}\".",
 		"actionRewritten": "Ação \"{{name}}\" reescrita",
 		"actionAdded": "Ação \"{{name}}\" adicionada",
-		"copied": "Copiado"
+		"copied": "Copiado",
+		"aiProvidersUpdateForReasoning": "Atualize o AI Providers para {{version}}+ para usar modos de raciocínio"
 	},
 	"settings": {
 		"mainProvider": "Provedor de IA Principal",
@@ -130,6 +131,7 @@
 		"reasoningUnavailable": "indisponível",
 		"creativityDefault": "Padrão da API",
 		"creativityInherit": "Usar configuração global",
-		"creativityDesc": "API default omite temperature. Nenhum envia 0. As ações podem herdar esta escolha global."
+		"creativityDesc": "API default omite temperature. Nenhum envia 0. As ações podem herdar esta escolha global.",
+		"aiProvidersUpdateHeading": "Raciocínio exige um AI Providers mais recente"
 	}
 }

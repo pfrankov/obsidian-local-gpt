@@ -33,7 +33,8 @@
 		"actionNameExists": "Действие с названием «{{name}}» уже существует.",
 		"actionRewritten": "Действие «{{name}}» перезаписано",
 		"actionAdded": "Действие «{{name}}» добавлено",
-		"copied": "Скопировано"
+		"copied": "Скопировано",
+		"aiProvidersUpdateForReasoning": "Обновите AI Providers до {{version}}+, чтобы использовать режимы рассуждения"
 	},
 	"settings": {
 		"mainProvider": "Основной AI-провайдер",
@@ -130,6 +131,7 @@
 		"reasoningUnavailable": "недоступно",
 		"creativityDefault": "По умолчанию API",
 		"creativityInherit": "Глобальная настройка",
-		"creativityDesc": "API default не передаёт temperature. «Нет» отправляет 0. Действия могут наследовать этот глобальный выбор."
+		"creativityDesc": "API default не передаёт temperature. «Нет» отправляет 0. Действия могут наследовать этот глобальный выбор.",
+		"aiProvidersUpdateHeading": "Для рассуждений нужна новая версия AI Providers"
 	}
 }

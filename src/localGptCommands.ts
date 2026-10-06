@@ -84,32 +84,35 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 			const paletteLabel = await getActionPaletteLabel(plugin);
 
 			showActionPalette(editorView, insertPos, {
-				getReasoningSnapshot: async () => {
-					const service = await (await waitForAI()).promise;
-					const providerId =
-						plugin.actionPaletteProviderId ||
-						plugin.settings.aiProviders.main;
-					const provider = overrideProviderModel(
-						selectProvider(
-							service,
-							plugin.settings,
-							false,
-							providerId,
-						),
-						providerId,
-						plugin.actionPaletteModel,
-						plugin.actionPaletteModelProviderId,
-					);
-					return {
-						providerId: provider.id,
-						model: provider.model,
-						modes: getReasoningModes(provider),
-						effectiveMode: resolveReasoningEffort(
-							provider,
-							plugin.settings,
-						),
-					};
-				},
+				includeReasoning: plugin.reasoningApiAvailable,
+				getReasoningSnapshot: plugin.reasoningApiAvailable
+					? async () => {
+							const service = await (await waitForAI()).promise;
+							const providerId =
+								plugin.actionPaletteProviderId ||
+								plugin.settings.aiProviders.main;
+							const provider = overrideProviderModel(
+								selectProvider(
+									service,
+									plugin.settings,
+									false,
+									providerId,
+								),
+								providerId,
+								plugin.actionPaletteModel,
+								plugin.actionPaletteModelProviderId,
+							);
+							return {
+								providerId: provider.id,
+								model: provider.model,
+								modes: getReasoningModes(provider),
+								effectiveMode: resolveReasoningEffort(
+									provider,
+									plugin.settings,
+								),
+							};
+						}
+					: undefined,
 				onSubmit: (
 					text: string,
 					selectedFiles: string[] = [],

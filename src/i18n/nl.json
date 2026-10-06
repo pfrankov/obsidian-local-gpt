@@ -33,7 +33,8 @@
 		"actionNameExists": "Er bestaat al een actie met de naam \"{{name}}\".",
 		"actionRewritten": "Actie \"{{name}}\" herschreven",
 		"actionAdded": "Actie \"{{name}}\" toegevoegd",
-		"copied": "Gekopieerd"
+		"copied": "Gekopieerd",
+		"aiProvidersUpdateForReasoning": "Werk AI Providers bij naar {{version}}+ om redeneermodi te gebruiken"
 	},
 	"settings": {
 		"mainProvider": "Hoofd AI-provider",
@@ -130,6 +131,7 @@
 		"reasoningUnavailable": "niet beschikbaar",
 		"creativityDefault": "API-standaard",
 		"creativityInherit": "Globale instelling gebruiken",
-		"creativityDesc": "API-standaard laat temperature weg. Geen stuurt 0. Acties kunnen deze globale keuze overnemen."
+		"creativityDesc": "API-standaard laat temperature weg. Geen stuurt 0. Acties kunnen deze globale keuze overnemen.",
+		"aiProvidersUpdateHeading": "Redeneren vereist een nieuwere AI Providers"
 	}
 }

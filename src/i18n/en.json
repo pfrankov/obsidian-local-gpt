@@ -33,7 +33,8 @@
 		"actionNameExists": "An action with the name \"{{name}}\" already exists.",
 		"actionRewritten": "Rewritten \"{{name}}\" action",
 		"actionAdded": "Added \"{{name}}\" action",
-		"copied": "Copied"
+		"copied": "Copied",
+		"aiProvidersUpdateForReasoning": "Update AI Providers to {{version}}+ to use reasoning modes"
 	},
 	"settings": {
 		"mainProvider": "Main AI Provider",
@@ -130,6 +131,7 @@
 		"reasoningUnavailable": "unavailable",
 		"creativityDefault": "API default",
 		"creativityInherit": "Use global setting",
-		"creativityDesc": "API default omits temperature. None sends 0. Actions can inherit this global choice."
+		"creativityDesc": "API default omits temperature. None sends 0. Actions can inherit this global choice.",
+		"aiProvidersUpdateHeading": "Reasoning requires a newer AI Providers"
 	}
 }

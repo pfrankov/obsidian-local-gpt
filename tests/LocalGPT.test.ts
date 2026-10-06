@@ -93,6 +93,7 @@ describe("LocalGPT", () => {
 						},
 					},
 				],
+				version: 5,
 				execute,
 				checkCompatibility: vi.fn(),
 			} as any),

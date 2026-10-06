@@ -15,6 +15,7 @@ import ActionPalette from "./ActionPalette.svelte";
 
 export interface ActionPaletteOptions {
 	getReasoningSnapshot?: () => Promise<ReasoningPaletteSnapshot>;
+	includeReasoning?: boolean;
 	onSubmit: (
 		text: string,
 		selectedFiles?: string[],
@@ -121,6 +122,9 @@ class SvelteActionPaletteWidget extends WidgetType {
 				providerLabel: this.options.modelLabel || "",
 				providerId: this.options.providerId,
 				getReasoningSnapshot: this.options.getReasoningSnapshot,
+				includeReasoning:
+					this.options.includeReasoning !== false &&
+					Boolean(this.options.getReasoningSnapshot),
 				getFiles: this.options.getFiles,
 				getProviders: this.options.getProviders,
 				onProviderChange: this.options.onProviderChange,

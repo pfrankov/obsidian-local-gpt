@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const revision = "0261a20cd1d80a260b8f354b23cd9411d4732a8b";
+const revision = "73e60d54b0a27a07e68c0ae3b2fff0f313af1653";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const checkout = mkdtempSync(join(tmpdir(), "local-gpt-review-sdk-"));
 const run = (command, args, cwd = checkout) =>

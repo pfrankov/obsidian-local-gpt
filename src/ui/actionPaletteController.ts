@@ -108,6 +108,8 @@ export interface ActionPaletteControllerOptions {
 	onCancel: () => (() => void) | undefined;
 	setProviderLabel: (label: string) => void;
 	getContentElement: () => HTMLDivElement | null;
+	/** When false, hide /reasoning and skip reasoning snapshot. */
+	includeReasoning?: () => boolean;
 	getDropdownElement: (kind: DropdownKind) => HTMLElement | null;
 	dispatchSubmit: (payload: ActionPaletteSubmitEvent) => void;
 	dispatchCancel: () => void;
@@ -363,13 +365,19 @@ export class ActionPaletteController {
 			text,
 			this.getFiles(),
 			this.state.selectedFiles,
-			getAvailableCommands(),
+			getAvailableCommands(this.options.includeReasoning?.() ?? true),
 		);
 		this.state.selectedFiles = result.selectedFiles;
 		return result.tokens;
 	}
 
 	activateCommandDropdown(commandName: string) {
+		if (
+			commandName === "reasoning" &&
+			!(this.options.includeReasoning?.() ?? true)
+		) {
+			return false;
+		}
 		const dropdownController =
 			this.dropdownControllers[
 				commandName as keyof typeof this.dropdownControllers

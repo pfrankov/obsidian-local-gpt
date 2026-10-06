@@ -89,7 +89,7 @@ describe("reasoning effort", () => {
 			).toBeUndefined();
 			const execute = vi.fn().mockResolvedValue("answer");
 			const params = {
-				aiProviders: { execute, checkCompatibility: vi.fn() } as any,
+				aiProviders: { version: 5, execute, checkCompatibility: vi.fn() } as any,
 				provider: native,
 				settings: config,
 				prompt: "Synthetic",
@@ -222,6 +222,7 @@ describe("reasoning effort", () => {
 			const abortController = new AbortController();
 			const result = await executeProviderRequest({
 				aiProviders: {
+					version: 5,
 					execute,
 					checkCompatibility: vi.fn(),
 				} as unknown as IAIProvidersService,
@@ -291,7 +292,7 @@ describe("reasoning effort", () => {
 		const execute = vi.fn().mockResolvedValue("answer");
 		const onReasoningResolved = vi.fn();
 		const params = {
-			aiProviders: { execute, checkCompatibility: vi.fn() } as any,
+			aiProviders: { version: 5, execute, checkCompatibility: vi.fn() } as any,
 			provider,
 			settings: config,
 			prompt: "Synthetic",
@@ -347,7 +348,7 @@ describe("reasoning effort", () => {
 			request.onProgress("late", "first late");
 			return "first late";
 		});
-		const service = { execute, checkCompatibility: vi.fn() } as any;
+		const service = { version: 5, execute, checkCompatibility: vi.fn() } as any;
 		const base = {
 			aiProviders: service,
 			provider,

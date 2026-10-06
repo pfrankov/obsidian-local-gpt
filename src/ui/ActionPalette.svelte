@@ -36,6 +36,8 @@
 		"commands.actionPalette.placeholder",
 	);
 	export let getReasoningSnapshot: (() => Promise<ReasoningPaletteSnapshot>) | undefined = undefined;
+	/** When false, hide /reasoning and the reasoning badge (AI Providers API < 5). */
+	export let includeReasoning = true;
 	export let value = "";
 	export let providerLabel = "";
 	export let providerId: string | undefined = undefined;
@@ -105,6 +107,7 @@
 			providerLabel = nextProviderLabel;
 		},
 		getContentElement: () => contentElement,
+		includeReasoning: () => includeReasoning && Boolean(getReasoningSnapshot),
 		getDropdownElement: (kind) =>
 			getDropdownElementForKind(kind, {
 				file: dropdownElement,
@@ -124,7 +127,7 @@
 	});
 
 	controller.restoreSelectedSystemPrompt();
-	void controller.refreshReasoning();
+	if (includeReasoning && getReasoningSnapshot) void controller.refreshReasoning();
 	onMount(() => installPaletteModAGuard(() => contentElement));
 	onDestroy(() => {
 		controller.releaseFocusHold();

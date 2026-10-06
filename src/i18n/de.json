@@ -33,7 +33,8 @@
 		"actionNameExists": "Eine Aktion mit dem Namen \"{{name}}\" existiert bereits.",
 		"actionRewritten": "Aktion \"{{name}}\" überschrieben",
 		"actionAdded": "Aktion \"{{name}}\" hinzugefügt",
-		"copied": "Kopiert"
+		"copied": "Kopiert",
+		"aiProvidersUpdateForReasoning": "Aktualisieren Sie AI Providers auf {{version}}+, um Reasoning-Modi zu nutzen"
 	},
 	"settings": {
 		"mainProvider": "Haupt-AI-Provider",
@@ -130,6 +131,7 @@
 		"reasoningUnavailable": "nicht verfügbar",
 		"creativityDefault": "API-Standard",
 		"creativityInherit": "Globale Einstellung verwenden",
-		"creativityDesc": "API-Standard lässt temperature weg. Keine sendet 0. Aktionen können diese globale Wahl erben."
+		"creativityDesc": "API-Standard lässt temperature weg. Keine sendet 0. Aktionen können diese globale Wahl erben.",
+		"aiProvidersUpdateHeading": "Reasoning erfordert neueres AI Providers"
 	}
 }

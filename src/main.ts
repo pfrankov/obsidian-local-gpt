@@ -21,6 +21,11 @@ import { logger } from "./logger";
 import { I18n } from "./i18n";
 import { fileCache } from "./indexedDB";
 import { initAI, waitForAI } from "@obsidian-ai-providers/sdk";
+import {
+	MINIMUM_AI_PROVIDERS_API_VERSION,
+	maybeNoticeAiProvidersUpgrade,
+	supportsReasoningApi,
+} from "./aiProvidersCompat";
 import type {
 	IAIProvider,
 	IAIProvidersService,
@@ -50,26 +55,36 @@ export default class LocalGPT extends Plugin {
 	actionPaletteCreativityKey: string | null = null; // "", "low", "medium", "high"
 	abortControllers: AbortController[] = [];
 	updatingInterval!: number;
+	/** True when AI Providers service API supports reasoningMode (v5+). */
+	reasoningApiAvailable = false;
 	private progressStatusBar!: ProgressStatusBar;
 
 	async onload() {
-		initAI(this.app, this, async () => {
-			await this.loadSettings();
-			this.addSettingTab(new LocalGPTSettingTab(this.app, this));
-			this.reload();
-			this.app.workspace.onLayoutReady(async () => {
-				// @ts-ignore
-				await fileCache.init(this.app.appId);
+		initAI(
+			this.app,
+			this,
+			async () => {
+				const ai = await (await waitForAI()).promise;
+				this.reasoningApiAvailable = supportsReasoningApi(ai);
+				maybeNoticeAiProvidersUpgrade(ai);
+				await this.loadSettings();
+				this.addSettingTab(new LocalGPTSettingTab(this.app, this));
+				this.reload();
+				this.app.workspace.onLayoutReady(async () => {
+					// @ts-ignore
+					await fileCache.init(this.app.appId);
 
-				window.setTimeout(() => {
-					this.checkUpdates();
-				}, 5000);
-			});
-			this.registerEditorExtension(spinnerPlugin);
-			this.registerEditorExtension(requestPositionTracker);
-			this.registerEditorExtension(actionPalettePlugin);
-			this.initializeStatusBar();
-		});
+					window.setTimeout(() => {
+						this.checkUpdates();
+					}, 5000);
+				});
+				this.registerEditorExtension(spinnerPlugin);
+				this.registerEditorExtension(requestPositionTracker);
+				this.registerEditorExtension(actionPalettePlugin);
+				this.initializeStatusBar();
+			},
+			{ minVersion: MINIMUM_AI_PROVIDERS_API_VERSION },
+		);
 	}
 
 	private initializeStatusBar() {
