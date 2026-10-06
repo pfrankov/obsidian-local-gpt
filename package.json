@@ -13,8 +13,7 @@
     "test": "vitest run --coverage",
     "check": "npm run lint && npm run typecheck && npm run test",
     "full-check": "npm run format && npm run build && npm run test",
-    "prepare": "npx simple-git-hooks",
-    "review:sdk": "node scripts/prepare-review-sdk.mjs"
+    "prepare": "npx simple-git-hooks"
   },
   "keywords": [
     "obsidian",
@@ -53,7 +52,7 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
-    "@obsidian-ai-providers/sdk": "^1.7.0",
+    "@obsidian-ai-providers/sdk": "^1.8.0",
     "idb": "^8.0.3",
     "pdfjs-dist": "^5.6.205",
     "sortablejs": "^1.15.7"
