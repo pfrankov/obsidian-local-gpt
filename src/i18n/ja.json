@@ -10,7 +10,10 @@
 			"changeSystemPrompt": "システムプロンプトを変更",
 			"clearSystemPrompt": "システムプロンプトをクリア",
 			"unknownModel": "不明なモデル",
-			"hint": "コマンドには /、ファイルには @ を使用"
+			"hint": "コマンドには /、ファイルには @ を使用",
+			"changeReasoning": "このリクエストの推論",
+			"noMatchingCommands": "一致するコマンドがありません",
+			"noMatchingFiles": "一致するファイルがありません"
 		}
 	},
 	"statusBar": {
@@ -30,7 +33,8 @@
 		"actionNameExists": "\"{{name}}\" という名前のアクションは既に存在します。",
 		"actionRewritten": "アクション \"{{name}}\" を上書きしました",
 		"actionAdded": "アクション \"{{name}}\" を追加しました",
-		"copied": "コピーしました"
+		"copied": "コピーしました",
+		"aiProvidersUpdateForReasoning": "推論モードを使うには AI Providers を {{version}}+ に更新してください"
 	},
 	"settings": {
 		"mainProvider": "メインAIプロバイダー",
@@ -110,6 +114,24 @@
 		"communityActionsConflictNote": "この名前のアクションは既に存在します。インストールすると上書きされます。",
 		"communityActionsSyncSummary": "{{updated}} 件のアクションを更新しました。{{skipped}} 件の変更されたアクションをスキップしました。",
 		"communityActionsUpdated": "{{count}} 件のコミュニティアクションを更新しました。",
-		"communityActionsSkipped": "{{count}} 件の変更されたコミュニティアクションをスキップしました。"
+		"communityActionsSkipped": "{{count}} 件の変更されたコミュニティアクションをスキップしました。",
+		"reasoningEffort": "推論",
+		"reasoningEffortDesc": "Local GPTのみ：未対応のモードはAPIの既定値を使用します。",
+		"reasoningEffortDefault": "API の既定値",
+		"reasoningEffortInherit": "グローバル設定を使用",
+		"reasoningEffortLow": "低",
+		"reasoningEffortHigh": "高",
+		"reasoningEffortMax": "最大",
+		"reasoningEffortNone": "なし",
+		"reasoningEffortMinimal": "最小",
+		"reasoningEffortMedium": "中",
+		"reasoningEffortXHigh": "非常に高",
+		"reasoningEffortTrue": "オン",
+		"reasoningEffortFalse": "オフ",
+		"reasoningUnavailable": "利用不可",
+		"creativityDefault": "API の既定値",
+		"creativityInherit": "グローバル設定を使用",
+		"creativityDesc": "API default は temperature を送りません。「なし」は 0 を送ります。アクションはこのグローバル設定を継承できます。",
+		"aiProvidersUpdateHeading": "推論には新しい AI Providers が必要です"
 	}
 }

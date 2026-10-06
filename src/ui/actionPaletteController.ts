@@ -1,6 +1,13 @@
-import { tick } from "svelte";
+import {
+	refreshReasoning,
+	resetReasoning,
+	showReasoningDropdown,
+	applyReasoningFilter,
+	selectReasoning,
+} from "./actionPaletteReasoning";
 import type {
 	ActionPaletteSubmitEvent,
+	ReasoningPaletteSnapshot,
 	CommandReference,
 	CreativityReference,
 	FileReference,
@@ -28,7 +35,10 @@ import {
 } from "./actionPaletteText";
 import {
 	getCurrentCursorPosition,
-	setCursorPosition,
+	restorePromptFocus,
+	shouldReclaimPromptFocus,
+	beginHoldingPromptFocus,
+	endHoldingPromptFocus,
 } from "./actionPaletteDom";
 import {
 	buildProviderLabel,
@@ -62,6 +72,7 @@ import {
 	handleDropdownNavigation,
 	handleGeneralNavigation,
 	handleHistoryNavigation,
+	handlePaletteShortcuts,
 } from "./actionPaletteNavigation";
 import {
 	checkForCommandTrigger,
@@ -75,6 +86,9 @@ interface DropdownController {
 }
 
 export interface ActionPaletteControllerOptions {
+	getReasoningSnapshot?: () =>
+		| (() => Promise<ReasoningPaletteSnapshot>)
+		| undefined;
 	getValue: () => string;
 	getProviderId: () => string | undefined;
 	setProviderId: (providerId: string) => void;
@@ -94,6 +108,8 @@ export interface ActionPaletteControllerOptions {
 	onCancel: () => (() => void) | undefined;
 	setProviderLabel: (label: string) => void;
 	getContentElement: () => HTMLDivElement | null;
+	/** When false, hide /reasoning and skip reasoning snapshot. */
+	includeReasoning?: () => boolean;
 	getDropdownElement: (kind: DropdownKind) => HTMLElement | null;
 	dispatchSubmit: (payload: ActionPaletteSubmitEvent) => void;
 	dispatchCancel: () => void;
@@ -102,7 +118,7 @@ export interface ActionPaletteControllerOptions {
 
 export class ActionPaletteController {
 	private readonly dropdownControllers: Record<
-		"provider" | "model" | "creativity" | "system",
+		"provider" | "model" | "creativity" | "system" | "reasoning",
 		DropdownController
 	>;
 
@@ -111,6 +127,11 @@ export class ActionPaletteController {
 		readonly options: ActionPaletteControllerOptions,
 	) {
 		this.dropdownControllers = {
+			reasoning: {
+				kind: "reasoning",
+				show: () => showReasoningDropdown(this),
+				refresh: () => applyReasoningFilter(this),
+			},
 			provider: {
 				kind: "provider",
 				show: () => showProviderDropdownSelection(this),
@@ -134,6 +155,13 @@ export class ActionPaletteController {
 		};
 	}
 
+	refreshReasoning() {
+		return refreshReasoning(this);
+	}
+	resetReasoning() {
+		resetReasoning(this);
+	}
+
 	initializeContent() {
 		this.state.initializedContent = true;
 		if (this.options.getValue()) {
@@ -142,14 +170,16 @@ export class ActionPaletteController {
 		applyInitialSelectedFiles(this);
 		this.state.textTokens = this.parseTextToTokens(this.state.textContent);
 		this.updateContentDisplay();
-		void tick().then(() => {
-			this.options.getContentElement()?.focus();
-			setCursorPosition(
-				this.options.getContentElement(),
-				this.state.textContent.length,
-			);
-		});
+		beginHoldingPromptFocus(this.options.getContentElement());
+		restorePromptFocus(
+			() => this.options.getContentElement(),
+			this.state.textContent.length,
+		);
 		this.commit();
+	}
+
+	releaseFocusHold() {
+		endHoldingPromptFocus(this.options.getContentElement());
 	}
 
 	restoreSelectedSystemPrompt() {
@@ -179,6 +209,12 @@ export class ActionPaletteController {
 	}
 
 	handleKeydown(event: KeyboardEvent) {
+		// Keep keys inside the palette so CodeMirror/editor never sees them.
+		event.stopPropagation();
+		if (handlePaletteShortcuts(this, event)) {
+			this.commit();
+			return;
+		}
 		if (handleDropdownNavigation(this, event)) return;
 		if (handleHistoryNavigation(this, event)) return;
 		handleGeneralNavigation(this, event);
@@ -193,9 +229,20 @@ export class ActionPaletteController {
 	) {
 		const target = event.target;
 		this.state.textContent = target.textContent || "";
-		this.state.cursorPosition = getCurrentCursorPosition(
-			this.options.getContentElement(),
+		const contentElement = this.options.getContentElement();
+		const selection = window.getSelection();
+		const selectionInPalette = Boolean(
+			contentElement &&
+			selection &&
+			selection.rangeCount > 0 &&
+			contentElement.contains(selection.getRangeAt(0).startContainer),
 		);
+		this.state.cursorPosition = selectionInPalette
+			? getCurrentCursorPosition(
+					contentElement,
+					this.state.cursorPosition,
+				)
+			: this.state.textContent.length;
 		this.state.historyIndex = getPromptHistoryLength();
 		this.state.draftBeforeHistory = this.state.textContent;
 		this.state.textTokens = this.parseTextToTokens(this.state.textContent);
@@ -211,6 +258,9 @@ export class ActionPaletteController {
 
 	handleSelection(item: DropdownItem) {
 		switch (this.state.activeDropdown) {
+			case "reasoning":
+				selectReasoning(this, item as CreativityReference);
+				break;
 			case "file":
 				insertFileAtCursor(this, item as FileReference);
 				break;
@@ -248,6 +298,11 @@ export class ActionPaletteController {
 	}
 
 	handleKeyup(event: KeyboardEvent) {
+		// Stop editor/CM from seeing palette keyups (esp. Enter after selection).
+		event.stopPropagation();
+		if (event.key === "Enter" || event.key === "Tab") {
+			event.preventDefault();
+		}
 		if (event.key !== "Backspace" && event.key !== "Delete") return;
 
 		const currentlyMentionedFiles = getMentionedFilePaths(
@@ -265,11 +320,33 @@ export class ActionPaletteController {
 		}
 	}
 
+	handleFocusOut(event?: FocusEvent) {
+		const contentElement = this.options.getContentElement();
+		if (!contentElement) return;
+		const shell = contentElement.closest(".local-gpt-action-palette-shell");
+		const related = event?.relatedTarget;
+		if (related instanceof Node && shell && shell.contains(related)) {
+			return;
+		}
+		if (!shouldReclaimPromptFocus(contentElement)) {
+			return;
+		}
+		restorePromptFocus(
+			() => this.options.getContentElement(),
+			this.state.cursorPosition >= 0
+				? this.state.cursorPosition
+				: this.state.textContent.length,
+		);
+	}
+
 	submitAction() {
 		addToPromptHistory(this.state.textContent);
 		this.state.historyIndex = getPromptHistoryLength();
 		this.state.draftBeforeHistory = this.state.textContent;
 		const payload = {
+			...(this.state.reasoningSelection
+				? { reasoningSelection: this.state.reasoningSelection }
+				: {}),
 			text: this.state.textContent,
 			selectedFiles: this.state.selectedFiles,
 			systemPrompt: this.state.selectedSystemPromptValue,
@@ -288,13 +365,19 @@ export class ActionPaletteController {
 			text,
 			this.getFiles(),
 			this.state.selectedFiles,
-			getAvailableCommands(),
+			getAvailableCommands(this.options.includeReasoning?.() ?? true),
 		);
 		this.state.selectedFiles = result.selectedFiles;
 		return result.tokens;
 	}
 
 	activateCommandDropdown(commandName: string) {
+		if (
+			commandName === "reasoning" &&
+			!(this.options.includeReasoning?.() ?? true)
+		) {
+			return false;
+		}
 		const dropdownController =
 			this.dropdownControllers[
 				commandName as keyof typeof this.dropdownControllers

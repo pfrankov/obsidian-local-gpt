@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import type { LocalGPTSettings } from "./interfaces";
+import { normalizeCreativityForLegacy } from "./temperature";
 import { ensureActionIds } from "./actionUtils";
 import { I18n } from "./i18n";
 
@@ -54,6 +55,7 @@ export async function migrateSettings(
 				settings,
 				legacyActionPaletteSystemPromptStorageKey,
 			),
+		migrateToVersion11,
 	];
 	const changed = preAsyncMigrations.reduce(
 		(hasChanged, migrate) => migrate(loadedData) || hasChanged,
@@ -121,7 +123,9 @@ function migrateToVersion4(settings: LocalGPTSettings): boolean {
 	(settings as any).defaults = {
 		provider: (settings as any).defaultProvider || "ollama",
 		fallbackProvider: (settings as any).fallbackProvider || "",
-		creativity: "low",
+		...(settings.defaults?.creativity === undefined
+			? {}
+			: { creativity: settings.defaults.creativity }),
 	};
 	delete (settings as any).defaultProvider;
 	delete (settings as any).fallbackProvider;
@@ -206,7 +210,10 @@ async function migrateToVersion7(settings: LocalGPTSettings): Promise<boolean> {
 		);
 	}
 
-	delete (settings as any).defaults;
+	settings.defaults =
+		oldDefaults?.creativity === undefined
+			? {}
+			: { creativity: oldDefaults.creativity };
 	delete (settings as any).providers;
 
 	settings._version = 7;
@@ -359,4 +366,14 @@ function clearLegacyActionPaletteSystemPromptId(storageKey: string) {
 			error,
 		);
 	}
+}
+
+function migrateToVersion11(settings: LocalGPTSettings): boolean {
+	if (settings._version && settings._version >= 11) {
+		return false;
+	}
+
+	normalizeCreativityForLegacy(settings);
+	settings._version = 11;
+	return true;
 }

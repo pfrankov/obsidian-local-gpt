@@ -10,7 +10,10 @@
 			"changeSystemPrompt": "Сменить системную инструкцию",
 			"clearSystemPrompt": "Очистить системную инструкцию",
 			"unknownModel": "Неизвестная модель",
-			"hint": "Используйте / для команд, @ для файлов"
+			"hint": "Используйте / для команд, @ для файлов",
+			"changeReasoning": "Рассуждение для этого запроса",
+			"noMatchingCommands": "Нет подходящих команд",
+			"noMatchingFiles": "Нет подходящих файлов"
 		}
 	},
 	"statusBar": {
@@ -30,7 +33,8 @@
 		"actionNameExists": "Действие с названием «{{name}}» уже существует.",
 		"actionRewritten": "Действие «{{name}}» перезаписано",
 		"actionAdded": "Действие «{{name}}» добавлено",
-		"copied": "Скопировано"
+		"copied": "Скопировано",
+		"aiProvidersUpdateForReasoning": "Обновите AI Providers до {{version}}+, чтобы использовать режимы рассуждения"
 	},
 	"settings": {
 		"mainProvider": "Основной AI-провайдер",
@@ -110,6 +114,24 @@
 		"resetActions": "Сбросить действия",
 		"resetActionsDesc": "🚨 Сбросить все действия до стандартных. Это действие необратимо и удалит все ваши кастомные действия.",
 		"reset": "Сбросить",
-		"confirmReset": "Подтвердить сброс"
+		"confirmReset": "Подтвердить сброс",
+		"reasoningEffort": "Рассуждение",
+		"reasoningEffortDesc": "Только Local GPT; неподдерживаемые режимы используют значение API по умолчанию.",
+		"reasoningEffortDefault": "По умолчанию API",
+		"reasoningEffortInherit": "Глобальная настройка",
+		"reasoningEffortLow": "Низкий",
+		"reasoningEffortHigh": "Высокий",
+		"reasoningEffortMax": "Максимум",
+		"reasoningEffortNone": "Нет",
+		"reasoningEffortMinimal": "Минимальный",
+		"reasoningEffortMedium": "Средний",
+		"reasoningEffortXHigh": "Очень высокий",
+		"reasoningEffortTrue": "Вкл.",
+		"reasoningEffortFalse": "Выкл.",
+		"reasoningUnavailable": "недоступно",
+		"creativityDefault": "По умолчанию API",
+		"creativityInherit": "Глобальная настройка",
+		"creativityDesc": "API default не передаёт temperature. «Нет» отправляет 0. Действия могут наследовать этот глобальный выбор.",
+		"aiProvidersUpdateHeading": "Для рассуждений нужна новая версия AI Providers"
 	}
 }

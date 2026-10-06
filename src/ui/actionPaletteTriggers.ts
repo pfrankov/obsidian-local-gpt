@@ -74,7 +74,7 @@ export function checkForCommandTrigger(context: TriggerContext) {
 	}
 
 	if (
-		["provider", "model", "creativity", "system"].includes(
+		["provider", "model", "creativity", "system", "reasoning"].includes(
 			context.state.activeDropdown,
 		)
 	) {
@@ -83,6 +83,7 @@ export function checkForCommandTrigger(context: TriggerContext) {
 
 	context.state.filteredItems = filterAvailableCommands(
 		commandContext.textAfterCommand,
+		context.options.includeReasoning?.() ?? true,
 	);
 	showDropdownItems(context, "command");
 }
@@ -110,10 +111,9 @@ function getCommandContext(context: TriggerContext) {
 }
 
 function showDropdownItems(context: TriggerContext, kind: "file" | "command") {
-	if (context.state.filteredItems.length > 0) {
-		context.state.activeDropdown = kind;
-		context.state.selectedIndex = 0;
-		return;
-	}
-	context.hideDropdown();
+	// Keep slash/file menus open with an empty state so Backspace/filter misses
+	// do not blank the UI while the trigger token is still in the input.
+	context.state.activeDropdown = kind;
+	context.state.selectedIndex =
+		context.state.filteredItems.length > 0 ? 0 : -1;
 }

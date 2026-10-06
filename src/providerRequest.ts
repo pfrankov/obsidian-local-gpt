@@ -3,11 +3,17 @@ import type {
 	IAIProvider,
 	IAIProvidersService,
 } from "@obsidian-ai-providers/sdk";
-import { CREATIVITY } from "defaultSettings";
+import { resolveTemperature } from "./temperature";
 import { I18n } from "./i18n";
 import { logger } from "./logger";
 import { preparePrompt } from "./utils";
-import type { LocalGPTSettings } from "./interfaces";
+import { resolveReasoningEffort } from "./reasoningEffort";
+import { supportsReasoningApi } from "./aiProvidersCompat";
+import type {
+	LocalGPTAction,
+	LocalGPTSettings,
+	ReasoningSelection,
+} from "./interfaces";
 
 interface ProviderRequestOptions {
 	aiProviders: IAIProvidersService;
@@ -15,7 +21,10 @@ interface ProviderRequestOptions {
 	settings: LocalGPTSettings;
 	prompt: string;
 	system?: string;
-	temperature?: number;
+	temperature?: number | null;
+	reasoningEffort?: LocalGPTAction["reasoningEffort"];
+	reasoningSelection?: ReasoningSelection;
+	onReasoningResolved?: (provider: IAIProvider, mode?: string) => void;
 	selectedText: string;
 	context: string;
 	imagesInBase64: string[];
@@ -55,11 +64,31 @@ export function overrideProviderModel(
 	if (
 		actionPaletteModel &&
 		overrideProviderId &&
+		provider.id === overrideProviderId &&
 		actionPaletteModelProviderId === overrideProviderId
 	) {
 		return { ...provider, model: actionPaletteModel };
 	}
 	return provider;
+}
+
+function resolveRequestReasoningMode(
+	aiProviders: IAIProvidersService,
+	provider: IAIProvider,
+	settings: LocalGPTSettings,
+	reasoningEffort: LocalGPTAction["reasoningEffort"] | undefined,
+	reasoningSelection: ReasoningSelection | undefined,
+): string | undefined {
+	const selectedMode =
+		reasoningSelection?.providerId === provider.id &&
+		reasoningSelection.model === provider.model
+			? reasoningSelection.mode
+			: reasoningEffort;
+	const effort = resolveReasoningEffort(provider, settings, selectedMode);
+	if (effort && !supportsReasoningApi(aiProviders)) {
+		return undefined;
+	}
+	return effort;
 }
 
 export async function executeProviderRequest({
@@ -69,25 +98,46 @@ export async function executeProviderRequest({
 	prompt,
 	system,
 	temperature,
+	reasoningEffort,
+	reasoningSelection,
+	onReasoningResolved,
 	selectedText,
 	context,
 	imagesInBase64,
 	abortController,
 	onUpdate,
 }: ProviderRequestOptions): Promise<string> {
+	if (abortController.signal.aborted) return "";
+	const resolvedTemperature = resolveTemperature(settings, temperature);
+	const effort = resolveRequestReasoningMode(
+		aiProviders,
+		provider,
+		settings,
+		reasoningEffort,
+		reasoningSelection,
+	);
 	try {
+		const reasoningApi = supportsReasoningApi(aiProviders);
+		// Never call checkCompatibility above the live service version.
+		if (effort && reasoningApi) {
+			aiProviders.checkCompatibility(5);
+		}
+		if (reasoningApi) {
+			onReasoningResolved?.(provider, effort);
+		}
 		return await aiProviders.execute({
+			...(effort ? { reasoningMode: effort } : {}),
 			provider,
 			prompt: preparePrompt(prompt, selectedText, context),
 			images: imagesInBase64,
 			systemPrompt: system,
 			options: {
-				temperature:
-					temperature ??
-					CREATIVITY[settings.defaults.creativity].temperature,
+				...(resolvedTemperature === undefined
+					? {}
+					: { temperature: resolvedTemperature }),
 			},
 			onProgress: (_chunk: string, accumulatedText: string) => {
-				onUpdate(accumulatedText);
+				if (!abortController.signal.aborted) onUpdate(accumulatedText);
 			},
 			abortController,
 		});

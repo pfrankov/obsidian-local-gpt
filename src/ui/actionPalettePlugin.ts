@@ -1,3 +1,7 @@
+import type {
+	ReasoningSelection,
+	ReasoningPaletteSnapshot,
+} from "../interfaces";
 import {
 	EditorSelection,
 	RangeSetBuilder,
@@ -10,10 +14,13 @@ import { I18n } from "../i18n";
 import ActionPalette from "./ActionPalette.svelte";
 
 export interface ActionPaletteOptions {
+	getReasoningSnapshot?: () => Promise<ReasoningPaletteSnapshot>;
+	includeReasoning?: boolean;
 	onSubmit: (
 		text: string,
 		selectedFiles?: string[],
 		systemPrompt?: string,
+		reasoningSelection?: ReasoningSelection,
 	) => void;
 	onCancel?: () => void;
 	placeholder?: string;
@@ -76,7 +83,38 @@ class SvelteActionPaletteWidget extends WidgetType {
 		super();
 	}
 
-	toDOM(view: EditorView): HTMLElement {
+	/**
+	 * Keep the same DOM across decoration rebuilds/maps for *this* widget
+	 * instance. Without eq/updateDOM, CM6 replaces the widget (default eq
+	 * is false), detaching the focused contenteditable so keys go to the
+	 * editor while a caret still looks present in the remounted input.
+	 *
+	 * Identity-only eq: a second showActionPalette() builds a new widget
+	 * and must remount so onSubmit/options from that invocation win.
+	 * Class-wide eq + no-op updateDOM reused the first mount's callbacks.
+	 *
+	 * Do NOT set `editable = true`: that leaves the host inside CM's
+	 * contenteditable surface so Svelte DOM mutations are observed as
+	 * editor changes and can livelock the renderer. BlockWidgetView already
+	 * ignoreMutation()s; the host stays contentEditable=false (CM default)
+	 * while the nested palette input remains contenteditable=true.
+	 */
+	eq(other: WidgetType): boolean {
+		return other === this;
+	}
+
+	updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+		// Only reuse DOM when this instance already owns the live mount.
+		// A new Show widget returns false → CM destroys the previous mount
+		// (prevWidget.destroy) and calls toDOM() with fresh options.
+		return this.container === dom && this.app !== null;
+	}
+
+	ignoreEvent(): boolean {
+		return true;
+	}
+
+	toDOM(_view: EditorView): HTMLElement {
 		this.container = document.createElement("div");
 		this.container.addClass("local-gpt-action-palette-container");
 		const mountTarget = document.createElement("div");
@@ -90,6 +128,10 @@ class SvelteActionPaletteWidget extends WidgetType {
 					I18n.t("commands.actionPalette.placeholder"),
 				providerLabel: this.options.modelLabel || "",
 				providerId: this.options.providerId,
+				getReasoningSnapshot: this.options.getReasoningSnapshot,
+				includeReasoning:
+					this.options.includeReasoning !== false &&
+					Boolean(this.options.getReasoningSnapshot),
 				getFiles: this.options.getFiles,
 				getProviders: this.options.getProviders,
 				onProviderChange: this.options.onProviderChange,
@@ -104,11 +146,13 @@ class SvelteActionPaletteWidget extends WidgetType {
 					text: string;
 					selectedFiles: string[];
 					systemPrompt?: string;
+					reasoningSelection?: ReasoningSelection;
 				}) => {
 					this.options.onSubmit?.(
 						event.text,
 						event.selectedFiles,
 						event.systemPrompt,
+						event.reasoningSelection,
 					);
 				},
 				onCancel: () => {
@@ -120,10 +164,14 @@ class SvelteActionPaletteWidget extends WidgetType {
 		return this.container;
 	}
 
-	destroy(dom: HTMLElement): void {
+	destroy(_dom: HTMLElement): void {
 		this.app?.$destroy();
 		this.app = null;
 		this.container = null;
+		// Obsidian aria-label tooltips can linger after the host is destroyed.
+		document
+			.querySelectorAll("body > .tooltip")
+			.forEach((node) => node.remove());
 	}
 }
 
@@ -148,6 +196,7 @@ interface SelectionSnapshot {
 interface ActionPaletteState extends SelectionSnapshot {
 	deco: DecorationSet;
 	pos: number | null;
+	widget: SvelteActionPaletteWidget | null;
 }
 
 function captureSelectionSnapshot(view: EditorView): SelectionSnapshot {
@@ -179,9 +228,9 @@ function buildDecorations(
 	pos: number,
 	options: ActionPaletteOptions,
 	fakeSelections: SelectionRange[] | null,
+	widget: SvelteActionPaletteWidget,
 ): DecorationSet {
 	const builder = new RangeSetBuilder<Decoration>();
-	const widget = new SvelteActionPaletteWidget(options);
 	builder.add(pos, pos, Decoration.widget({ widget, side: -1, block: true }));
 	if (fakeSelections) {
 		for (const r of fakeSelections) {
@@ -200,6 +249,7 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 		return {
 			deco: Decoration.none,
 			pos: null,
+			widget: null,
 			fakeSelections: null,
 			previousSelectionRanges: null,
 			previousCursor: null,
@@ -209,6 +259,7 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 		let {
 			deco,
 			pos,
+			widget,
 			fakeSelections,
 			previousSelectionRanges,
 			previousCursor,
@@ -232,9 +283,18 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 				fakeSelections = e.value.fakeSelections;
 				previousSelectionRanges = e.value.previousSelectionRanges;
 				previousCursor = e.value.previousCursor;
-				deco = buildDecorations(pos, e.value.options, fakeSelections);
+				// One widget instance per open session so doc maps / height
+				// syncs reuse the same DOM (eq + updateDOM) instead of remounting.
+				widget = new SvelteActionPaletteWidget(e.value.options);
+				deco = buildDecorations(
+					pos,
+					e.value.options,
+					fakeSelections,
+					widget,
+				);
 			} else if (e.is(HideActionPaletteEffect)) {
 				pos = null;
+				widget = null;
 				fakeSelections = null;
 				previousSelectionRanges = null;
 				previousCursor = null;
@@ -245,6 +305,7 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 		return {
 			deco,
 			pos,
+			widget,
 			fakeSelections,
 			previousSelectionRanges,
 			previousCursor,

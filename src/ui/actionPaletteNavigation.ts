@@ -7,6 +7,7 @@ import type { DropdownItem } from "./actionPaletteTypes";
 import {
 	getCurrentCursorPosition,
 	scrollSelectedIntoView,
+	selectAllInPromptInput,
 } from "./actionPaletteDom";
 import { applyHistoryEntry } from "./actionPaletteEditing";
 import type { ActionPaletteControllerOptions } from "./actionPaletteController";
@@ -39,6 +40,23 @@ export function handleDropdownNavigation(
 	);
 }
 
+/** Editor-level hotkeys that must stay inside the palette. */
+export function handlePaletteShortcuts(
+	context: NavigationContext,
+	event: KeyboardEvent,
+) {
+	const mod = event.ctrlKey || event.metaKey;
+	if (!mod) return false;
+	const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+	if (key === "a") {
+		event.preventDefault();
+		event.stopPropagation();
+		selectAllInPromptInput(context.options.getContentElement());
+		return true;
+	}
+	return false;
+}
+
 export function handleGeneralNavigation(
 	context: NavigationContext,
 	event: KeyboardEvent,
@@ -52,6 +70,7 @@ export function handleGeneralNavigation(
 
 	if (event.key === "Escape") {
 		event.preventDefault();
+		event.stopPropagation();
 		context.options.onCancel()?.();
 		context.options.dispatchCancel();
 	}
@@ -90,10 +109,8 @@ export function handleHistoryNavigation(
 }
 
 function hasActiveDropdownItems(context: NavigationContext) {
-	return (
-		context.state.activeDropdown !== "none" &&
-		context.state.filteredItems.length > 0
-	);
+	// Keep keyboard handling active for empty slash/file menus (Esc closes).
+	return context.state.activeDropdown !== "none";
 }
 
 function handleDropdownMove(context: NavigationContext, event: KeyboardEvent) {
@@ -113,6 +130,7 @@ function handleDropdownSelection(
 	if (event.key !== "Enter" && event.key !== "Tab") return false;
 
 	event.preventDefault();
+	event.stopPropagation();
 	const selectedItem =
 		context.state.filteredItems[context.state.selectedIndex];
 	if (context.state.selectedIndex >= 0 && selectedItem) {
@@ -127,6 +145,7 @@ function handleDropdownEscape(
 ) {
 	if (event.key !== "Escape") return false;
 	event.preventDefault();
+	event.stopPropagation();
 	context.hideDropdown();
 	return true;
 }

@@ -22,6 +22,7 @@ export type DropdownKind =
 	| "command"
 	| "provider"
 	| "model"
+	| "reasoning"
 	| "creativity"
 	| "system";
 

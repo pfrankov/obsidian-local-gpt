@@ -10,7 +10,10 @@
 			"changeSystemPrompt": "更改系统提示",
 			"clearSystemPrompt": "清除系统提示",
 			"unknownModel": "未知模型",
-			"hint": "使用 / 输入命令，@ 引用文件"
+			"hint": "使用 / 输入命令，@ 引用文件",
+			"changeReasoning": "本次请求的推理",
+			"noMatchingCommands": "没有匹配的命令",
+			"noMatchingFiles": "没有匹配的文件"
 		}
 	},
 	"statusBar": {
@@ -30,7 +33,8 @@
 		"actionNameExists": "名为\"{{name}}\"的操作已存在。",
 		"actionRewritten": "已重写操作\"{{name}}\"",
 		"actionAdded": "已添加操作\"{{name}}\"",
-		"copied": "已复制"
+		"copied": "已复制",
+		"aiProvidersUpdateForReasoning": "请将 AI Providers 更新到 {{version}}+ 以使用推理模式"
 	},
 	"settings": {
 		"mainProvider": "主要AI提供商",
@@ -110,6 +114,24 @@
 		"resetActions": "重置操作",
 		"resetActionsDesc": "🚨 将所有操作重置为默认值。此操作无法撤销，并将删除所有您的自定义操作。",
 		"reset": "重置",
-		"confirmReset": "确认重置"
+		"confirmReset": "确认重置",
+		"reasoningEffort": "推理",
+		"reasoningEffortDesc": "仅限 Local GPT；不支持的模式使用 API 默认值。",
+		"reasoningEffortDefault": "API 默认值",
+		"reasoningEffortInherit": "使用全局设置",
+		"reasoningEffortLow": "低",
+		"reasoningEffortHigh": "高",
+		"reasoningEffortMax": "最大",
+		"reasoningEffortNone": "无",
+		"reasoningEffortMinimal": "最低",
+		"reasoningEffortMedium": "中",
+		"reasoningEffortXHigh": "很高",
+		"reasoningEffortTrue": "开",
+		"reasoningEffortFalse": "关",
+		"reasoningUnavailable": "不可用",
+		"creativityDefault": "API 默认值",
+		"creativityInherit": "使用全局设置",
+		"creativityDesc": "API default 不发送 temperature。「无」发送 0。操作可以继承此全局选择。",
+		"aiProvidersUpdateHeading": "推理功能需要更新版 AI Providers"
 	}
 }

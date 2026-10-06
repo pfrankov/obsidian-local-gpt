@@ -181,15 +181,7 @@ describe("ActionPalette component", () => {
 			".local-gpt-action-palette",
 		);
 		textbox.focus();
-		setCaretToEnd(textbox);
-		textbox.textContent = "/";
-		textbox.dispatchEvent(
-			new InputEvent("input", {
-				bubbles: true,
-				data: "/",
-				inputType: "insertText",
-			}),
-		);
+		await typeIntoPalette(textbox, "/");
 		await tick();
 
 		const commandItems = Array.from(
@@ -198,9 +190,11 @@ describe("ActionPalette component", () => {
 		const systemCommand = commandItems.find((el) =>
 			el.textContent?.trim().includes("/system"),
 		) as HTMLElement;
-		systemCommand?.dispatchEvent(
+		expect(systemCommand).toBeDefined();
+		systemCommand.dispatchEvent(
 			new MouseEvent("click", { bubbles: true }),
 		);
+		await tick();
 		await tick();
 
 		const systemItems = Array.from(
@@ -209,7 +203,9 @@ describe("ActionPalette component", () => {
 		const presetItem = systemItems.find(
 			(el) => el.textContent?.trim() === "Preset",
 		) as HTMLElement;
-		presetItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(presetItem).toBeDefined();
+		presetItem.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		await tick();
 		await tick();
 
 		setCaretToEnd(textbox);
@@ -486,6 +482,87 @@ describe("ActionPalette component", () => {
 		);
 		await tick();
 		expect(textbox.textContent).toBe("");
+		component.$destroy();
+	});
+});
+
+describe("action palette @ mention backspace", () => {
+	test("keeps @ mention open and accepts the next character after selection loss", async () => {
+		const files = [
+			{ path: "Notes/Alpha.md", basename: "Alpha", extension: "md" },
+			{ path: "Notes/Beta.md", basename: "Beta", extension: "md" },
+		];
+		const { target, component } = createComponent({ getFiles: () => files });
+		await tick();
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.focus();
+		await typeIntoPalette(textbox, "@");
+		await tick();
+		const visibleItems = () =>
+			Array.from(
+				target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
+			).filter((el) => el.closest(".local-gpt-dropdown")?.getAttribute("style")?.includes("block"));
+		expect(visibleItems().length).toBeGreaterThan(0);
+		window.getSelection()?.removeAllRanges();
+		textbox.dispatchEvent(
+			new InputEvent("input", {
+				bubbles: true,
+				inputType: "deleteContentBackward",
+			}),
+		);
+		await tick();
+		expect(textbox.textContent).toContain("@");
+		expect(visibleItems().length).toBeGreaterThan(0);
+		await typeIntoPalette(textbox, "@Al");
+		await tick();
+		expect(textbox.textContent).toContain("@Al");
+		expect(
+			visibleItems().some((el) => el.textContent?.includes("Alpha")),
+		).toBe(true);
+		component.$destroy();
+	});
+});
+
+describe("action palette @ mention after pick", () => {
+	test("closes file dropdown when typing plain text after a completed @ pick", async () => {
+		const files = [
+			{ path: "Notes/Alpha.md", basename: "Alpha", extension: "md" },
+			{ path: "Notes/Beta.md", basename: "Beta", extension: "md" },
+		];
+		const { target, component } = createComponent({ getFiles: () => files });
+		await tick();
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.focus();
+		await typeIntoPalette(textbox, "@Al");
+		await tick();
+		const alpha = Array.from(
+			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
+		).find((el) => el.textContent?.includes("Alpha"));
+		expect(alpha).toBeDefined();
+		alpha!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+		alpha!.click();
+		await tick();
+		await tick();
+		expect(textbox.textContent).toContain("@Alpha.md");
+		await typeIntoPalette(textbox, (textbox.textContent || "") + "hello");
+		await tick();
+		const openFileEmpty = Array.from(
+			target.querySelectorAll(".local-gpt-dropdown-empty"),
+		).find((el) => el.textContent?.includes("No matching files"));
+		expect(openFileEmpty).toBeUndefined();
+		expect(
+			Array.from(target.querySelectorAll(".local-gpt-dropdown")).every(
+				(el) => (el as HTMLElement).style.display === "none" ||
+					!(el as HTMLElement).style.display ||
+					(el as HTMLElement).getAttribute("style")?.includes("none"),
+			) || target.querySelector(".local-gpt-dropdown[style*=\"block\"]") === null,
+		).toBe(true);
 		component.$destroy();
 	});
 });

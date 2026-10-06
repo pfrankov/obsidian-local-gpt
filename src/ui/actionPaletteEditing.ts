@@ -14,11 +14,15 @@ import {
 	renderTokensAsHtml as renderTokenHtml,
 } from "./actionPaletteText";
 import {
+	focusPromptInput,
 	getCurrentCursorPosition,
-	setCursorPosition,
+	restorePromptFocus,
+	shouldReclaimPromptFocus,
 } from "./actionPaletteDom";
 import type { ActionPaletteControllerOptions } from "./actionPaletteController";
 import type { ActionPaletteState } from "./actionPaletteState";
+
+let contentDisplayGeneration = 0;
 
 interface EditingContext {
 	state: ActionPaletteState;
@@ -78,12 +82,10 @@ export function applyHistoryEntry(context: EditingContext, text: string) {
 	);
 	context.hideDropdown();
 	context.updateContentDisplay();
-	void tick().then(() => {
-		setCursorPosition(
-			context.options.getContentElement(),
-			context.state.textContent.length,
-		);
-	});
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		context.state.textContent.length,
+	);
 	context.commit();
 }
 
@@ -118,14 +120,12 @@ export function insertFileAtCursor(
 	);
 	context.hideDropdown();
 	context.updateContentDisplay();
-	void tick().then(() => {
-		const newCursorPosition =
-			beforeMention.length + fullFileName.length + 2;
-		setCursorPosition(
-			context.options.getContentElement(),
-			newCursorPosition,
-		);
-	});
+	const newCursorPosition = beforeMention.length + fullFileName.length + 2;
+	context.state.cursorPosition = newCursorPosition;
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		newCursorPosition,
+	);
 }
 
 export function insertCommandAtCursor(
@@ -174,10 +174,12 @@ export function removeCommandAndQuery(
 	context.state.textTokens = context.parseTextToTokens(
 		context.state.textContent,
 	);
+	context.state.cursorPosition = before.length;
 	context.updateContentDisplay();
-	void tick().then(() => {
-		setCursorPosition(context.options.getContentElement(), before.length);
-	});
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		before.length,
+	);
 }
 
 export function removeFileReference(context: EditingContext, filePath: string) {
@@ -203,10 +205,27 @@ export function updateContentDisplay(context: EditingContext) {
 	const contentElement = context.options.getContentElement();
 	if (!contentElement) return;
 
-	const currentCursor = getCurrentCursorPosition(contentElement);
+	const currentCursor = getCurrentCursorPosition(
+		contentElement,
+		context.state.cursorPosition,
+	);
+	const hadFocus = document.activeElement === contentElement;
+	const generation = ++contentDisplayGeneration;
 	contentElement.innerHTML = renderTokenHtml(context.state.textTokens);
+	context.state.cursorPosition = currentCursor;
+	// innerHTML can drop focus/caret; restore immediately so CM cannot grab Enter keyup.
+	if (hadFocus || shouldReclaimPromptFocus(contentElement)) {
+		focusPromptInput(contentElement, currentCursor);
+	}
 	void tick().then(() => {
-		setCursorPosition(contentElement, currentCursor);
+		if (generation !== contentDisplayGeneration) return;
+		if (
+			document.activeElement === contentElement ||
+			hadFocus ||
+			shouldReclaimPromptFocus(contentElement)
+		) {
+			focusPromptInput(contentElement, currentCursor);
+		}
 	});
 }
 
@@ -231,13 +250,12 @@ function insertCommand(context: CommandEditingContext, commandName: string) {
 	);
 	context.hideDropdown();
 	context.updateContentDisplay();
-	void tick().then(() => {
-		const newCursorPosition = beforeCommand.length + commandName.length + 2;
-		setCursorPosition(
-			context.options.getContentElement(),
-			newCursorPosition,
-		);
-	});
+	const newCursorPosition = beforeCommand.length + commandName.length + 2;
+	context.state.cursorPosition = newCursorPosition;
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		newCursorPosition,
+	);
 }
 
 function removeCommandFromText(
@@ -258,11 +276,10 @@ function removeCommandFromText(
 	context.state.textTokens = context.parseTextToTokens(
 		context.state.textContent,
 	);
+	context.state.cursorPosition = beforeCommand.length;
 	context.updateContentDisplay();
-	void tick().then(() => {
-		setCursorPosition(
-			context.options.getContentElement(),
-			beforeCommand.length,
-		);
-	});
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		beforeCommand.length,
+	);
 }

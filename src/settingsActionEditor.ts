@@ -2,9 +2,16 @@ import { Notice, Setting } from "obsidian";
 import type LocalGPT from "./main";
 import type { LocalGPTAction } from "./interfaces";
 import { I18n } from "./i18n";
+import {
+	isReasoningEffort,
+	reasoningEffortOptionsFromSources,
+	type ReasoningModeSource,
+} from "./reasoningEffort";
 import { ensureActionId } from "./actionUtils";
 
 interface RenderActionEditorOptions {
+	reasoningModes?: string[];
+	reasoningModeSources?: ReasoningModeSource[];
 	container: HTMLElement;
 	plugin: LocalGPT;
 	actionToEdit: LocalGPTAction;
@@ -15,6 +22,8 @@ interface RenderActionEditorOptions {
 }
 
 export function renderActionEditor({
+	reasoningModes = [],
+	reasoningModeSources,
 	container,
 	plugin,
 	actionToEdit,
@@ -68,6 +77,72 @@ export function renderActionEditor({
 			component.onChange(async (value) => {
 				actionToEdit.replace = value;
 			});
+		});
+
+	const modeSources =
+		reasoningModeSources ??
+		reasoningModes.map((mode) => ({ mode, providerNames: [] }));
+	const knownModes = modeSources.map((source) => source.mode);
+
+	new Setting(container)
+		.setName(I18n.t("settings.reasoningEffort"))
+		.setDesc(I18n.t("settings.reasoningEffortDesc"))
+		.addDropdown((dropdown) =>
+			dropdown
+				.addOption("", I18n.t("settings.reasoningEffortInherit"))
+				.addOptions(reasoningEffortOptionsFromSources(modeSources))
+				.addOptions(
+					actionToEdit.reasoningEffort &&
+						actionToEdit.reasoningEffort !== "default" &&
+						!knownModes.includes(actionToEdit.reasoningEffort)
+						? {
+								[actionToEdit.reasoningEffort]: `${actionToEdit.reasoningEffort} (${I18n.t("settings.reasoningUnavailable")})`,
+							}
+						: {},
+				)
+				.setValue(actionToEdit.reasoningEffort ?? "")
+				.onChange((value) => {
+					if (
+						(isReasoningEffort(value) &&
+							knownModes.includes(value)) ||
+						value === "default"
+					) {
+						actionToEdit.reasoningEffort = value;
+					} else {
+						delete actionToEdit.reasoningEffort;
+					}
+				}),
+		);
+
+	new Setting(container)
+		.setName(I18n.t("settings.creativity"))
+		.setDesc(I18n.t("settings.creativityDesc"))
+		.addDropdown((dropdown) => {
+			dropdown
+				.addOption("inherit", I18n.t("settings.creativityInherit"))
+				.addOption("default", I18n.t("settings.creativityDefault"))
+				.addOption("0", I18n.t("settings.creativityNone"))
+				.addOption("0.2", I18n.t("settings.creativityLow"))
+				.addOption("0.5", I18n.t("settings.creativityMedium"))
+				.addOption("1", I18n.t("settings.creativityHigh"));
+			const value = actionToEdit.temperature;
+			if (typeof value === "number" && ![0, 0.2, 0.5, 1].includes(value))
+				dropdown.addOption(String(value), String(value));
+			dropdown
+				.setValue(
+					value === undefined
+						? "inherit"
+						: value === null
+							? "default"
+							: String(value),
+				)
+				.onChange((selection) => {
+					if (selection === "inherit")
+						delete actionToEdit.temperature;
+					else
+						actionToEdit.temperature =
+							selection === "default" ? null : Number(selection);
+				});
 		});
 
 	const actionButtonsRow = new Setting(container).setName("");

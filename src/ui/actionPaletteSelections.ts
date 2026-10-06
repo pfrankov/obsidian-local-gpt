@@ -1,3 +1,4 @@
+import { restorePromptFocus } from "./actionPaletteDom";
 import type {
 	CreativityReference,
 	ModelReference,
@@ -18,6 +19,8 @@ import type { ActionPaletteControllerOptions } from "./actionPaletteController";
 import type { ActionPaletteState } from "./actionPaletteState";
 
 interface SelectionContext {
+	refreshReasoning?(): Promise<void>;
+	resetReasoning?(): void;
 	state: ActionPaletteState;
 	options: ActionPaletteControllerOptions;
 	getCommandQuery(commandName: string): string;
@@ -34,11 +37,17 @@ export async function selectProvider(
 	provider: ProviderReference,
 ) {
 	try {
+		context.resetReasoning?.();
 		await context.options.onProviderChange()?.(provider.id);
 		context.setProviderBadgeLabel(provider.providerName, provider.name);
 		context.options.setProviderId(provider.id);
 		context.state.providerName = provider.providerName;
 		completeCommandSelection(context, "provider");
+		await context.refreshReasoning?.();
+		restorePromptFocus(
+			() => context.options.getContentElement(),
+			context.state.textContent.length,
+		);
 	} catch (error) {
 		console.error("Error selecting provider:", error);
 		context.hideDropdown();
@@ -51,9 +60,15 @@ export async function selectModel(
 	model: ModelReference,
 ) {
 	try {
+		context.resetReasoning?.();
 		await context.options.onModelChange()?.(model.name);
 		context.setProviderBadgeLabel(context.state.providerName, model.name);
 		completeCommandSelection(context, "model");
+		await context.refreshReasoning?.();
+		restorePromptFocus(
+			() => context.options.getContentElement(),
+			context.state.textContent.length,
+		);
 	} catch (error) {
 		console.error("Error selecting model:", error);
 		context.hideDropdown();
@@ -92,6 +107,10 @@ export async function selectSystemPrompt(
 			context.highlightBadgeTemporarily();
 			context.removeCommandAndQuery("system");
 			context.hideDropdown();
+			restorePromptFocus(
+				() => context.options.getContentElement(),
+				context.state.textContent.length,
+			);
 			context.commit();
 			return;
 		}
@@ -232,6 +251,10 @@ function completeCommandSelection(
 	context.highlightBadgeTemporarily();
 	context.removeCommandAndQuery(commandName);
 	context.hideDropdown();
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		context.state.textContent.length,
+	);
 }
 
 function showLoadedDropdown(

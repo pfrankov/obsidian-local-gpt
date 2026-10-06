@@ -1,3 +1,4 @@
+import { waitForAI } from "@obsidian-ai-providers/sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LocalGPT from "../src/main";
 import { App, PluginManifest, TFile } from "obsidian";
@@ -27,6 +28,144 @@ describe("LocalGPT", () => {
 		plugin = new LocalGPT(app, {} as PluginManifest);
 		(plugin as any).app = app;
 		(plugin as any).manifest = { id: "local-gpt" };
+	});
+
+	it("persists provider defaults and action overrides across load and save", async () => {
+		const stored: LocalGPTSettings = {
+			aiProviders: { main: "zai-1", embedding: null, vision: null },
+			defaults: { creativity: "low" },
+			providerReasoningEffort: { "zai-1": "low" },
+			actions: [
+				{
+					id: "action",
+					name: "Translate",
+					prompt: "Translate",
+					reasoningEffort: "default",
+				},
+			],
+			_version: 11,
+		};
+		(plugin as any).loadData = vi.fn(async () =>
+			JSON.parse(JSON.stringify(stored)),
+		);
+		(plugin as any).saveData = vi.fn();
+		vi.spyOn(plugin, "reload").mockImplementation(() => {});
+		await plugin.loadSettings();
+		await plugin.saveSettings();
+		expect((plugin as any).saveData).toHaveBeenCalledWith(
+			expect.objectContaining(stored),
+		);
+		const executeAction = vi
+			.spyOn(plugin as any, "executeAction")
+			.mockResolvedValue(undefined);
+		await plugin.runAction(plugin.settings.actions[0], {} as any);
+		expect(executeAction).toHaveBeenCalledWith(
+			expect.objectContaining({ reasoningEffort: "default" }),
+			expect.anything(),
+		);
+	});
+
+	it("sends saved action effort through the full execution path and inherits for freeform", async () => {
+		plugin.settings = {
+			aiProviders: { main: "zai-1", embedding: null, vision: null },
+			defaults: { creativity: "low" },
+			providerReasoningEffort: { "zai-1": "low" },
+			actions: [],
+			_version: 10,
+		};
+		const execute = vi.fn().mockResolvedValue("answer");
+		vi.mocked(waitForAI).mockResolvedValue({
+			promise: Promise.resolve({
+				providers: [
+					{
+						id: "zai-1",
+						name: "Z.AI",
+						type: "zai",
+						model: "glm-5.3-flash",
+						modelCapabilities: {
+							"glm-5.3-flash": {
+								text: true,
+								embedding: false,
+								tools: true,
+								vision: false,
+								reasoningModes: ["low", "high", "max"],
+							},
+						},
+					},
+				],
+				version: 5,
+				execute,
+				checkCompatibility: vi.fn(),
+			} as any),
+			cancel: vi.fn(),
+		});
+		vi.spyOn(plugin, "enhanceWithContext").mockResolvedValue("context");
+		vi.spyOn(plugin as any, "applyTextResult").mockImplementation(() => {});
+		const editor = {
+			cm: { state: { field: vi.fn() }, plugin: vi.fn() },
+			getSelection: () => "word",
+			getCursor: () => ({ line: 0, ch: 0 }),
+			posToOffset: () => 0,
+		};
+		await plugin.runAction(
+			{ name: "Translate", prompt: "Translate", reasoningEffort: "high" },
+			editor as any,
+		);
+		expect(execute.mock.calls[0][0].options).toEqual({
+			temperature: 0.2,
+		});
+		expect(execute.mock.calls[0][0].reasoningMode).toBe("high");
+		await plugin.runFreeform(editor as any, "Translate", [], "zai-1");
+		expect(execute.mock.calls[1][0].options).toEqual({
+			temperature: 0.2,
+		});
+		expect(execute.mock.calls[1][0].reasoningMode).toBe("low");
+		plugin.actionPaletteModelProviderId = "zai-1";
+		plugin.actionPaletteModel = "glm-4.7";
+		await plugin.runFreeform(editor as any, "Translate", [], "zai-1");
+		expect(execute.mock.calls[2][0].options).toEqual({ temperature: 0.2 });
+		expect(execute.mock.calls[2][0].provider.model).toBe("glm-4.7");
+	});
+
+	it.each([undefined, null, 0, 0.7])(
+		"preserves action temperature %s across persistence and dispatch",
+		async (temperature) => {
+			const action = {
+				id: "temperature",
+				name: "Synthetic",
+				prompt: "Synthetic",
+				...(temperature === undefined ? {} : { temperature }),
+			};
+			const stored = {
+				aiProviders: { main: null, embedding: null, vision: null },
+				defaults: {},
+				actions: [action],
+				_version: 10,
+			};
+			(plugin as any).loadData = vi.fn(async () =>
+				JSON.parse(JSON.stringify(stored)),
+			);
+			(plugin as any).saveData = vi.fn();
+			vi.spyOn(plugin, "reload").mockImplementation(() => {});
+			await plugin.loadSettings();
+			await plugin.saveSettings();
+			expect(plugin.settings.defaults).not.toHaveProperty("creativity");
+			expect(plugin.settings.actions[0]).toEqual(action);
+			const run = vi
+				.spyOn(plugin as any, "executeAction")
+				.mockResolvedValue(undefined);
+			await plugin.runAction(plugin.settings.actions[0], {} as any);
+			expect(run.mock.calls[0][0].temperature).toBe(temperature);
+		},
+	);
+
+	it("does not let editing fresh Creativity mutate defaults for another fresh load", async () => {
+		(plugin as any).loadData = vi.fn().mockResolvedValue(undefined);
+		(plugin as any).saveData = vi.fn();
+		await plugin.loadSettings();
+		plugin.settings.defaults.creativity = "high";
+		await plugin.loadSettings();
+		expect(plugin.settings.defaults).not.toHaveProperty("creativity");
 	});
 
 	it("processText strips thinking tags and the selected text", () => {
@@ -133,7 +272,7 @@ describe("LocalGPT", () => {
 				vision: null,
 			},
 			defaults: {
-				creativity: "low",
+				creativity: "high",
 				contextLimit: "local",
 			},
 			actions: [],
@@ -172,7 +311,15 @@ describe("LocalGPT", () => {
 		expect(runFreeform.mock.calls[0][0]).toBe(editor);
 		expect(runFreeform.mock.calls[0][1]).toBe("Summarize this note");
 		expect(runFreeform.mock.calls[0][2]).toEqual(["notes/active.md"]);
-		expect(runFreeform.mock.calls[0]).toHaveLength(6);
+		expect(runFreeform.mock.calls[0]).toHaveLength(7);
+		expect(runFreeform.mock.calls[0][4]).toBe(1);
+		options.onCreativityChange("default");
+		options.onSubmit("API default", []);
+		expect(runFreeform.mock.calls[1][4]).toBeNull();
+		options.onCreativityChange("");
+		options.onSubmit("Explicit zero", []);
+		expect(runFreeform.mock.calls[2][4]).toBe(0);
+		expect(runFreeform.mock.calls[0][6]).toBeUndefined();
 	});
 
 	it("uses the user prompt as the retrieval query when only file context is selected", async () => {
@@ -255,7 +402,7 @@ describe("LocalGPT", () => {
 		const result = await (plugin as any).migrateSettings(legacySettings);
 
 		expect(result.changed).toBe(true);
-		expect(result.settings._version).toBe(10);
+		expect(result.settings._version).toBe(11);
 		expect(result.settings.actions[0].id).toBeTruthy();
 		expect(result.settings.actions[1].id).toBe("existing-id");
 		expect(
@@ -286,7 +433,7 @@ describe("LocalGPT", () => {
 		const result = await (plugin as any).migrateSettings(legacySettings);
 
 		expect(result.changed).toBe(true);
-		expect(result.settings._version).toBe(10);
+		expect(result.settings._version).toBe(11);
 		expect(result.settings.actionPalette?.systemPromptActionId).toBe(
 			"preset-id",
 		);

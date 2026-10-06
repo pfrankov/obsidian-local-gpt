@@ -10,7 +10,10 @@
 			"changeSystemPrompt": "Change system prompt",
 			"clearSystemPrompt": "Clear system prompt",
 			"unknownModel": "Unknown model",
-			"hint": "Use / for commands, @ for files"
+			"hint": "Use / for commands, @ for files",
+			"changeReasoning": "Reasoning for this request",
+			"noMatchingCommands": "No matching commands",
+			"noMatchingFiles": "No matching files"
 		}
 	},
 	"statusBar": {
@@ -30,7 +33,8 @@
 		"actionNameExists": "An action with the name \"{{name}}\" already exists.",
 		"actionRewritten": "Rewritten \"{{name}}\" action",
 		"actionAdded": "Added \"{{name}}\" action",
-		"copied": "Copied"
+		"copied": "Copied",
+		"aiProvidersUpdateForReasoning": "Update AI Providers to {{version}}+ to use reasoning modes"
 	},
 	"settings": {
 		"mainProvider": "Main AI Provider",
@@ -110,6 +114,24 @@
 		"resetActions": "Reset actions",
 		"resetActionsDesc": "🚨 Reset all actions to the default. This cannot be undone and will delete all your custom actions.",
 		"reset": "Reset",
-		"confirmReset": "Confirm reset"
+		"confirmReset": "Confirm reset",
+		"reasoningEffort": "Reasoning",
+		"reasoningEffortDesc": "Local GPT only; unsupported modes use API default.",
+		"reasoningEffortDefault": "API default",
+		"reasoningEffortInherit": "Use global setting",
+		"reasoningEffortLow": "Low",
+		"reasoningEffortHigh": "High",
+		"reasoningEffortMax": "Max",
+		"reasoningEffortNone": "None",
+		"reasoningEffortMinimal": "Minimal",
+		"reasoningEffortMedium": "Medium",
+		"reasoningEffortXHigh": "Extra high",
+		"reasoningEffortTrue": "On",
+		"reasoningEffortFalse": "Off",
+		"reasoningUnavailable": "unavailable",
+		"creativityDefault": "API default",
+		"creativityInherit": "Use global setting",
+		"creativityDesc": "API default omits temperature. None sends 0. Actions can inherit this global choice.",
+		"aiProvidersUpdateHeading": "Reasoning requires a newer AI Providers"
 	}
 }

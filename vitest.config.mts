@@ -5,6 +5,7 @@ import path from "path";
 
 export default defineConfig({
 	resolve: {
+		conditions: ["browser"],
 		alias: {
 			obsidian: path.resolve(__dirname, "tests/__mocks__/obsidian.ts"),
 			electron: path.resolve(__dirname, "tests/__mocks__/electron.ts"),

@@ -10,7 +10,10 @@
 			"changeSystemPrompt": "Cambiar mensaje del sistema",
 			"clearSystemPrompt": "Borrar mensaje del sistema",
 			"unknownModel": "Modelo desconocido",
-			"hint": "Use / para comandos, @ para archivos"
+			"hint": "Use / para comandos, @ para archivos",
+			"changeReasoning": "Razonamiento para esta solicitud",
+			"noMatchingCommands": "No hay comandos coincidentes",
+			"noMatchingFiles": "No hay archivos coincidentes"
 		}
 	},
 	"statusBar": {
@@ -30,7 +33,8 @@
 		"actionNameExists": "Ya existe una acción con el nombre \"{{name}}\".",
 		"actionRewritten": "Acción \"{{name}}\" reescrita",
 		"actionAdded": "Acción \"{{name}}\" añadida",
-		"copied": "Copiado"
+		"copied": "Copiado",
+		"aiProvidersUpdateForReasoning": "Actualice AI Providers a {{version}}+ para usar modos de razonamiento"
 	},
 	"settings": {
 		"mainProvider": "Proveedor principal de IA",
@@ -110,6 +114,24 @@
 		"communityActionsConflictNote": "Ya existe una acción con este nombre. Instalarla la sobrescribirá.",
 		"communityActionsSyncSummary": "{{updated}} acciones actualizadas. {{skipped}} modificadas omitidas.",
 		"communityActionsUpdated": "Se actualizaron {{count}} acciones de la comunidad.",
-		"communityActionsSkipped": "Se omitieron {{count}} acciones de la comunidad modificadas."
+		"communityActionsSkipped": "Se omitieron {{count}} acciones de la comunidad modificadas.",
+		"reasoningEffort": "Razonamiento",
+		"reasoningEffortDesc": "Solo Local GPT; los modos no compatibles usan el valor predeterminado de la API.",
+		"reasoningEffortDefault": "Predeterminado de la API",
+		"reasoningEffortInherit": "Usar ajuste global",
+		"reasoningEffortLow": "Bajo",
+		"reasoningEffortHigh": "Alto",
+		"reasoningEffortMax": "Máximo",
+		"reasoningEffortNone": "Ninguno",
+		"reasoningEffortMinimal": "Mínimo",
+		"reasoningEffortMedium": "Medio",
+		"reasoningEffortXHigh": "Muy alto",
+		"reasoningEffortTrue": "Activado",
+		"reasoningEffortFalse": "Desactivado",
+		"reasoningUnavailable": "no disponible",
+		"creativityDefault": "Predeterminado de API",
+		"creativityInherit": "Usar ajuste global",
+		"creativityDesc": "API default omite temperature. Ninguno envía 0. Las acciones pueden heredar esta elección global.",
+		"aiProvidersUpdateHeading": "El razonamiento requiere un AI Providers más reciente"
 	}
 }

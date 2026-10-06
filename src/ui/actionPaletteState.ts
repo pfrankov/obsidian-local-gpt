@@ -1,5 +1,7 @@
 import type {
 	CreativityReference,
+	ReasoningPaletteSnapshot,
+	ReasoningSelection,
 	ModelReference,
 	ProviderReference,
 	SystemPromptReference,
@@ -10,6 +12,10 @@ import { getPromptHistoryLength } from "./actionPaletteHistory";
 import { getProviderLabelParts } from "./actionPaletteOptions";
 
 export interface ActionPaletteState {
+	reasoningSnapshot?: ReasoningPaletteSnapshot;
+	reasoningSelection?: ReasoningSelection;
+	reasoningLabel: string;
+	reasoningRequest: number;
 	activeDropdown: DropdownKind;
 	filteredItems: DropdownItem[];
 	allProviders: ProviderReference[];
@@ -42,6 +48,8 @@ export function createActionPaletteState(
 		getProviderLabelParts(providerLabel);
 
 	return {
+		reasoningLabel: "",
+		reasoningRequest: 0,
 		activeDropdown: "none",
 		filteredItems: [],
 		allProviders: [],

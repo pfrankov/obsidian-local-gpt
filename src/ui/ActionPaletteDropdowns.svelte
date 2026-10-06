@@ -9,6 +9,7 @@
 	} from "../interfaces";
 	import type { DropdownItem, DropdownKind } from "./actionPaletteTypes";
 	import { CLEAR_SYSTEM_PROMPT_ID } from "./actionPaletteTypes";
+	import { I18n } from "../i18n";
 
 	export let activeDropdown: DropdownKind;
 	export let selectedIndex: number;
@@ -16,6 +17,8 @@
 	export let commandItems: CommandReference[];
 	export let providerItems: ProviderReference[];
 	export let modelItems: ModelReference[];
+	export let reasoningItems: CreativityReference[] = [];
+	export let reasoningDropdownElement: HTMLDivElement | null = null;
 	export let creativityItems: CreativityReference[];
 	export let systemItems: SystemPromptReference[];
 	export let onSelect: (item: DropdownItem) => void;
@@ -28,8 +31,9 @@
 	export let creativityDropdownElement: HTMLDivElement | null = null;
 	export let systemDropdownElement: HTMLDivElement | null = null;
 
-	function selectedClass(index: number) {
-		return index === selectedIndex ? "local-gpt-selected" : "";
+	/** Prevent mousedown from stealing focus from the contenteditable input. */
+	function keepFocus(event: MouseEvent) {
+		event.preventDefault();
 	}
 </script>
 
@@ -38,13 +42,19 @@
 	class="local-gpt-dropdown"
 	style="display: {activeDropdown === 'file' ? 'block' : 'none'}"
 >
+	{#if activeDropdown === "file" && fileItems.length === 0}
+		<div class="local-gpt-dropdown-item local-gpt-dropdown-empty" role="status">
+			{I18n.t("commands.actionPalette.noMatchingFiles")}
+		</div>
+	{/if}
 	{#each fileItems as item, index}
 		{#if activeDropdown === "file"}
 			<div
-				class="local-gpt-dropdown-item {selectedClass(index)}"
+				class="local-gpt-dropdown-item" class:local-gpt-selected={index === selectedIndex}
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
+				on:mousedown={keepFocus}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
 					event.key === "Enter" && onSelect(item)}
@@ -63,13 +73,19 @@
 	class="local-gpt-dropdown"
 	style="display: {activeDropdown === 'command' ? 'block' : 'none'}"
 >
+	{#if activeDropdown === "command" && commandItems.length === 0}
+		<div class="local-gpt-dropdown-item local-gpt-dropdown-empty" role="status">
+			{I18n.t("commands.actionPalette.noMatchingCommands")}
+		</div>
+	{/if}
 	{#each commandItems as item, index}
 		{#if activeDropdown === "command"}
 			<div
-				class="local-gpt-dropdown-item {selectedClass(index)}"
+				class="local-gpt-dropdown-item" class:local-gpt-selected={index === selectedIndex}
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
+				on:mousedown={keepFocus}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
 					event.key === "Enter" && onSelect(item)}
@@ -91,10 +107,11 @@
 	{#each providerItems as item, index}
 		{#if activeDropdown === "provider"}
 			<div
-				class="local-gpt-dropdown-item {selectedClass(index)}"
+				class="local-gpt-dropdown-item" class:local-gpt-selected={index === selectedIndex}
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
+				on:mousedown={keepFocus}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
 					event.key === "Enter" && onSelect(item)}
@@ -123,10 +140,11 @@
 	{#each modelItems as item, index}
 		{#if activeDropdown === "model"}
 			<div
-				class="local-gpt-dropdown-item {selectedClass(index)}"
+				class="local-gpt-dropdown-item" class:local-gpt-selected={index === selectedIndex}
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
+				on:mousedown={keepFocus}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
 					event.key === "Enter" && onSelect(item)}
@@ -145,15 +163,39 @@
 	{#each creativityItems as item, index}
 		{#if activeDropdown === "creativity"}
 			<div
-				class="local-gpt-dropdown-item {selectedClass(index)}"
+				class="local-gpt-dropdown-item" class:local-gpt-selected={index === selectedIndex}
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
+				on:mousedown={keepFocus}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
 					event.key === "Enter" && onSelect(item)}
 			>
 				<span class="local-gpt-creativity-name">{item.name}</span>
+			</div>
+		{/if}
+	{/each}
+</div>
+
+<div
+	bind:this={reasoningDropdownElement}
+	class="local-gpt-dropdown"
+	style="display: {activeDropdown === 'reasoning' ? 'block' : 'none'}"
+>
+	{#each reasoningItems as item, index}
+		{#if activeDropdown === "reasoning"}
+			<div
+				class="local-gpt-dropdown-item" class:local-gpt-selected={index === selectedIndex}
+				role="option"
+				tabindex="-1"
+				aria-selected={index === selectedIndex}
+				on:mousedown={keepFocus}
+				on:click={() => onSelect(item)}
+				on:keydown={(event) =>
+					event.key === "Enter" && onSelect(item)}
+			>
+				<span class="local-gpt-reasoning-name">{item.name}</span>
 			</div>
 		{/if}
 	{/each}
@@ -167,10 +209,11 @@
 	{#each systemItems as item, index}
 		{#if activeDropdown === "system"}
 			<div
-				class="local-gpt-dropdown-item {selectedClass(index)}"
+				class="local-gpt-dropdown-item" class:local-gpt-selected={index === selectedIndex}
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
+				on:mousedown={keepFocus}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
 					event.key === "Enter" && onSelect(item)}

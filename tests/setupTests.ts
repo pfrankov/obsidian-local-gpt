@@ -13,21 +13,39 @@ HTMLElement.prototype.toggleClass = function (cls: string, force?: boolean) {
 };
 
 vi.mock("@obsidian-ai-providers/sdk", () => ({
-	initAI: vi.fn(async (_app?: unknown, _plugin?: unknown, onLoad?: () => void | Promise<void>) => {
-		if (onLoad) {
-			await onLoad();
-		}
-	}),
+	initAI: vi.fn(
+		async (
+			_app?: unknown,
+			_plugin?: unknown,
+			onLoad?: () => void | Promise<void>,
+			_options?: { minVersion?: number; disableFallback?: boolean },
+		) => {
+			if (onLoad) {
+				await onLoad();
+			}
+		},
+	),
 	waitForAI: vi.fn(() =>
 		Promise.resolve({
 			promise: Promise.resolve({
+				version: 5,
+				pluginVersion: "1.12.0",
 				providers: [],
 				execute: vi.fn(),
 				retrieve: vi.fn(),
 				fetchModels: vi.fn(),
+				getModelCapabilities: vi.fn(() => null),
+				getModels: vi.fn(() => ({})),
+				checkCompatibility: vi.fn(),
 			}),
 		}),
 	),
+	supportsVersion: (
+		service: { version?: number } | null | undefined,
+		required: number,
+	) => typeof service?.version === "number" && service.version >= required,
+	recommendedPluginVersionForApi: (api: number) =>
+		api >= 5 ? "1.12.0+" : "1.11.0+",
 	IAIProvider: class {},
 	IAIProvidersService: class {},
 }));

@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
+	import { createEventDispatcher, onDestroy, onMount } from "svelte";
 	import { I18n } from "../i18n";
 	import ActionPaletteDropdowns from "./ActionPaletteDropdowns.svelte";
 	import type {
 		ActionPaletteSubmitEvent,
+		ReasoningPaletteSnapshot,
 		CommandReference,
 		CreativityReference,
 		FileReference,
@@ -25,12 +26,20 @@
 	import {
 		createActionPaletteState,
 	} from "./actionPaletteState";
-	import { getDropdownElementForKind } from "./actionPaletteDom";
+	import {
+		beginHoldingPromptFocus,
+		getDropdownElementForKind,
+		installPaletteModAGuard,
+		installPaletteOutsidePointerRelease,
+	} from "./actionPaletteDom";
 	import { formatSystemPreview } from "./actionPaletteOptions";
 
 	export let placeholder: string = I18n.t(
 		"commands.actionPalette.placeholder",
 	);
+	export let getReasoningSnapshot: (() => Promise<ReasoningPaletteSnapshot>) | undefined = undefined;
+	/** When false, hide /reasoning and the reasoning badge (AI Providers API < 5). */
+	export let includeReasoning = true;
 	export let value = "";
 	export let providerLabel = "";
 	export let providerId: string | undefined = undefined;
@@ -63,10 +72,13 @@
 	let commandDropdownElement: HTMLDivElement | null = null;
 	let providerDropdownElement: HTMLDivElement | null = null;
 	let modelDropdownElement: HTMLDivElement | null = null;
+	let reasoningDropdownElement: HTMLDivElement | null = null;
+	let reasoningItems: CreativityReference[] = [];
 	let creativityDropdownElement: HTMLDivElement | null = null;
 	let systemDropdownElement: HTMLDivElement | null = null;
 
 	let state = createActionPaletteState(value, providerLabel);
+	let invalidateEpoch = 0;
 	let fileItems: FileReference[] = [];
 	let commandItems: CommandReference[] = [];
 	let providerItems: ProviderReference[] = [];
@@ -76,6 +88,7 @@
 
 	const controller = new ActionPaletteController(state, {
 		getValue: () => value,
+		getReasoningSnapshot: () => getReasoningSnapshot,
 		getProviderId: () => providerId,
 		setProviderId: (nextProviderId) => {
 			providerId = nextProviderId;
@@ -96,6 +109,7 @@
 			providerLabel = nextProviderLabel;
 		},
 		getContentElement: () => contentElement,
+		includeReasoning: () => includeReasoning && Boolean(getReasoningSnapshot),
 		getDropdownElement: (kind) =>
 			getDropdownElementForKind(kind, {
 				file: dropdownElement,
@@ -103,16 +117,34 @@
 				provider: providerDropdownElement,
 				model: modelDropdownElement,
 				creativity: creativityDropdownElement,
+				reasoning: reasoningDropdownElement,
 				system: systemDropdownElement,
 			}),
 		dispatchSubmit: (payload) => dispatch("submit", payload),
 		dispatchCancel: () => dispatch("cancel"),
 		invalidate: () => {
+			invalidateEpoch += 1;
 			state = state;
 		},
 	});
 
 	controller.restoreSelectedSystemPrompt();
+	if (includeReasoning && getReasoningSnapshot) void controller.refreshReasoning();
+	onMount(() => {
+		const stopModA = installPaletteModAGuard(() => contentElement);
+		const stopPointer = installPaletteOutsidePointerRelease(
+			() => contentElement,
+		);
+		return () => {
+			stopModA();
+			stopPointer();
+		};
+	});
+	onDestroy(() => {
+		controller.releaseFocusHold();
+		controller.resetReasoning();
+	});
+	$: reasoningItems = state.activeDropdown === "reasoning" ? state.filteredItems as CreativityReference[] : [];
 
 	$: if (contentElement && !state.initializedContent) {
 		controller.initializeContent();
@@ -164,15 +196,17 @@
 		contenteditable="true"
 		role="textbox"
 		tabindex="0"
-		aria-label={placeholder}
+		aria-label={I18n.t("commands.actionPalette.name")}
 		on:keydown={(event) => controller.handleKeydown(event)}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
+		on:focusin={() => beginHoldingPromptFocus(contentElement)}
+		on:focusout={(event) => controller.handleFocusOut(event)}
 		on:click={(event) => controller.handleContentClick(event)}
 		data-placeholder={placeholder}
 		spellcheck="false"
 	></div>
-	{#if state.activeDropdown !== "none" && state.filteredItems.length > 0}
+	{#if state.activeDropdown !== "none"}
 		<ActionPaletteDropdowns
 			activeDropdown={state.activeDropdown}
 			selectedIndex={state.selectedIndex}
@@ -181,6 +215,7 @@
 			{providerItems}
 			{modelItems}
 			{creativityItems}
+			{reasoningItems}
 			{systemItems}
 			onSelect={handleSelection}
 			{formatSystemPreview}
@@ -188,11 +223,17 @@
 			bind:commandDropdownElement
 			bind:providerDropdownElement
 			bind:modelDropdownElement
+			bind:reasoningDropdownElement
 			bind:creativityDropdownElement
 			bind:systemDropdownElement
 		/>
 	{/if}
 
+	{#if state.reasoningLabel}
+		<button type="button" class="local-gpt-reasoning-badge" title={I18n.t("commands.actionPalette.changeReasoning")} on:click={() => controller.activateCommandDropdown("reasoning")}>
+			{state.reasoningLabel}
+		</button>
+	{/if}
 	<div class="local-gpt-provider-badge">
 		{#if state.selectedSystemPromptName}
 			<div

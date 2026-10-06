@@ -50,6 +50,32 @@ Note: Changing the **Name** of the action does *not* disable auto-updates.
 
 <img width="479" alt="Settings" src="https://github.com/user-attachments/assets/5337e74c-864b-45cb-82e0-2c32bbbfa3ed" />
 
+### Reasoning modes
+Local GPT reads the manually declared modes of each model from AI Providers. Its
+provider defaults and saved-action overrides apply only in Local GPT. Actions can
+inherit the provider setting, select a declared native mode, or choose **API default**
+to omit the parameter. API default does not mean thinking is disabled.
+
+In the Action Palette, use **/reasoning** or click the reasoning badge to choose a
+mode for one request. The choice resets when reopening the palette or changing
+provider/model. The palette badge previews the selected model's setting; the
+status beside the generated response shows the actual model and mode after vision
+routing. A one-request selection cannot carry into another provider or model.
+Unsupported or stale values are omitted. Community updates preserve local action
+preferences, and sharing an action excludes them.
+
+The SDK owns native request serialization. Local GPT has no provider mode table,
+JSON parameter editor, or invented thinking budget. Visible provider-supplied
+thinking text retains its existing presentation; mode selection does not create
+or expose hidden reasoning text. No response-time improvement is promised.
+
+Creativity offers **API default**, which omits `temperature` entirely. New or legacy
+settings without a Creativity value also omit it. Existing explicit choices are
+preserved, including **None** (numeric zero). Actions inherit an explicitly set
+global choice unless they specify a number or choose API default themselves.
+The palette's API default also overrides the global choice for that request.
+No model name affects sampling, and endpoint incompatibility errors remain visible.
+
 ### Supported languages
 - English
 - Chinese

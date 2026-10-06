@@ -17,6 +17,7 @@ import { getFullFileName } from "./actionPaletteText";
 
 export function getCreativityOptions(): CreativityReference[] {
 	return [
+		{ id: "default", name: I18n.t("settings.creativityDefault") },
 		{ id: "", name: I18n.t("settings.creativityNone") },
 		{ id: "low", name: I18n.t("settings.creativityLow") },
 		{ id: "medium", name: I18n.t("settings.creativityMedium") },
@@ -24,8 +25,10 @@ export function getCreativityOptions(): CreativityReference[] {
 	];
 }
 
-export function getAvailableCommands(): CommandReference[] {
-	return [
+export function getAvailableCommands(
+	includeReasoning = true,
+): CommandReference[] {
+	const commands: CommandReference[] = [
 		{
 			name: "provider",
 			description: I18n.t("commands.actionPalette.changeProvider"),
@@ -43,12 +46,22 @@ export function getAvailableCommands(): CommandReference[] {
 			description: I18n.t("commands.actionPalette.changeSystemPrompt"),
 		},
 	];
+	if (includeReasoning) {
+		commands.push({
+			name: "reasoning",
+			description: I18n.t("commands.actionPalette.changeReasoning"),
+		});
+	}
+	return commands;
 }
 
-export function filterAvailableCommands(query: string): CommandReference[] {
+export function filterAvailableCommands(
+	query: string,
+	includeReasoning = true,
+): CommandReference[] {
 	const normalizedQuery = query.toLowerCase();
 
-	return getAvailableCommands()
+	return getAvailableCommands(includeReasoning)
 		.filter((command) => {
 			return (
 				command.name.toLowerCase().includes(normalizedQuery) ||

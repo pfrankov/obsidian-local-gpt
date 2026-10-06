@@ -10,7 +10,10 @@
 			"changeSystemPrompt": "System-Prompt wechseln",
 			"clearSystemPrompt": "System-Prompt löschen",
 			"unknownModel": "Unbekanntes Modell",
-			"hint": "Nutzen Sie / für Befehle, @ für Dateien"
+			"hint": "Nutzen Sie / für Befehle, @ für Dateien",
+			"changeReasoning": "Denkmodus für diese Anfrage",
+			"noMatchingCommands": "Keine passenden Befehle",
+			"noMatchingFiles": "Keine passenden Dateien"
 		}
 	},
 	"statusBar": {
@@ -30,7 +33,8 @@
 		"actionNameExists": "Eine Aktion mit dem Namen \"{{name}}\" existiert bereits.",
 		"actionRewritten": "Aktion \"{{name}}\" überschrieben",
 		"actionAdded": "Aktion \"{{name}}\" hinzugefügt",
-		"copied": "Kopiert"
+		"copied": "Kopiert",
+		"aiProvidersUpdateForReasoning": "Aktualisieren Sie AI Providers auf {{version}}+, um Reasoning-Modi zu nutzen"
 	},
 	"settings": {
 		"mainProvider": "Haupt-AI-Provider",
@@ -110,6 +114,24 @@
 		"resetActions": "Aktionen zurücksetzen",
 		"resetActionsDesc": "🚨 Setzt alle Aktionen auf die Standardeinstellungen zurück. Dies kann nicht rückgängig gemacht werden und löscht alle Ihre benutzerdefinierten Aktionen.",
 		"reset": "Zurücksetzen",
-		"confirmReset": "Zurücksetzen bestätigen"
+		"confirmReset": "Zurücksetzen bestätigen",
+		"reasoningEffort": "Denkmodus",
+		"reasoningEffortDesc": "Nur Local GPT; nicht unterstützte Modi nutzen den API-Standard.",
+		"reasoningEffortDefault": "API-Standard",
+		"reasoningEffortInherit": "Globale Einstellung verwenden",
+		"reasoningEffortLow": "Niedrig",
+		"reasoningEffortHigh": "Hoch",
+		"reasoningEffortMax": "Maximum",
+		"reasoningEffortNone": "Keine",
+		"reasoningEffortMinimal": "Minimal",
+		"reasoningEffortMedium": "Mittel",
+		"reasoningEffortXHigh": "Sehr hoch",
+		"reasoningEffortTrue": "An",
+		"reasoningEffortFalse": "Aus",
+		"reasoningUnavailable": "nicht verfügbar",
+		"creativityDefault": "API-Standard",
+		"creativityInherit": "Globale Einstellung verwenden",
+		"creativityDesc": "API-Standard lässt temperature weg. Keine sendet 0. Aktionen können diese globale Wahl erben.",
+		"aiProvidersUpdateHeading": "Reasoning erfordert neueres AI Providers"
 	}
 }
