@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onDestroy } from "svelte";
+	import { createEventDispatcher, onDestroy, onMount } from "svelte";
 	import { I18n } from "../i18n";
 	import ActionPaletteDropdowns from "./ActionPaletteDropdowns.svelte";
 	import type {
@@ -26,7 +26,10 @@
 	import {
 		createActionPaletteState,
 	} from "./actionPaletteState";
-	import { getDropdownElementForKind } from "./actionPaletteDom";
+	import {
+		getDropdownElementForKind,
+		installPaletteModAGuard,
+	} from "./actionPaletteDom";
 	import { formatSystemPreview } from "./actionPaletteOptions";
 
 	export let placeholder: string = I18n.t(
@@ -122,7 +125,11 @@
 
 	controller.restoreSelectedSystemPrompt();
 	void controller.refreshReasoning();
-	onDestroy(() => controller.resetReasoning());
+	onMount(() => installPaletteModAGuard(() => contentElement));
+	onDestroy(() => {
+		controller.releaseFocusHold();
+		controller.resetReasoning();
+	});
 	$: reasoningItems = state.activeDropdown === "reasoning" ? state.filteredItems as CreativityReference[] : [];
 
 	$: if (contentElement && !state.initializedContent) {
@@ -179,7 +186,7 @@
 		on:keydown={(event) => controller.handleKeydown(event)}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
-		on:focusout={() => controller.handleFocusOut()}
+		on:focusout={(event) => controller.handleFocusOut(event)}
 		on:click={(event) => controller.handleContentClick(event)}
 		data-placeholder={placeholder}
 		spellcheck="false"

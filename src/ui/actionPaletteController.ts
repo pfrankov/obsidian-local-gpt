@@ -37,6 +37,8 @@ import {
 	getCurrentCursorPosition,
 	restorePromptFocus,
 	shouldReclaimPromptFocus,
+	beginHoldingPromptFocus,
+	endHoldingPromptFocus,
 } from "./actionPaletteDom";
 import {
 	buildProviderLabel,
@@ -70,6 +72,7 @@ import {
 	handleDropdownNavigation,
 	handleGeneralNavigation,
 	handleHistoryNavigation,
+	handlePaletteShortcuts,
 } from "./actionPaletteNavigation";
 import {
 	checkForCommandTrigger,
@@ -165,11 +168,16 @@ export class ActionPaletteController {
 		applyInitialSelectedFiles(this);
 		this.state.textTokens = this.parseTextToTokens(this.state.textContent);
 		this.updateContentDisplay();
+		beginHoldingPromptFocus(this.options.getContentElement());
 		restorePromptFocus(
 			() => this.options.getContentElement(),
 			this.state.textContent.length,
 		);
 		this.commit();
+	}
+
+	releaseFocusHold() {
+		endHoldingPromptFocus(this.options.getContentElement());
 	}
 
 	restoreSelectedSystemPrompt() {
@@ -201,6 +209,10 @@ export class ActionPaletteController {
 	handleKeydown(event: KeyboardEvent) {
 		// Keep keys inside the palette so CodeMirror/editor never sees them.
 		event.stopPropagation();
+		if (handlePaletteShortcuts(this, event)) {
+			this.commit();
+			return;
+		}
 		if (handleDropdownNavigation(this, event)) return;
 		if (handleHistoryNavigation(this, event)) return;
 		handleGeneralNavigation(this, event);
@@ -306,8 +318,15 @@ export class ActionPaletteController {
 		}
 	}
 
-	handleFocusOut() {
-		if (!shouldReclaimPromptFocus(this.options.getContentElement())) {
+	handleFocusOut(event?: FocusEvent) {
+		const contentElement = this.options.getContentElement();
+		if (!contentElement) return;
+		const shell = contentElement.closest(".local-gpt-action-palette-shell");
+		const related = event?.relatedTarget;
+		if (related instanceof Node && shell && shell.contains(related)) {
+			return;
+		}
+		if (!shouldReclaimPromptFocus(contentElement)) {
 			return;
 		}
 		restorePromptFocus(

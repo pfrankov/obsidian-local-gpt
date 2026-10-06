@@ -128,11 +128,37 @@ export function focusPromptInput(
 	}
 }
 
-const reclaimFocusUntilByElement = new WeakMap<HTMLElement, number>();
+/** Select all text inside the palette input (Mod+A must not reach the note). */
+export function selectAllInPromptInput(contentElement: HTMLDivElement | null) {
+	if (!contentElement) return;
+	contentElement.focus({ preventScroll: true });
+	const selection = window.getSelection();
+	const range = document.createRange();
+	range.selectNodeContents(contentElement);
+	selection?.removeAllRanges();
+	selection?.addRange(range);
+}
 
-/** True while a recent selection asked to reclaim focus from the editor. */
+const reclaimFocusUntilByElement = new WeakMap<HTMLElement, number>();
+const holdingPromptFocus = new WeakSet<HTMLElement>();
+
+/** Keep reclaiming editor focus steals for the whole palette lifetime. */
+export function beginHoldingPromptFocus(contentElement: HTMLElement | null) {
+	if (contentElement) holdingPromptFocus.add(contentElement);
+}
+
+export function endHoldingPromptFocus(contentElement: HTMLElement | null) {
+	if (contentElement) holdingPromptFocus.delete(contentElement);
+}
+
+/**
+ * True while the palette is open (holding) or a recent selection armed a
+ * short reclaim window. Ctrl+A / editor hotkeys can steal focus long after
+ * Enter; holding covers that without a brittle timeout.
+ */
 export function shouldReclaimPromptFocus(contentElement: HTMLElement | null) {
 	if (!contentElement) return false;
+	if (holdingPromptFocus.has(contentElement)) return true;
 	const until = reclaimFocusUntilByElement.get(contentElement) ?? 0;
 	return performance.now() < until;
 }
@@ -148,7 +174,10 @@ export function restorePromptFocus(
 ) {
 	const contentElement = getContentElement();
 	if (contentElement) {
-		reclaimFocusUntilByElement.set(contentElement, performance.now() + 750);
+		reclaimFocusUntilByElement.set(
+			contentElement,
+			performance.now() + 8000,
+		);
 	}
 	const run = () => {
 		const el = getContentElement();
@@ -167,4 +196,35 @@ export function restorePromptFocus(
 			requestAnimationFrame(run);
 		});
 	});
+}
+
+/**
+ * Capture-phase Mod+A guard. Obsidian/CM register select-all in capture and
+ * the palette sits inside cm-content, so bubble stopPropagation alone is not
+ * enough — we must preventDefault before the editor keymap runs.
+ */
+export function installPaletteModAGuard(
+	getContentElement: () => HTMLDivElement | null,
+): () => void {
+	const onKeydown = (event: KeyboardEvent) => {
+		if (!(event.ctrlKey || event.metaKey)) return;
+		const key =
+			event.key.length === 1 ? event.key.toLowerCase() : event.key;
+		if (key !== "a") return;
+		const el = getContentElement();
+		if (!el?.isConnected) return;
+		const shell = el.closest(".local-gpt-action-palette-shell");
+		const active = document.activeElement;
+		if (
+			active !== el &&
+			!(shell && active instanceof Node && shell.contains(active))
+		) {
+			return;
+		}
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		selectAllInPromptInput(el);
+	};
+	window.addEventListener("keydown", onKeydown, true);
+	return () => window.removeEventListener("keydown", onKeydown, true);
 }

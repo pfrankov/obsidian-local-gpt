@@ -7,6 +7,7 @@ import type { DropdownItem } from "./actionPaletteTypes";
 import {
 	getCurrentCursorPosition,
 	scrollSelectedIntoView,
+	selectAllInPromptInput,
 } from "./actionPaletteDom";
 import { applyHistoryEntry } from "./actionPaletteEditing";
 import type { ActionPaletteControllerOptions } from "./actionPaletteController";
@@ -37,6 +38,23 @@ export function handleDropdownNavigation(
 		handleDropdownSelection(context, event) ||
 		handleDropdownEscape(context, event)
 	);
+}
+
+/** Editor-level hotkeys that must stay inside the palette. */
+export function handlePaletteShortcuts(
+	context: NavigationContext,
+	event: KeyboardEvent,
+) {
+	const mod = event.ctrlKey || event.metaKey;
+	if (!mod) return false;
+	const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+	if (key === "a") {
+		event.preventDefault();
+		event.stopPropagation();
+		selectAllInPromptInput(context.options.getContentElement());
+		return true;
+	}
+	return false;
 }
 
 export function handleGeneralNavigation(

@@ -219,6 +219,121 @@ describe("reasoning palette keyboard UX", () => {
 		component.$destroy();
 	});
 
+	it("models /reasoning → arrows → Enter → Ctrl+A: select-all stays in palette", async () => {
+		// Nested contenteditable mimic: palette widget lives inside cm-content.
+		const note = document.createElement("div");
+		note.className = "cm-content";
+		note.contentEditable = "true";
+		note.textContent = "original note body that must not be replaced";
+		document.body.appendChild(note);
+
+		const { target, component } = createComponent({
+			getReasoningSnapshot: async () => snapshot,
+		});
+		note.appendChild(target);
+		await flush();
+
+		const input = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		input.focus();
+		await typeIntoPalette(input, "/reasoning");
+		await flush();
+
+		// Arrow to High (inherit, default, low, high → index 3)
+		for (let i = 0; i < 3; i++) {
+			input.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "ArrowDown",
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+			await flush();
+		}
+		expect(
+			target.querySelector(".local-gpt-dropdown-item.local-gpt-selected")
+				?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortHigh"));
+
+		const enter = new KeyboardEvent("keydown", {
+			key: "Enter",
+			bubbles: true,
+			cancelable: true,
+		});
+		input.dispatchEvent(enter);
+		await flush();
+		expect(document.activeElement).toBe(input);
+		expect(
+			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortHigh"));
+
+		// Simulate Obsidian/CM capture-phase Mod+A competing for the event.
+		let editorSawModA = false;
+		const editorCapture = (event: KeyboardEvent) => {
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+				if (!event.defaultPrevented) {
+					editorSawModA = true;
+					note.focus();
+					const sel = window.getSelection();
+					const range = document.createRange();
+					range.selectNodeContents(note);
+					sel?.removeAllRanges();
+					sel?.addRange(range);
+				}
+			}
+		};
+		window.addEventListener("keydown", editorCapture, true);
+
+		const modA = new KeyboardEvent("keydown", {
+			key: "a",
+			code: "KeyA",
+			ctrlKey: true,
+			bubbles: true,
+			cancelable: true,
+		});
+		// Dispatch on window so capture listeners run (real browser path).
+		window.dispatchEvent(modA);
+		await flush();
+		window.removeEventListener("keydown", editorCapture, true);
+
+		expect(editorSawModA).toBe(false);
+		expect(document.activeElement).toBe(input);
+		const selection = window.getSelection();
+		expect(selection?.rangeCount).toBeGreaterThan(0);
+		expect(
+			input.contains(selection!.getRangeAt(0).startContainer) ||
+				selection!.getRangeAt(0).startContainer === input,
+		).toBe(true);
+
+		// Typing after Ctrl+A must edit the palette, not replace the note.
+		input.dispatchEvent(
+			new InputEvent("beforeinput", {
+				bubbles: true,
+				cancelable: true,
+				inputType: "insertText",
+				data: "x",
+			}),
+		);
+		// Directly model insert into palette selection
+		input.textContent = "x";
+		input.dispatchEvent(
+			new InputEvent("input", {
+				bubbles: true,
+				data: "x",
+				inputType: "insertText",
+			}),
+		);
+		await flush();
+		expect(note.textContent).toContain(
+			"original note body that must not be replaced",
+		);
+		expect(input.textContent).toContain("x");
+		component.$destroy();
+		note.remove();
+	});
+
 	it("moves the highlight with ArrowUp/ArrowDown in the reasoning picker", async () => {
 		const { target, component } = createComponent({
 			getReasoningSnapshot: async () => snapshot,
