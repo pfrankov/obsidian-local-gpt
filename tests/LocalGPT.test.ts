@@ -43,7 +43,7 @@ describe("LocalGPT", () => {
 					reasoningEffort: "default",
 				},
 			],
-			_version: 10,
+			_version: 11,
 		};
 		(plugin as any).loadData = vi.fn(async () =>
 			JSON.parse(JSON.stringify(stored)),
@@ -402,7 +402,7 @@ describe("LocalGPT", () => {
 		const result = await (plugin as any).migrateSettings(legacySettings);
 
 		expect(result.changed).toBe(true);
-		expect(result.settings._version).toBe(10);
+		expect(result.settings._version).toBe(11);
 		expect(result.settings.actions[0].id).toBeTruthy();
 		expect(result.settings.actions[1].id).toBe("existing-id");
 		expect(
@@ -433,7 +433,7 @@ describe("LocalGPT", () => {
 		const result = await (plugin as any).migrateSettings(legacySettings);
 
 		expect(result.changed).toBe(true);
-		expect(result.settings._version).toBe(10);
+		expect(result.settings._version).toBe(11);
 		expect(result.settings.actionPalette?.systemPromptActionId).toBe(
 			"preset-id",
 		);

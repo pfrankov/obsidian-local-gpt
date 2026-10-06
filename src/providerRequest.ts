@@ -117,8 +117,14 @@ export async function executeProviderRequest({
 		reasoningSelection,
 	);
 	try {
-		if (effort) aiProviders.checkCompatibility(5);
-		onReasoningResolved?.(provider, effort);
+		const reasoningApi = supportsReasoningApi(aiProviders);
+		// Never call checkCompatibility above the live service version.
+		if (effort && reasoningApi) {
+			aiProviders.checkCompatibility(5);
+		}
+		if (reasoningApi) {
+			onReasoningResolved?.(provider, effort);
+		}
 		return await aiProviders.execute({
 			...(effort ? { reasoningMode: effort } : {}),
 			provider,

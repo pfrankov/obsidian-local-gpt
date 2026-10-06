@@ -360,8 +360,12 @@ export default class LocalGPT extends Plugin {
 
 		const onReasoningResolved = (provider: IAIProvider, mode?: string) => {
 			if (abortController.signal.aborted) return;
+			const base = provider.model || provider.name;
+			// Hide "Reasoning: …" when API < 5 or no declared/selected mode.
 			hideSpinner?.setStatus?.(
-				`${provider.model || provider.name} · ${I18n.t("settings.reasoningEffort")}: ${reasoningEffortLabel(mode)}`,
+				mode
+					? `${base} · ${I18n.t("settings.reasoningEffort")}: ${reasoningEffortLabel(mode)}`
+					: base,
 			);
 			this.app.workspace.updateOptions();
 		};

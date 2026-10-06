@@ -3,6 +3,7 @@ import { getReasoningModes, resolveReasoningEffort } from "./reasoningEffort";
 import { selectProvider, overrideProviderModel } from "./providerRequest";
 import { Editor, Menu } from "obsidian";
 import { CREATIVITY } from "defaultSettings";
+import { getEffectiveCreativityKey } from "./temperature";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import type {
 	IAIProvider,
@@ -124,8 +125,7 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 						plugin.settings.aiProviders.main;
 					const creativityKey =
 						plugin.actionPaletteCreativityKey ??
-						plugin.settings.defaults.creativity ??
-						"default";
+						getEffectiveCreativityKey(plugin.settings);
 					const temperatureOverride =
 						CREATIVITY[creativityKey]?.temperature ?? null;
 
@@ -217,8 +217,7 @@ async function getActionPaletteLabel(plugin: LocalGPT) {
 					: provider.model;
 			const creativityKey =
 				plugin.actionPaletteCreativityKey ??
-				plugin.settings.defaults.creativity ??
-				"default";
+				getEffectiveCreativityKey(plugin.settings);
 			const creativityLabelMap: Record<string, string> = {
 				default: I18n.t("settings.creativityDefault"),
 				"": I18n.t("settings.creativityNone"),

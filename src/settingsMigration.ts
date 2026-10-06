@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import type { LocalGPTSettings } from "./interfaces";
+import { normalizeCreativityForLegacy } from "./temperature";
 import { ensureActionIds } from "./actionUtils";
 import { I18n } from "./i18n";
 
@@ -54,6 +55,7 @@ export async function migrateSettings(
 				settings,
 				legacyActionPaletteSystemPromptStorageKey,
 			),
+		migrateToVersion11,
 	];
 	const changed = preAsyncMigrations.reduce(
 		(hasChanged, migrate) => migrate(loadedData) || hasChanged,
@@ -364,4 +366,14 @@ function clearLegacyActionPaletteSystemPromptId(storageKey: string) {
 			error,
 		);
 	}
+}
+
+function migrateToVersion11(settings: LocalGPTSettings): boolean {
+	if (settings._version && settings._version >= 11) {
+		return false;
+	}
+
+	normalizeCreativityForLegacy(settings);
+	settings._version = 11;
+	return true;
 }

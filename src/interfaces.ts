@@ -25,7 +25,15 @@ export interface LocalGPTSettings {
 		systemPromptActionId?: string | null;
 	};
 	defaults: {
+		/**
+		 * Legacy creativity preset: "", "low", "medium", "high".
+		 * Never store "default" here — use omitTemperature for API default so old Local GPT can read this field.
+		 */
 		creativity?: string;
+		/**
+		 * When true, omit temperature (API default). Old Local GPT ignores this field and uses `creativity`.
+		 */
+		omitTemperature?: boolean;
 		/**
 		 * Preset that controls the overall limit for context chunks in Enhanced Actions (RAG).
 		 * Values: 'local' | 'cloud' | 'advanced' | 'max'

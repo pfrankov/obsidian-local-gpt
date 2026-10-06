@@ -16,6 +16,7 @@ import {
 	supportsReasoningApi,
 } from "./aiProvidersCompat";
 import { I18n } from "./i18n";
+import { applyCreativityKey, getEffectiveCreativityKey } from "./temperature";
 import { ensureActionId, ensureActionIds } from "./actionUtils";
 import { buildCommunityActionSignature } from "./CommunityActionsService";
 import { renderActionEditor as renderActionEditorForm } from "./settingsActionEditor";
@@ -203,11 +204,10 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 							high: I18n.t("settings.creativityHigh"),
 						})
 						.setValue(
-							this.plugin.settings.defaults.creativity ??
-								"default",
+							getEffectiveCreativityKey(this.plugin.settings),
 						)
 						.onChange(async (value) => {
-							this.plugin.settings.defaults.creativity = value;
+							applyCreativityKey(this.plugin.settings, value);
 							await this.plugin.saveSettings();
 							await this.display();
 						});
