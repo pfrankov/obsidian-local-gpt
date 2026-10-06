@@ -115,12 +115,19 @@
 		"reasoningEffort": "Ragionamento",
 		"reasoningEffortDesc": "Solo Local GPT; le modalità non supportate usano il valore predefinito API.",
 		"reasoningEffortDefault": "Predefinito API",
-		"reasoningEffortInherit": "Impostazione del fornitore",
+		"reasoningEffortInherit": "Usa impostazione globale",
 		"reasoningEffortLow": "Basso",
 		"reasoningEffortHigh": "Alto",
 		"reasoningEffortMax": "Massimo",
+		"reasoningEffortNone": "Nessuno",
+		"reasoningEffortMinimal": "Minimo",
+		"reasoningEffortMedium": "Medio",
+		"reasoningEffortXHigh": "Molto alto",
+		"reasoningEffortTrue": "Attivo",
+		"reasoningEffortFalse": "Disattivo",
 		"reasoningUnavailable": "non disponibile",
 		"creativityDefault": "Predefinito API",
-		"creativityInherit": "Impostazione predefinita"
+		"creativityInherit": "Usa impostazione globale",
+		"creativityDesc": "API default omette temperature. Nessuno invia 0. Le azioni possono ereditare questa scelta globale."
 	}
 }

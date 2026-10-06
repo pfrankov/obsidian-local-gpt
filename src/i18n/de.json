@@ -115,12 +115,19 @@
 		"reasoningEffort": "Denkmodus",
 		"reasoningEffortDesc": "Nur Local GPT; nicht unterstützte Modi nutzen den API-Standard.",
 		"reasoningEffortDefault": "API-Standard",
-		"reasoningEffortInherit": "Anbietereinstellung",
+		"reasoningEffortInherit": "Globale Einstellung verwenden",
 		"reasoningEffortLow": "Niedrig",
 		"reasoningEffortHigh": "Hoch",
-		"reasoningEffortMax": "Maximal",
+		"reasoningEffortMax": "Maximum",
+		"reasoningEffortNone": "Keine",
+		"reasoningEffortMinimal": "Minimal",
+		"reasoningEffortMedium": "Mittel",
+		"reasoningEffortXHigh": "Sehr hoch",
+		"reasoningEffortTrue": "An",
+		"reasoningEffortFalse": "Aus",
 		"reasoningUnavailable": "nicht verfügbar",
 		"creativityDefault": "API-Standard",
-		"creativityInherit": "Standardeinstellung"
+		"creativityInherit": "Globale Einstellung verwenden",
+		"creativityDesc": "API-Standard lässt temperature weg. Keine sendet 0. Aktionen können diese globale Wahl erben."
 	}
 }

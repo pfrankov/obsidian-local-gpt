@@ -115,12 +115,19 @@
 		"reasoningEffort": "推理",
 		"reasoningEffortDesc": "仅限 Local GPT；不支持的模式使用 API 默认值。",
 		"reasoningEffortDefault": "API 默认值",
-		"reasoningEffortInherit": "提供商设置",
+		"reasoningEffortInherit": "使用全局设置",
 		"reasoningEffortLow": "低",
 		"reasoningEffortHigh": "高",
-		"reasoningEffortMax": "最高",
+		"reasoningEffortMax": "最大",
+		"reasoningEffortNone": "无",
+		"reasoningEffortMinimal": "最低",
+		"reasoningEffortMedium": "中",
+		"reasoningEffortXHigh": "很高",
+		"reasoningEffortTrue": "开",
+		"reasoningEffortFalse": "关",
 		"reasoningUnavailable": "不可用",
 		"creativityDefault": "API 默认值",
-		"creativityInherit": "默认设置"
+		"creativityInherit": "使用全局设置",
+		"creativityDesc": "API default 不发送 temperature。「无」发送 0。操作可以继承此全局选择。"
 	}
 }

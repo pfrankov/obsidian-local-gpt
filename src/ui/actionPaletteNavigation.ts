@@ -52,6 +52,7 @@ export function handleGeneralNavigation(
 
 	if (event.key === "Escape") {
 		event.preventDefault();
+		event.stopPropagation();
 		context.options.onCancel()?.();
 		context.options.dispatchCancel();
 	}
@@ -127,6 +128,7 @@ function handleDropdownEscape(
 ) {
 	if (event.key !== "Escape") return false;
 	event.preventDefault();
+	event.stopPropagation();
 	context.hideDropdown();
 	return true;
 }

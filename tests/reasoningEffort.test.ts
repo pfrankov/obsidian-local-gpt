@@ -10,7 +10,14 @@ import {
 	overrideProviderModel,
 	selectProvider,
 } from "../src/providerRequest";
-import { resolveReasoningEffort } from "../src/reasoningEffort";
+import {
+	collectReasoningModeSources,
+	formatReasoningBadgeLabel,
+	reasoningEffortLabel,
+	resolveReasoningEffort,
+	sortReasoningModes,
+} from "../src/reasoningEffort";
+import { I18n } from "../src/i18n";
 import { syncCommunityActions } from "../src/settingsCommunityActionsSync";
 import {
 	buildCommunityActionRef,
@@ -401,5 +408,93 @@ describe("reasoning effort", () => {
 		expect(
 			resolveReasoningEffort(native, settings(), "low"),
 		).toBeUndefined();
+	});
+});
+
+describe("reasoning mode presentation", () => {
+	it("sorts known modes in canonical adapter order", () => {
+		expect(
+			sortReasoningModes(["max", "none", "high", "low", "xhigh", "minimal", "medium"]),
+		).toEqual([
+			"none",
+			"minimal",
+			"low",
+			"medium",
+			"high",
+			"xhigh",
+			"max",
+		]);
+	});
+
+	it("uses human labels for known modes and API default", () => {
+		expect(reasoningEffortLabel("default")).toBe(
+			I18n.t("settings.reasoningEffortDefault"),
+		);
+		expect(reasoningEffortLabel("xhigh")).toBe(
+			I18n.t("settings.reasoningEffortXHigh"),
+		);
+		expect(reasoningEffortLabel("true")).toBe(
+			I18n.t("settings.reasoningEffortTrue"),
+		);
+	});
+
+	it("annotates modes with provider names and keeps raw ids", () => {
+		const openai: IAIProvider = {
+			id: "oai",
+			name: "OpenAI",
+			type: "openai",
+			model: "gpt",
+			modelCapabilities: {
+				gpt: {
+					text: true,
+					tools: false,
+					embedding: false,
+					vision: false,
+					reasoningModes: ["low", "xhigh", "max"],
+				},
+			},
+		};
+		const zai: IAIProvider = {
+			id: "zai",
+			name: "Z.AI",
+			type: "zai",
+			model: "glm",
+			modelCapabilities: {
+				glm: {
+					text: true,
+					tools: false,
+					embedding: false,
+					vision: false,
+					reasoningModes: ["low", "high", "max"],
+				},
+			},
+		};
+		const sources = collectReasoningModeSources([zai, openai]);
+		expect(sources.map((source) => source.mode)).toEqual([
+			"low",
+			"high",
+			"xhigh",
+			"max",
+		]);
+		expect(sources[0]).toEqual({
+			mode: "low",
+			providerNames: ["OpenAI", "Z.AI"],
+		});
+		expect(sources.find((source) => source.mode === "high")?.providerNames).toEqual([
+			"Z.AI",
+		]);
+	});
+
+	it("formats the palette badge as global setting with effective mode", () => {
+		expect(
+			formatReasoningBadgeLabel({ selected: false, mode: undefined }),
+		).toBe(
+			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortInherit")} (${I18n.t("settings.reasoningEffortDefault")})`,
+		);
+		expect(
+			formatReasoningBadgeLabel({ selected: true, mode: "high" }),
+		).toBe(
+			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortHigh")}`,
+		);
 	});
 });

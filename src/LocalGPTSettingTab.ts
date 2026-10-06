@@ -4,6 +4,8 @@ import {
 	getReasoningModes,
 	isReasoningEffort,
 	reasoningEffortOptions,
+	collectReasoningModeSources,
+	type ReasoningModeSource,
 } from "./reasoningEffort";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
@@ -34,6 +36,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	editExistingAction?: LocalGPTAction;
 	modelsOptions: Record<string, string> = {};
 	private reasoningModes: string[] = [];
+	private reasoningModeSources: ReasoningModeSource[] = [];
 	// Controls visibility of the Advanced settings section
 	private isAdvancedMode = false;
 	private pendingScroll?: {
@@ -61,20 +64,12 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		try {
 			const aiProvidersWaiter = await waitForAI();
 			const aiProvidersResponse = await aiProvidersWaiter.promise;
-			this.reasoningModes = [
-				...new Set(
-					aiProvidersResponse.providers.flatMap((provider) =>
-						[
-							aiProvidersResponse.getModelCapabilities({
-								provider,
-							}),
-							...Object.values(
-								aiProvidersResponse.getModels({ provider }),
-							),
-						].flatMap((caps) => caps?.reasoningModes || []),
-					),
-				),
-			];
+			this.reasoningModeSources = collectReasoningModeSources(
+				aiProvidersResponse.providers,
+			);
+			this.reasoningModes = this.reasoningModeSources.map(
+				(source) => source.mode,
+			);
 
 			const providers = aiProvidersResponse.providers.reduce(
 				(
@@ -181,7 +176,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName(I18n.t("settings.creativity"))
-				.setDesc("")
+				.setDesc(I18n.t("settings.creativityDesc"))
 				.addDropdown((dropdown) => {
 					dropdown
 						.addOption(
@@ -375,6 +370,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		} else {
 			renderActionEditorForm({
 				reasoningModes: this.reasoningModes,
+				reasoningModeSources: this.reasoningModeSources,
 				container: containerEl,
 				plugin: this.plugin,
 				actionToEdit: editingAction,
@@ -387,6 +383,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 
 		renderActionsList({
 			reasoningModes: this.reasoningModes,
+			reasoningModeSources: this.reasoningModeSources,
 			containerEl,
 			plugin: this.plugin,
 			editExistingAction: this.editExistingAction,

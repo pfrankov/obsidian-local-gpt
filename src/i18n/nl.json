@@ -115,12 +115,19 @@
 		"reasoningEffort": "Redeneren",
 		"reasoningEffortDesc": "Alleen Local GPT; niet-ondersteunde modi gebruiken de API-standaard.",
 		"reasoningEffortDefault": "API-standaard",
-		"reasoningEffortInherit": "Providerinstelling",
+		"reasoningEffortInherit": "Globale instelling gebruiken",
 		"reasoningEffortLow": "Laag",
 		"reasoningEffortHigh": "Hoog",
-		"reasoningEffortMax": "Maximaal",
+		"reasoningEffortMax": "Maximum",
+		"reasoningEffortNone": "Geen",
+		"reasoningEffortMinimal": "Minimaal",
+		"reasoningEffortMedium": "Gemiddeld",
+		"reasoningEffortXHigh": "Zeer hoog",
+		"reasoningEffortTrue": "Aan",
+		"reasoningEffortFalse": "Uit",
 		"reasoningUnavailable": "niet beschikbaar",
 		"creativityDefault": "API-standaard",
-		"creativityInherit": "Standaardinstelling"
+		"creativityInherit": "Globale instelling gebruiken",
+		"creativityDesc": "API-standaard laat temperature weg. Geen stuurt 0. Acties kunnen deze globale keuze overnemen."
 	}
 }

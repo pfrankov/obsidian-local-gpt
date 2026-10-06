@@ -252,9 +252,17 @@ export default class LocalGPT extends Plugin {
 			} finally {
 				hideSpinner && hideSpinner();
 				this.app.workspace.updateOptions();
+				// Drop finished controllers so a later Escape (e.g. closing the
+				// Action Palette) cannot race a completed request or keep
+				// stale abort listeners around.
+				this.abortControllers = this.abortControllers.filter(
+					(controller) => controller !== abortController,
+				);
 			}
 
-			if (abortController.signal.aborted) {
+			// If the request finished with text, keep it even if Escape raced
+			// the finalization window after the provider returned.
+			if (abortController.signal.aborted && !fullText.trim()) {
 				return;
 			}
 

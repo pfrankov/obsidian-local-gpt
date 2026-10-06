@@ -1,7 +1,12 @@
+import { tick } from "svelte";
 import { I18n } from "../i18n";
 import type { CreativityReference } from "../interfaces";
 import type { ActionPaletteController } from "./actionPaletteController";
-import { reasoningEffortLabel } from "../reasoningEffort";
+import {
+	formatReasoningBadgeLabel,
+	reasoningEffortLabel,
+	sortReasoningModes,
+} from "../reasoningEffort";
 
 export function resetReasoning(context: ActionPaletteController) {
 	context.state.reasoningRequest++;
@@ -40,7 +45,10 @@ export function updateReasoningLabel(context: ActionPaletteController) {
 	if (!snapshot) return;
 	const selected = context.state.reasoningSelection;
 	const mode = selected ? selected.mode : snapshot.effectiveMode;
-	context.state.reasoningLabel = `${I18n.t("settings.reasoningEffort")}: ${reasoningEffortLabel(mode)}${selected ? "" : ` · ${I18n.t("settings.reasoningEffortInherit")}`}`;
+	context.state.reasoningLabel = formatReasoningBadgeLabel({
+		selected: Boolean(selected),
+		mode,
+	});
 	context.commit();
 }
 
@@ -60,7 +68,9 @@ export async function showReasoningDropdown(context: ActionPaletteController) {
 
 export function applyReasoningFilter(context: ActionPaletteController) {
 	const query = context.getCommandQuery("reasoning").toLowerCase();
-	const modes = context.state.reasoningSnapshot?.modes || [];
+	const modes = sortReasoningModes(
+		context.state.reasoningSnapshot?.modes || [],
+	);
 	const options = [
 		{ id: "", name: I18n.t("settings.reasoningEffortInherit") },
 		{ id: "default", name: I18n.t("settings.reasoningEffortDefault") },
@@ -68,7 +78,7 @@ export function applyReasoningFilter(context: ActionPaletteController) {
 			id: mode,
 			name: reasoningEffortLabel(mode),
 		})),
-	];
+	].filter((option) => option.name.trim().length > 0);
 	context.updateFilteredDropdownItems(
 		options.filter((option) => option.name.toLowerCase().includes(query)),
 	);
@@ -97,4 +107,8 @@ export function selectReasoning(
 	context.removeCommandAndQuery("reasoning");
 	context.hideDropdown();
 	context.highlightBadgeTemporarily();
+	void tick().then(() => {
+		const input = context.options.getContentElement();
+		input?.focus();
+	});
 }

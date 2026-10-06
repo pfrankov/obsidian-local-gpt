@@ -115,12 +115,19 @@
 		"reasoningEffort": "推論",
 		"reasoningEffortDesc": "Local GPTのみ：未対応のモードはAPIの既定値を使用します。",
 		"reasoningEffortDefault": "API の既定値",
-		"reasoningEffortInherit": "プロバイダー設定",
+		"reasoningEffortInherit": "グローバル設定を使用",
 		"reasoningEffortLow": "低",
 		"reasoningEffortHigh": "高",
 		"reasoningEffortMax": "最大",
+		"reasoningEffortNone": "なし",
+		"reasoningEffortMinimal": "最小",
+		"reasoningEffortMedium": "中",
+		"reasoningEffortXHigh": "非常に高",
+		"reasoningEffortTrue": "オン",
+		"reasoningEffortFalse": "オフ",
 		"reasoningUnavailable": "利用不可",
 		"creativityDefault": "API の既定値",
-		"creativityInherit": "既定の設定"
+		"creativityInherit": "グローバル設定を使用",
+		"creativityDesc": "API default は temperature を送りません。「なし」は 0 を送ります。アクションはこのグローバル設定を継承できます。"
 	}
 }

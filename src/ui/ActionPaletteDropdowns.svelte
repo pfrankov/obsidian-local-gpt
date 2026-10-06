@@ -45,7 +45,7 @@
 			<div
 				class="local-gpt-dropdown-item {selectedClass(index)}"
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
@@ -70,7 +70,7 @@
 			<div
 				class="local-gpt-dropdown-item {selectedClass(index)}"
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
@@ -95,7 +95,7 @@
 			<div
 				class="local-gpt-dropdown-item {selectedClass(index)}"
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
@@ -127,7 +127,7 @@
 			<div
 				class="local-gpt-dropdown-item {selectedClass(index)}"
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
@@ -149,7 +149,7 @@
 			<div
 				class="local-gpt-dropdown-item {selectedClass(index)}"
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
@@ -171,7 +171,7 @@
 			<div
 				class="local-gpt-dropdown-item {selectedClass(index)}"
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>
@@ -193,7 +193,7 @@
 			<div
 				class="local-gpt-dropdown-item {selectedClass(index)}"
 				role="option"
-				tabindex="0"
+				tabindex="-1"
 				aria-selected={index === selectedIndex}
 				on:click={() => onSelect(item)}
 				on:keydown={(event) =>

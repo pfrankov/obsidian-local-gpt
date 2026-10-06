@@ -2,11 +2,16 @@ import { Notice, Setting } from "obsidian";
 import type LocalGPT from "./main";
 import type { LocalGPTAction } from "./interfaces";
 import { I18n } from "./i18n";
-import { isReasoningEffort, reasoningEffortOptions } from "./reasoningEffort";
+import {
+	isReasoningEffort,
+	reasoningEffortOptionsFromSources,
+	type ReasoningModeSource,
+} from "./reasoningEffort";
 import { ensureActionId } from "./actionUtils";
 
 interface RenderActionEditorOptions {
 	reasoningModes?: string[];
+	reasoningModeSources?: ReasoningModeSource[];
 	container: HTMLElement;
 	plugin: LocalGPT;
 	actionToEdit: LocalGPTAction;
@@ -18,6 +23,7 @@ interface RenderActionEditorOptions {
 
 export function renderActionEditor({
 	reasoningModes = [],
+	reasoningModeSources,
 	container,
 	plugin,
 	actionToEdit,
@@ -73,17 +79,22 @@ export function renderActionEditor({
 			});
 		});
 
+	const modeSources =
+		reasoningModeSources ??
+		reasoningModes.map((mode) => ({ mode, providerNames: [] }));
+	const knownModes = modeSources.map((source) => source.mode);
+
 	new Setting(container)
 		.setName(I18n.t("settings.reasoningEffort"))
 		.setDesc(I18n.t("settings.reasoningEffortDesc"))
 		.addDropdown((dropdown) =>
 			dropdown
 				.addOption("", I18n.t("settings.reasoningEffortInherit"))
-				.addOptions(reasoningEffortOptions(reasoningModes))
+				.addOptions(reasoningEffortOptionsFromSources(modeSources))
 				.addOptions(
 					actionToEdit.reasoningEffort &&
 						actionToEdit.reasoningEffort !== "default" &&
-						!reasoningModes.includes(actionToEdit.reasoningEffort)
+						!knownModes.includes(actionToEdit.reasoningEffort)
 						? {
 								[actionToEdit.reasoningEffort]: `${actionToEdit.reasoningEffort} (${I18n.t("settings.reasoningUnavailable")})`,
 							}
@@ -93,7 +104,7 @@ export function renderActionEditor({
 				.onChange((value) => {
 					if (
 						(isReasoningEffort(value) &&
-							reasoningModes.includes(value)) ||
+							knownModes.includes(value)) ||
 						value === "default"
 					) {
 						actionToEdit.reasoningEffort = value;
@@ -105,6 +116,7 @@ export function renderActionEditor({
 
 	new Setting(container)
 		.setName(I18n.t("settings.creativity"))
+		.setDesc(I18n.t("settings.creativityDesc"))
 		.addDropdown((dropdown) => {
 			dropdown
 				.addOption("inherit", I18n.t("settings.creativityInherit"))

@@ -115,12 +115,19 @@
 		"reasoningEffort": "추론",
 		"reasoningEffortDesc": "Local GPT에만 적용되며, 미지원 모드는 API 기본값을 사용합니다.",
 		"reasoningEffortDefault": "API 기본값",
-		"reasoningEffortInherit": "공급자 설정",
+		"reasoningEffortInherit": "전역 설정 사용",
 		"reasoningEffortLow": "낮음",
 		"reasoningEffortHigh": "높음",
 		"reasoningEffortMax": "최대",
+		"reasoningEffortNone": "없음",
+		"reasoningEffortMinimal": "최소",
+		"reasoningEffortMedium": "보통",
+		"reasoningEffortXHigh": "매우 높음",
+		"reasoningEffortTrue": "켜기",
+		"reasoningEffortFalse": "끄기",
 		"reasoningUnavailable": "사용 불가",
 		"creativityDefault": "API 기본값",
-		"creativityInherit": "기본 설정"
+		"creativityInherit": "전역 설정 사용",
+		"creativityDesc": "API default는 temperature를 보내지 않습니다. 없음은 0을 보냅니다. 작업은 이 전역 선택을 상속할 수 있습니다."
 	}
 }

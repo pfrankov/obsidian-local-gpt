@@ -417,22 +417,25 @@
 	transform: translateY(var(--size-2-1));
 }
 
-/* Generic dropdown container/items (shared by file/command/provider) */
+/* Generic dropdown container/items (shared by file/command/provider).
+   Sit below the palette footer/hint instead of overlapping it — the old
+   negative margin + padding-top looked like a blank first row and covered
+   the "Use / for commands" hint. */
 .local-gpt-dropdown {
 	position: absolute;
 	top: 100%;
 	left: 0;
 	right: 0;
-	margin-top: calc(var(--line-height-normal) * -1em);
-	padding-top: calc(var(--line-height-normal) * 1em);
+	margin-top: var(--size-2-1);
+	padding-top: 0;
 	background: var(--background-primary);
 	border: var(--border-width) solid var(--background-modifier-border);
-	border-radius: 0 0 var(--radius-l) var(--radius-l);
+	border-radius: var(--radius-l);
 	box-shadow: var(--shadow-l);
 	max-height: 240px;
 	overflow-y: auto;
 	scroll-behavior: smooth;
-	z-index: 1;
+	z-index: 2;
 }
 
 .local-gpt-dropdown-item {

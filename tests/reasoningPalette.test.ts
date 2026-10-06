@@ -38,7 +38,9 @@ describe("per-invocation reasoning", () => {
 		await flush();
 		expect(
 			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
-		).toContain("high");
+		).toBe(
+			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortInherit")} (${I18n.t("settings.reasoningEffortHigh")})`,
+		);
 		const input = requireElement<HTMLDivElement>(
 			target,
 			".local-gpt-action-palette",
@@ -47,13 +49,20 @@ describe("per-invocation reasoning", () => {
 		await flush();
 		const low = Array.from(
 			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
-		).find((item) => item.textContent?.trim() === "low")!;
+		).find(
+			(item) =>
+				item.textContent?.trim() ===
+				I18n.t("settings.reasoningEffortLow"),
+		)!;
 		expect(low).toBeDefined();
 		low.click();
 		await flush();
 		expect(
 			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
-		).toContain("low");
+		).toBe(
+			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortLow")}`,
+		);
+		expect(document.activeElement).toBe(input);
 		await typeIntoPalette(input, "Synthetic prompt");
 		input.dispatchEvent(
 			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
@@ -74,7 +83,7 @@ describe("per-invocation reasoning", () => {
 		expect(
 			next.target.querySelector(".local-gpt-reasoning-badge")
 				?.textContent,
-		).toContain("high");
+		).toContain(I18n.t("settings.reasoningEffortHigh"));
 		next.component.$destroy();
 	});
 

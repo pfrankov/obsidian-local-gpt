@@ -3,6 +3,7 @@ import Sortable from "sortablejs";
 import type LocalGPT from "./main";
 import type { LocalGPTAction } from "./interfaces";
 import { I18n } from "./i18n";
+import type { ReasoningModeSource } from "./reasoningEffort";
 import { isSeparatorAction, moveAction } from "./actionUtils";
 import { buildActionDescription, buildSharingString } from "./settingsTabUtils";
 import {
@@ -21,6 +22,7 @@ interface PendingActionScroll {
 
 interface RenderActionsListOptions {
 	reasoningModes?: string[];
+	reasoningModeSources?: ReasoningModeSource[];
 	containerEl: HTMLElement;
 	plugin: LocalGPT;
 	editExistingAction?: LocalGPTAction;
@@ -170,6 +172,7 @@ export function renderActionsList(options: RenderActionsListOptions) {
 			actionRow.infoEl.empty();
 			renderActionEditorForm({
 				reasoningModes: options.reasoningModes,
+				reasoningModeSources: options.reasoningModeSources,
 				container: actionRow.infoEl,
 				plugin: options.plugin,
 				actionToEdit: action,
