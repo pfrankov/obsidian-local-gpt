@@ -87,17 +87,18 @@ class SvelteActionPaletteWidget extends WidgetType {
 	 * replaces the widget (default eq() is false), detaching the focused
 	 * contenteditable so keys go to the editor while a caret still looks
 	 * present in the remounted input.
+	 *
+	 * Do NOT set `editable = true`: that leaves the host inside CM's
+	 * contenteditable surface so Svelte DOM mutations are observed as
+	 * editor changes and can livelock the renderer. BlockWidgetView already
+	 * ignoreMutation()s; the host stays contentEditable=false (CM default)
+	 * while the nested palette input remains contenteditable=true.
 	 */
 	eq(other: WidgetType): boolean {
 		return other instanceof SvelteActionPaletteWidget;
 	}
 
-	updateDOM(): boolean {
-		return true;
-	}
-
-	/** Allow nested contenteditable; otherwise CM sets the host to false. */
-	get editable(): boolean {
+	updateDOM(_dom: HTMLElement, _view: EditorView): boolean {
 		return true;
 	}
 

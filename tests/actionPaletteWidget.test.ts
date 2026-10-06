@@ -8,18 +8,42 @@ import {
 } from "../src/ui/actionPalettePlugin";
 import { isCompleteMention } from "../src/ui/actionPaletteText";
 
+function createPaletteView(
+	doc = "hello\nworld",
+	extra: Parameters<typeof EditorState.create>[0]["extensions"] = [],
+) {
+	const host = document.createElement("div");
+	document.body.appendChild(host);
+	let updates = 0;
+	let docChanges = 0;
+	const view = new EditorView({
+		parent: host,
+		state: EditorState.create({
+			doc,
+			extensions: [
+				actionPalettePlugin,
+				EditorView.updateListener.of((update) => {
+					updates++;
+					if (update.docChanged) docChanges++;
+				}),
+				...(Array.isArray(extra) ? extra : extra ? [extra] : []),
+			],
+		}),
+	});
+	return {
+		host,
+		view,
+		counts: () => ({ updates, docChanges }),
+		resetCounts: () => {
+			updates = 0;
+			docChanges = 0;
+		},
+	};
+}
+
 describe("Action Palette CM widget identity", () => {
 	it("reuses the same widget DOM across document edits (eq/updateDOM)", () => {
-		const host = document.createElement("div");
-		document.body.appendChild(host);
-		const view = new EditorView({
-			parent: host,
-			state: EditorState.create({
-				doc: "hello\nworld",
-				extensions: actionPalettePlugin,
-			}),
-		});
-
+		const { host, view } = createPaletteView();
 		showActionPalette(view, 0, {
 			onSubmit: () => undefined,
 			onCancel: () => undefined,
@@ -36,7 +60,6 @@ describe("Action Palette CM widget identity", () => {
 		input.focus();
 		expect(document.activeElement).toBe(input);
 
-		// Doc change must not remount the widget (would drop focus / fake caret).
 		view.dispatch({
 			changes: { from: 5, insert: "!" },
 		});
@@ -55,16 +78,8 @@ describe("Action Palette CM widget identity", () => {
 		host.remove();
 	});
 
-	it("marks the palette widget editable so CM does not force contentEditable=false", () => {
-		const host = document.createElement("div");
-		document.body.appendChild(host);
-		const view = new EditorView({
-			parent: host,
-			state: EditorState.create({
-				doc: "note",
-				extensions: actionPalettePlugin,
-			}),
-		});
+	it("keeps the host non-editable while the nested palette input stays editable", () => {
+		const { host, view } = createPaletteView("note");
 		showActionPalette(view, 0, {
 			onSubmit: () => undefined,
 		});
@@ -72,12 +87,68 @@ describe("Action Palette CM widget identity", () => {
 			".local-gpt-action-palette-container",
 		) as HTMLElement;
 		expect(container).toBeTruthy();
-		// CM sets contentEditable=false on non-editable widgets; we must stay editable.
-		expect(container.contentEditable).not.toBe("false");
+		// CM sets contentEditable=false on non-editable widgets (correct — avoids
+		// treating Svelte mutations as doc edits). Nested input stays editable.
+		expect(container.contentEditable).toBe("false");
 		const input = container.querySelector(
 			".local-gpt-action-palette",
 		) as HTMLDivElement;
 		expect(input.getAttribute("contenteditable")).toBe("true");
+		hideActionPalette(view);
+		view.destroy();
+		host.remove();
+	});
+
+	it("does not treat Svelte mutations inside the widget as document changes", async () => {
+		const { host, view, counts, resetCounts } = createPaletteView("stable");
+		const startDoc = view.state.doc.toString();
+
+		showActionPalette(view, 0, {
+			onSubmit: () => undefined,
+			getFiles: () => [
+				{ path: "a.md", basename: "a", extension: "md" },
+			],
+		});
+
+		// Let the initial show/update settle.
+		await Promise.resolve();
+		await Promise.resolve();
+		resetCounts();
+
+		const container = host.querySelector(
+			".local-gpt-action-palette-container",
+		) as HTMLElement;
+		const input = container.querySelector(
+			".local-gpt-action-palette",
+		) as HTMLDivElement;
+
+		// Simulate the kind of DOM churn Svelte does on open / badge refresh.
+		for (let i = 0; i < 40; i++) {
+			input.textContent = `prompt-${i}`;
+			input.dispatchEvent(
+				new InputEvent("input", {
+					bubbles: true,
+					inputType: "insertText",
+					data: String(i),
+				}),
+			);
+			const badge = document.createElement("div");
+			badge.className = "local-gpt-reasoning-badge";
+			badge.textContent = `Reasoning: ${i}`;
+			container.appendChild(badge);
+			badge.remove();
+		}
+
+		// Allow MutationObserver microtasks to flush.
+		await Promise.resolve();
+		await Promise.resolve();
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(view.state.doc.toString()).toBe(startDoc);
+		expect(counts().docChanges).toBe(0);
+		// Updates may include measures; they must not explode into a livelock.
+		expect(counts().updates).toBeLessThan(20);
+
 		hideActionPalette(view);
 		view.destroy();
 		host.remove();
