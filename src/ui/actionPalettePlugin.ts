@@ -84,10 +84,14 @@ class SvelteActionPaletteWidget extends WidgetType {
 	}
 
 	/**
-	 * Keep the same DOM across decoration rebuilds/maps. Without this, CM6
-	 * replaces the widget (default eq() is false), detaching the focused
-	 * contenteditable so keys go to the editor while a caret still looks
-	 * present in the remounted input.
+	 * Keep the same DOM across decoration rebuilds/maps for *this* widget
+	 * instance. Without eq/updateDOM, CM6 replaces the widget (default eq
+	 * is false), detaching the focused contenteditable so keys go to the
+	 * editor while a caret still looks present in the remounted input.
+	 *
+	 * Identity-only eq: a second showActionPalette() builds a new widget
+	 * and must remount so onSubmit/options from that invocation win.
+	 * Class-wide eq + no-op updateDOM reused the first mount's callbacks.
 	 *
 	 * Do NOT set `editable = true`: that leaves the host inside CM's
 	 * contenteditable surface so Svelte DOM mutations are observed as
@@ -96,11 +100,14 @@ class SvelteActionPaletteWidget extends WidgetType {
 	 * while the nested palette input remains contenteditable=true.
 	 */
 	eq(other: WidgetType): boolean {
-		return other instanceof SvelteActionPaletteWidget;
+		return other === this;
 	}
 
-	updateDOM(_dom: HTMLElement, _view: EditorView): boolean {
-		return true;
+	updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+		// Only reuse DOM when this instance already owns the live mount.
+		// A new Show widget returns false → CM destroys the previous mount
+		// (prevWidget.destroy) and calls toDOM() with fresh options.
+		return this.container === dom && this.app !== null;
 	}
 
 	ignoreEvent(): boolean {

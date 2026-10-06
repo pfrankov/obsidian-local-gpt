@@ -78,6 +78,44 @@ describe("Action Palette CM widget identity", () => {
 		host.remove();
 	});
 
+	it("second show at the same position uses the latest onSubmit", async () => {
+		const { host, view } = createPaletteView();
+		let first = 0;
+		let second = 0;
+		showActionPalette(view, 0, {
+			onSubmit: () => {
+				first++;
+			},
+		});
+		showActionPalette(view, 0, {
+			onSubmit: () => {
+				second++;
+			},
+		});
+
+		const input = host.querySelector(
+			".local-gpt-action-palette",
+		) as HTMLDivElement;
+		expect(input).toBeTruthy();
+		expect(
+			host.querySelectorAll(".local-gpt-action-palette-container").length,
+		).toBe(1);
+
+		input.focus();
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(first).toBe(0);
+		expect(second).toBe(1);
+
+		hideActionPalette(view);
+		view.destroy();
+		host.remove();
+	});
+
 	it("keeps the host non-editable while the nested palette input stays editable", () => {
 		const { host, view } = createPaletteView("note");
 		showActionPalette(view, 0, {
@@ -105,9 +143,7 @@ describe("Action Palette CM widget identity", () => {
 
 		showActionPalette(view, 0, {
 			onSubmit: () => undefined,
-			getFiles: () => [
-				{ path: "a.md", basename: "a", extension: "md" },
-			],
+			getFiles: () => [{ path: "a.md", basename: "a", extension: "md" }],
 		});
 
 		// Let the initial show/update settle.
@@ -161,9 +197,9 @@ describe("completed @ mention detection", () => {
 	];
 
 	it("treats a selected file mention plus trailing text as complete", () => {
-		expect(
-			isCompleteMention("@Alpha.md", files, ["Notes/Alpha.md"]),
-		).toBe(true);
+		expect(isCompleteMention("@Alpha.md", files, ["Notes/Alpha.md"])).toBe(
+			true,
+		);
 		expect(
 			isCompleteMention("@Alpha.md hello", files, ["Notes/Alpha.md"]),
 		).toBe(true);
