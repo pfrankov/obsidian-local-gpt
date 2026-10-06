@@ -525,3 +525,44 @@ describe("action palette @ mention backspace", () => {
 		component.$destroy();
 	});
 });
+
+describe("action palette @ mention after pick", () => {
+	test("closes file dropdown when typing plain text after a completed @ pick", async () => {
+		const files = [
+			{ path: "Notes/Alpha.md", basename: "Alpha", extension: "md" },
+			{ path: "Notes/Beta.md", basename: "Beta", extension: "md" },
+		];
+		const { target, component } = createComponent({ getFiles: () => files });
+		await tick();
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.focus();
+		await typeIntoPalette(textbox, "@Al");
+		await tick();
+		const alpha = Array.from(
+			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
+		).find((el) => el.textContent?.includes("Alpha"));
+		expect(alpha).toBeDefined();
+		alpha!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+		alpha!.click();
+		await tick();
+		await tick();
+		expect(textbox.textContent).toContain("@Alpha.md");
+		await typeIntoPalette(textbox, (textbox.textContent || "") + "hello");
+		await tick();
+		const openFileEmpty = Array.from(
+			target.querySelectorAll(".local-gpt-dropdown-empty"),
+		).find((el) => el.textContent?.includes("No matching files"));
+		expect(openFileEmpty).toBeUndefined();
+		expect(
+			Array.from(target.querySelectorAll(".local-gpt-dropdown")).every(
+				(el) => (el as HTMLElement).style.display === "none" ||
+					!(el as HTMLElement).style.display ||
+					(el as HTMLElement).getAttribute("style")?.includes("none"),
+			) || target.querySelector(".local-gpt-dropdown[style*=\"block\"]") === null,
+		).toBe(true);
+		component.$destroy();
+	});
+});

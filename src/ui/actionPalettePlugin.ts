@@ -82,7 +82,30 @@ class SvelteActionPaletteWidget extends WidgetType {
 		super();
 	}
 
-	toDOM(view: EditorView): HTMLElement {
+	/**
+	 * Keep the same DOM across decoration rebuilds/maps. Without this, CM6
+	 * replaces the widget (default eq() is false), detaching the focused
+	 * contenteditable so keys go to the editor while a caret still looks
+	 * present in the remounted input.
+	 */
+	eq(other: WidgetType): boolean {
+		return other instanceof SvelteActionPaletteWidget;
+	}
+
+	updateDOM(): boolean {
+		return true;
+	}
+
+	/** Allow nested contenteditable; otherwise CM sets the host to false. */
+	get editable(): boolean {
+		return true;
+	}
+
+	ignoreEvent(): boolean {
+		return true;
+	}
+
+	toDOM(_view: EditorView): HTMLElement {
 		this.container = document.createElement("div");
 		this.container.addClass("local-gpt-action-palette-container");
 		const mountTarget = document.createElement("div");
@@ -129,7 +152,7 @@ class SvelteActionPaletteWidget extends WidgetType {
 		return this.container;
 	}
 
-	destroy(dom: HTMLElement): void {
+	destroy(_dom: HTMLElement): void {
 		this.app?.$destroy();
 		this.app = null;
 		this.container = null;
@@ -161,6 +184,7 @@ interface SelectionSnapshot {
 interface ActionPaletteState extends SelectionSnapshot {
 	deco: DecorationSet;
 	pos: number | null;
+	widget: SvelteActionPaletteWidget | null;
 }
 
 function captureSelectionSnapshot(view: EditorView): SelectionSnapshot {
@@ -192,9 +216,9 @@ function buildDecorations(
 	pos: number,
 	options: ActionPaletteOptions,
 	fakeSelections: SelectionRange[] | null,
+	widget: SvelteActionPaletteWidget,
 ): DecorationSet {
 	const builder = new RangeSetBuilder<Decoration>();
-	const widget = new SvelteActionPaletteWidget(options);
 	builder.add(pos, pos, Decoration.widget({ widget, side: -1, block: true }));
 	if (fakeSelections) {
 		for (const r of fakeSelections) {
@@ -213,6 +237,7 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 		return {
 			deco: Decoration.none,
 			pos: null,
+			widget: null,
 			fakeSelections: null,
 			previousSelectionRanges: null,
 			previousCursor: null,
@@ -222,6 +247,7 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 		let {
 			deco,
 			pos,
+			widget,
 			fakeSelections,
 			previousSelectionRanges,
 			previousCursor,
@@ -245,9 +271,18 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 				fakeSelections = e.value.fakeSelections;
 				previousSelectionRanges = e.value.previousSelectionRanges;
 				previousCursor = e.value.previousCursor;
-				deco = buildDecorations(pos, e.value.options, fakeSelections);
+				// One widget instance per open session so doc maps / height
+				// syncs reuse the same DOM (eq + updateDOM) instead of remounting.
+				widget = new SvelteActionPaletteWidget(e.value.options);
+				deco = buildDecorations(
+					pos,
+					e.value.options,
+					fakeSelections,
+					widget,
+				);
 			} else if (e.is(HideActionPaletteEffect)) {
 				pos = null;
+				widget = null;
 				fakeSelections = null;
 				previousSelectionRanges = null;
 				previousCursor = null;
@@ -258,6 +293,7 @@ const actionPaletteStateField = StateField.define<ActionPaletteState>({
 		return {
 			deco,
 			pos,
+			widget,
 			fakeSelections,
 			previousSelectionRanges,
 			previousCursor,
