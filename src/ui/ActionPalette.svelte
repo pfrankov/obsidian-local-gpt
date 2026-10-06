@@ -27,8 +27,10 @@
 		createActionPaletteState,
 	} from "./actionPaletteState";
 	import {
+		beginHoldingPromptFocus,
 		getDropdownElementForKind,
 		installPaletteModAGuard,
+		installPaletteOutsidePointerRelease,
 	} from "./actionPaletteDom";
 	import { formatSystemPreview } from "./actionPaletteOptions";
 
@@ -128,7 +130,16 @@
 
 	controller.restoreSelectedSystemPrompt();
 	if (includeReasoning && getReasoningSnapshot) void controller.refreshReasoning();
-	onMount(() => installPaletteModAGuard(() => contentElement));
+	onMount(() => {
+		const stopModA = installPaletteModAGuard(() => contentElement);
+		const stopPointer = installPaletteOutsidePointerRelease(
+			() => contentElement,
+		);
+		return () => {
+			stopModA();
+			stopPointer();
+		};
+	});
 	onDestroy(() => {
 		controller.releaseFocusHold();
 		controller.resetReasoning();
@@ -189,6 +200,7 @@
 		on:keydown={(event) => controller.handleKeydown(event)}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
+		on:focusin={() => beginHoldingPromptFocus(contentElement)}
 		on:focusout={(event) => controller.handleFocusOut(event)}
 		on:click={(event) => controller.handleContentClick(event)}
 		data-placeholder={placeholder}

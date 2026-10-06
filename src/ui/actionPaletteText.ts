@@ -211,12 +211,12 @@ export function renderTokensAsHtml(tokens: TextToken[]) {
 	return tokens
 		.map((token) => {
 			if (token.type === "file") {
-				return `<span class="file-mention" data-path="${
+				return `<span class="file-mention" contenteditable="false" data-path="${
 					token.filePath
 				}">${escapeHtmlContent(token.content)}</span>`;
 			}
 			if (token.type === "command") {
-				return `<span class="command-mention" data-command="${
+				return `<span class="command-mention" contenteditable="false" data-command="${
 					token.commandName
 				}">${escapeHtmlContent(token.content)}</span>`;
 			}

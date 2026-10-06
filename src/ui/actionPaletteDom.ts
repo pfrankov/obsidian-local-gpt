@@ -49,6 +49,20 @@ function cursorOffsetAmongTextNodes(
 	return null;
 }
 
+function isInsideAtomicChip(node: Node, root: HTMLElement) {
+	let element =
+		node.nodeType === Node.ELEMENT_NODE
+			? (node as HTMLElement)
+			: node.parentElement;
+	while (element && element !== root) {
+		if (element.getAttribute("contenteditable") === "false") {
+			return element;
+		}
+		element = element.parentElement;
+	}
+	return null;
+}
+
 export function setCursorPosition(
 	contentElement: HTMLDivElement | null,
 	position: number,
@@ -69,9 +83,16 @@ export function setCursorPosition(
 	while ((textNode = walker.nextNode())) {
 		const nodeLength = textNode.textContent?.length || 0;
 		if (currentPosition + nodeLength >= position) {
-			const offset = position - currentPosition;
-			range.setStart(textNode, offset);
-			range.setEnd(textNode, offset);
+			const chip = isInsideAtomicChip(textNode, contentElement);
+			if (chip) {
+				// Place caret after atomic chips so typing cannot edit them.
+				range.setStartAfter(chip);
+				range.collapse(true);
+			} else {
+				const offset = position - currentPosition;
+				range.setStart(textNode, offset);
+				range.setEnd(textNode, offset);
+			}
 			selection?.removeAllRanges();
 			selection?.addRange(range);
 			return;
@@ -139,10 +160,10 @@ export function selectAllInPromptInput(contentElement: HTMLDivElement | null) {
 	selection?.addRange(range);
 }
 
-const reclaimFocusUntilByElement = new WeakMap<HTMLElement, number>();
+/** Elements that should reclaim programmatic focus steals (not user clicks). */
 const holdingPromptFocus = new WeakSet<HTMLElement>();
 
-/** Keep reclaiming editor focus steals for the whole palette lifetime. */
+/** Reclaim CM/Obsidian focus theft while the user has not clicked away. */
 export function beginHoldingPromptFocus(contentElement: HTMLElement | null) {
 	if (contentElement) holdingPromptFocus.add(contentElement);
 }
@@ -151,37 +172,23 @@ export function endHoldingPromptFocus(contentElement: HTMLElement | null) {
 	if (contentElement) holdingPromptFocus.delete(contentElement);
 }
 
-/**
- * True while the palette is open (holding) or a recent selection armed a
- * short reclaim window. Ctrl+A / editor hotkeys can steal focus long after
- * Enter; holding covers that without a brittle timeout.
- */
 export function shouldReclaimPromptFocus(contentElement: HTMLElement | null) {
 	if (!contentElement) return false;
-	if (holdingPromptFocus.has(contentElement)) return true;
-	const until = reclaimFocusUntilByElement.get(contentElement) ?? 0;
-	return performance.now() < until;
+	return holdingPromptFocus.has(contentElement);
 }
 
 /**
- * Restore focus after dropdown selection. Enter keydown can unmount the
- * dropdown and let CodeMirror reclaim focus before Svelte ticks run, so we
- * focus sync, after tick, and on sequential animation frames.
+ * Restore focus after dropdown selection / remount. Sync + post-tick cover the
+ * CM race when Enter unmounts a dropdown; Mod+A is handled separately.
  */
 export function restorePromptFocus(
 	getContentElement: () => HTMLDivElement | null,
 	cursorPosition?: number,
 ) {
-	const contentElement = getContentElement();
-	if (contentElement) {
-		reclaimFocusUntilByElement.set(
-			contentElement,
-			performance.now() + 8000,
-		);
-	}
 	const run = () => {
 		const el = getContentElement();
 		if (!el) return;
+		beginHoldingPromptFocus(el);
 		const position =
 			typeof cursorPosition === "number"
 				? cursorPosition
@@ -189,13 +196,7 @@ export function restorePromptFocus(
 		focusPromptInput(el, position);
 	};
 	run();
-	void tick().then(() => {
-		run();
-		requestAnimationFrame(() => {
-			run();
-			requestAnimationFrame(run);
-		});
-	});
+	void tick().then(run);
 }
 
 /**
@@ -227,4 +228,25 @@ export function installPaletteModAGuard(
 	};
 	window.addEventListener("keydown", onKeydown, true);
 	return () => window.removeEventListener("keydown", onKeydown, true);
+}
+
+/**
+ * Deliberate pointer interaction outside the palette releases focus hold so
+ * the editor caret moves normally. Programmatic focus theft (no pointerdown)
+ * still hits shouldReclaimPromptFocus and is restored.
+ */
+export function installPaletteOutsidePointerRelease(
+	getContentElement: () => HTMLDivElement | null,
+): () => void {
+	const onPointerDown = (event: Event) => {
+		const el = getContentElement();
+		if (!el?.isConnected) return;
+		const shell = el.closest(".local-gpt-action-palette-shell");
+		const target = event.target;
+		if (!(target instanceof Node)) return;
+		if (shell?.contains(target) || el.contains(target)) return;
+		endHoldingPromptFocus(el);
+	};
+	window.addEventListener("pointerdown", onPointerDown, true);
+	return () => window.removeEventListener("pointerdown", onPointerDown, true);
 }
