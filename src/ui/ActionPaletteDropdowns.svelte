@@ -42,6 +42,11 @@
 	class="local-gpt-dropdown"
 	style="display: {activeDropdown === 'file' ? 'block' : 'none'}"
 >
+	{#if activeDropdown === "file" && fileItems.length === 0}
+		<div class="local-gpt-dropdown-item local-gpt-dropdown-empty" role="status">
+			{I18n.t("commands.actionPalette.noMatchingFiles")}
+		</div>
+	{/if}
 	{#each fileItems as item, index}
 		{#if activeDropdown === "file"}
 			<div

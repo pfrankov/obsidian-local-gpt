@@ -91,11 +91,8 @@ export function handleHistoryNavigation(
 }
 
 function hasActiveDropdownItems(context: NavigationContext) {
-	return (
-		context.state.activeDropdown !== "none" &&
-		(context.state.filteredItems.length > 0 ||
-			context.state.activeDropdown === "command")
-	);
+	// Keep keyboard handling active for empty slash/file menus (Esc closes).
+	return context.state.activeDropdown !== "none";
 }
 
 function handleDropdownMove(context: NavigationContext, event: KeyboardEvent) {
@@ -115,6 +112,7 @@ function handleDropdownSelection(
 	if (event.key !== "Enter" && event.key !== "Tab") return false;
 
 	event.preventDefault();
+	event.stopPropagation();
 	const selectedItem =
 		context.state.filteredItems[context.state.selectedIndex];
 	if (context.state.selectedIndex >= 0 && selectedItem) {

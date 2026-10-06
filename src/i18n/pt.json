@@ -12,7 +12,8 @@
 			"unknownModel": "Modelo desconhecido",
 			"hint": "Use / para comandos, @ para arquivos",
 			"changeReasoning": "Raciocínio para esta solicitação",
-			"noMatchingCommands": "Nenhum comando correspondente"
+			"noMatchingCommands": "Nenhum comando correspondente",
+			"noMatchingFiles": "Nenhum arquivo correspondente"
 		}
 	},
 	"statusBar": {

@@ -179,14 +179,15 @@
 		on:keydown={(event) => controller.handleKeydown(event)}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
+		on:focusout={() => controller.handleFocusOut()}
 		on:click={(event) => controller.handleContentClick(event)}
 		data-placeholder={placeholder}
 		spellcheck="false"
 	></div>
-	{#if invalidateEpoch >= 0 && state.activeDropdown !== "none" && (state.filteredItems.length > 0 || state.activeDropdown === "command")}
+	{#if state.activeDropdown !== "none"}
 		<ActionPaletteDropdowns
 			activeDropdown={state.activeDropdown}
-			selectedIndex={invalidateEpoch >= 0 ? state.selectedIndex : state.selectedIndex}
+			selectedIndex={state.selectedIndex}
 			{fileItems}
 			{commandItems}
 			{providerItems}

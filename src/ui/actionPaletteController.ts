@@ -5,7 +5,6 @@ import {
 	applyReasoningFilter,
 	selectReasoning,
 } from "./actionPaletteReasoning";
-import { tick } from "svelte";
 import type {
 	ActionPaletteSubmitEvent,
 	ReasoningPaletteSnapshot,
@@ -34,7 +33,11 @@ import {
 	parseTextToTokens as parseTextToTokenResult,
 	renderTokensAsHtml as renderTokenHtml,
 } from "./actionPaletteText";
-import { getCurrentCursorPosition, focusPromptInput } from "./actionPaletteDom";
+import {
+	getCurrentCursorPosition,
+	restorePromptFocus,
+	shouldReclaimPromptFocus,
+} from "./actionPaletteDom";
 import {
 	buildProviderLabel,
 	getAvailableCommands,
@@ -162,12 +165,10 @@ export class ActionPaletteController {
 		applyInitialSelectedFiles(this);
 		this.state.textTokens = this.parseTextToTokens(this.state.textContent);
 		this.updateContentDisplay();
-		void tick().then(() => {
-			focusPromptInput(
-				this.options.getContentElement(),
-				this.state.textContent.length,
-			);
-		});
+		restorePromptFocus(
+			() => this.options.getContentElement(),
+			this.state.textContent.length,
+		);
 		this.commit();
 	}
 
@@ -214,9 +215,20 @@ export class ActionPaletteController {
 	) {
 		const target = event.target;
 		this.state.textContent = target.textContent || "";
-		this.state.cursorPosition = getCurrentCursorPosition(
-			this.options.getContentElement(),
+		const contentElement = this.options.getContentElement();
+		const selection = window.getSelection();
+		const selectionInPalette = Boolean(
+			contentElement &&
+			selection &&
+			selection.rangeCount > 0 &&
+			contentElement.contains(selection.getRangeAt(0).startContainer),
 		);
+		this.state.cursorPosition = selectionInPalette
+			? getCurrentCursorPosition(
+					contentElement,
+					this.state.cursorPosition,
+				)
+			: this.state.textContent.length;
 		this.state.historyIndex = getPromptHistoryLength();
 		this.state.draftBeforeHistory = this.state.textContent;
 		this.state.textTokens = this.parseTextToTokens(this.state.textContent);
@@ -272,6 +284,11 @@ export class ActionPaletteController {
 	}
 
 	handleKeyup(event: KeyboardEvent) {
+		// Stop editor/CM from seeing palette keyups (esp. Enter after selection).
+		event.stopPropagation();
+		if (event.key === "Enter" || event.key === "Tab") {
+			event.preventDefault();
+		}
 		if (event.key !== "Backspace" && event.key !== "Delete") return;
 
 		const currentlyMentionedFiles = getMentionedFilePaths(
@@ -287,6 +304,18 @@ export class ActionPaletteController {
 			);
 			this.commit();
 		}
+	}
+
+	handleFocusOut() {
+		if (!shouldReclaimPromptFocus(this.options.getContentElement())) {
+			return;
+		}
+		restorePromptFocus(
+			() => this.options.getContentElement(),
+			this.state.cursorPosition >= 0
+				? this.state.cursorPosition
+				: this.state.textContent.length,
+		);
 	}
 
 	submitAction() {

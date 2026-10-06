@@ -110,13 +110,9 @@ function getCommandContext(context: TriggerContext) {
 }
 
 function showDropdownItems(context: TriggerContext, kind: "file" | "command") {
-	// Keep the command menu open (with an empty state) so the badge row does not
-	// vanish when the query matches nothing. File mentions still hide when empty.
-	if (context.state.filteredItems.length > 0 || kind === "command") {
-		context.state.activeDropdown = kind;
-		context.state.selectedIndex =
-			context.state.filteredItems.length > 0 ? 0 : -1;
-		return;
-	}
-	context.hideDropdown();
+	// Keep slash/file menus open with an empty state so Backspace/filter misses
+	// do not blank the UI while the trigger token is still in the input.
+	context.state.activeDropdown = kind;
+	context.state.selectedIndex =
+		context.state.filteredItems.length > 0 ? 0 : -1;
 }

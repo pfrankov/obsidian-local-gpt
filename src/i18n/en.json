@@ -12,7 +12,8 @@
 			"unknownModel": "Unknown model",
 			"hint": "Use / for commands, @ for files",
 			"changeReasoning": "Reasoning for this request",
-			"noMatchingCommands": "No matching commands"
+			"noMatchingCommands": "No matching commands",
+			"noMatchingFiles": "No matching files"
 		}
 	},
 	"statusBar": {

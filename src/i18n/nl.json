@@ -12,7 +12,8 @@
 			"unknownModel": "Onbekend model",
 			"hint": "Gebruik / voor commando's, @ voor bestanden",
 			"changeReasoning": "Redeneren voor dit verzoek",
-			"noMatchingCommands": "Geen overeenkomende opdrachten"
+			"noMatchingCommands": "Geen overeenkomende opdrachten",
+			"noMatchingFiles": "Geen overeenkomende bestanden"
 		}
 	},
 	"statusBar": {

@@ -12,7 +12,8 @@
 			"unknownModel": "Unbekanntes Modell",
 			"hint": "Nutzen Sie / für Befehle, @ für Dateien",
 			"changeReasoning": "Denkmodus für diese Anfrage",
-			"noMatchingCommands": "Keine passenden Befehle"
+			"noMatchingCommands": "Keine passenden Befehle",
+			"noMatchingFiles": "Keine passenden Dateien"
 		}
 	},
 	"statusBar": {

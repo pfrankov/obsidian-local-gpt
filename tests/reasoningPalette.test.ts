@@ -300,3 +300,69 @@ describe("reasoning palette keyboard UX", () => {
 		component.$destroy();
 	});
 });
+
+describe("keyboard selection focus restoration", () => {
+	it("restores caret after ArrowDown+Enter even if the editor steals focus mid-flight", async () => {
+		const { target, component } = createComponent({
+			getReasoningSnapshot: async () => snapshot,
+		});
+		await flush();
+		const input = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		await typeIntoPalette(input, "/reasoning ");
+		await flush();
+		input.focus();
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "ArrowDown",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "ArrowDown",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
+		// Simulate CodeMirror reclaiming focus during Enter handling (keyup target).
+		const thief = document.createElement("textarea");
+		document.body.appendChild(thief);
+		const steal = () => thief.focus();
+		input.addEventListener("keydown", steal);
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "Enter",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		input.removeEventListener("keydown", steal);
+		thief.dispatchEvent(
+			new KeyboardEvent("keyup", {
+				key: "Enter",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
+		await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+		await flush();
+		expect(
+			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortLow"));
+		expect(document.activeElement).toBe(input);
+		const selection = window.getSelection();
+		expect(selection?.rangeCount).toBeGreaterThan(0);
+		expect(input.contains(selection!.getRangeAt(0).startContainer)).toBe(
+			true,
+		);
+		thief.remove();
+		component.$destroy();
+	});
+});

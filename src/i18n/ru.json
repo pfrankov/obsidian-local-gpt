@@ -12,7 +12,8 @@
 			"unknownModel": "Неизвестная модель",
 			"hint": "Используйте / для команд, @ для файлов",
 			"changeReasoning": "Рассуждение для этого запроса",
-			"noMatchingCommands": "Нет подходящих команд"
+			"noMatchingCommands": "Нет подходящих команд",
+			"noMatchingFiles": "Нет подходящих файлов"
 		}
 	},
 	"statusBar": {
