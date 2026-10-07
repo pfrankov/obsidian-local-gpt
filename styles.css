@@ -345,8 +345,7 @@
 	display: flex;
 	flex-direction: column;
 	width: 100%;
-	/* Reserve visible gray peek below the input for the absolute badge */
-	padding: var(--size-2-1) 0 var(--size-4-6, 24px);
+	padding: var(--size-2-1) 0 0;
 	position: relative;
 	z-index: var(--layer-popover);
 }
@@ -712,11 +711,7 @@
 }
 
 .cm-editor .local-gpt-provider-badge {
-	/* Absolute underlay: sits under the field, peeks below (pre-Mar 2026 spirit) */
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
+	position: relative;
 	z-index: 0;
 	display: flex;
 	align-items: center;
@@ -725,12 +720,10 @@
 	min-width: 0;
 	overflow: hidden;
 	box-sizing: border-box;
-	/*
-	  Total strip ≈ overlap under input (~16px) + visible peek (~24px shell
-	  padding-bottom). padding-top keeps hint/meta in the visible band.
-	*/
-	min-height: calc(var(--size-4-3, 16px) + var(--size-4-6, 24px));
-	padding: var(--size-4-3, 16px) var(--size-4-2, 12px) var(--size-2-2, 4px);
+	/* Moderate underlay: ~10px tuck under input, modest visible band below */
+	margin-top: -10px;
+	/* 10px overlap + 4px air so hint/meta clear the field edge */
+	padding: 14px var(--size-4-2, 12px) 8px;
 	border: 1px solid
 		color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
 	border-top: 0;
