@@ -25,6 +25,17 @@ export function getCreativityOptions(): CreativityReference[] {
 	];
 }
 
+/** Footer chip text; empty for API default so the chip does not render. */
+export function formatCreativityBadgeLabel(creativityKey: string): string {
+	if (creativityKey === "default") {
+		return "";
+	}
+	const option = getCreativityOptions().find(
+		(entry) => entry.id === creativityKey,
+	);
+	return option?.name || "";
+}
+
 export function getAvailableCommands(
 	includeReasoning = true,
 ): CommandReference[] {

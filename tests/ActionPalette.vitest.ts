@@ -14,11 +14,30 @@ import {
 	setCaretToEnd,
 	typeIntoPalette,
 } from "./helpers/actionPalette";
+import { formatCreativityBadgeLabel } from "../src/ui/actionPaletteOptions";
 
 afterEach(() => {
 	document.body.innerHTML = "";
 	localStorage.clear();
 	resetPromptHistory();
+});
+
+describe("formatCreativityBadgeLabel", () => {
+	test("hides API default and keeps explicit creativity labels", () => {
+		expect(formatCreativityBadgeLabel("default")).toBe("");
+		expect(formatCreativityBadgeLabel("")).toBe(
+			I18n.t("settings.creativityNone"),
+		);
+		expect(formatCreativityBadgeLabel("low")).toBe(
+			I18n.t("settings.creativityLow"),
+		);
+		expect(formatCreativityBadgeLabel("medium")).toBe(
+			I18n.t("settings.creativityMedium"),
+		);
+		expect(formatCreativityBadgeLabel("high")).toBe(
+			I18n.t("settings.creativityHigh"),
+		);
+	});
 });
 
 describe("ActionPalette component", () => {
@@ -191,9 +210,7 @@ describe("ActionPalette component", () => {
 			el.textContent?.trim().includes("/system"),
 		) as HTMLElement;
 		expect(systemCommand).toBeDefined();
-		systemCommand.dispatchEvent(
-			new MouseEvent("click", { bubbles: true }),
-		);
+		systemCommand.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await tick();
 		await tick();
 
@@ -500,7 +517,9 @@ describe("action palette @ mention backspace", () => {
 			{ path: "Notes/Alpha.md", basename: "Alpha", extension: "md" },
 			{ path: "Notes/Beta.md", basename: "Beta", extension: "md" },
 		];
-		const { target, component } = createComponent({ getFiles: () => files });
+		const { target, component } = createComponent({
+			getFiles: () => files,
+		});
 		await tick();
 		const textbox = requireElement<HTMLDivElement>(
 			target,
@@ -511,8 +530,15 @@ describe("action palette @ mention backspace", () => {
 		await tick();
 		const visibleItems = () =>
 			Array.from(
-				target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
-			).filter((el) => el.closest(".local-gpt-dropdown")?.getAttribute("style")?.includes("block"));
+				target.querySelectorAll<HTMLElement>(
+					".local-gpt-dropdown-item",
+				),
+			).filter((el) =>
+				el
+					.closest(".local-gpt-dropdown")
+					?.getAttribute("style")
+					?.includes("block"),
+			);
 		expect(visibleItems().length).toBeGreaterThan(0);
 		window.getSelection()?.removeAllRanges();
 		textbox.dispatchEvent(
@@ -540,7 +566,9 @@ describe("action palette @ mention after pick", () => {
 			{ path: "Notes/Alpha.md", basename: "Alpha", extension: "md" },
 			{ path: "Notes/Beta.md", basename: "Beta", extension: "md" },
 		];
-		const { target, component } = createComponent({ getFiles: () => files });
+		const { target, component } = createComponent({
+			getFiles: () => files,
+		});
 		await tick();
 		const textbox = requireElement<HTMLDivElement>(
 			target,
@@ -553,7 +581,9 @@ describe("action palette @ mention after pick", () => {
 			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
 		).find((el) => el.textContent?.includes("Alpha"));
 		expect(alpha).toBeDefined();
-		alpha!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+		alpha!.dispatchEvent(
+			new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+		);
 		alpha!.click();
 		await tick();
 		await tick();
@@ -566,11 +596,79 @@ describe("action palette @ mention after pick", () => {
 		expect(openFileEmpty).toBeUndefined();
 		expect(
 			Array.from(target.querySelectorAll(".local-gpt-dropdown")).every(
-				(el) => (el as HTMLElement).style.display === "none" ||
+				(el) =>
+					(el as HTMLElement).style.display === "none" ||
 					!(el as HTMLElement).style.display ||
 					(el as HTMLElement).getAttribute("style")?.includes("none"),
-			) || target.querySelector(".local-gpt-dropdown[style*=\"block\"]") === null,
+			) ||
+				target.querySelector('.local-gpt-dropdown[style*="block"]') ===
+					null,
 		).toBe(true);
+		component.$destroy();
+	});
+
+	test("hides the creativity chip for API default and shows it for explicit values", async () => {
+		const onCreativityChange = vi.fn();
+		const { target, component } = createComponent({
+			providerLabel: "OpenRouter · z-ai/glm-4.7",
+			onCreativityChange,
+		});
+		await tick();
+
+		expect(target.querySelector(".local-gpt-creativity-badge")).toBeNull();
+		const providerLabel = requireElement<HTMLElement>(
+			target,
+			".local-gpt-provider-badge-label",
+		);
+		expect(providerLabel.textContent).toContain("OpenRouter");
+		expect(providerLabel.textContent).not.toContain(
+			I18n.t("settings.creativityDefault"),
+		);
+
+		const textbox = requireElement<HTMLDivElement>(
+			target,
+			".local-gpt-action-palette",
+		);
+		textbox.focus();
+		await typeIntoPalette(textbox, "/creativity");
+		await tick();
+
+		const high = Array.from(
+			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
+		).find(
+			(el) =>
+				el.textContent?.trim() === I18n.t("settings.creativityHigh"),
+		);
+		expect(high).toBeDefined();
+		high!.click();
+		await tick();
+		await tick();
+
+		const creativityBadge = requireElement<HTMLElement>(
+			target,
+			".local-gpt-creativity-badge",
+		);
+		expect(creativityBadge.textContent).toContain(
+			I18n.t("settings.creativityHigh"),
+		);
+		expect(onCreativityChange).toHaveBeenCalledWith("high");
+
+		textbox.focus();
+		await typeIntoPalette(textbox, "/creativity");
+		await tick();
+		const apiDefault = Array.from(
+			target.querySelectorAll<HTMLElement>(".local-gpt-dropdown-item"),
+		).find(
+			(el) =>
+				el.textContent?.trim() === I18n.t("settings.creativityDefault"),
+		);
+		expect(apiDefault).toBeDefined();
+		apiDefault!.click();
+		await tick();
+		await tick();
+
+		expect(target.querySelector(".local-gpt-creativity-badge")).toBeNull();
+		expect(onCreativityChange).toHaveBeenCalledWith("default");
 		component.$destroy();
 	});
 });
