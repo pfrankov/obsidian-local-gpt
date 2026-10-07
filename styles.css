@@ -719,10 +719,10 @@
 	gap: var(--size-4-2);
 	min-width: 0;
 	overflow: hidden;
-	/* Pull under the input so the strip peeks out (~12px / --size-4-2) */
-	margin-top: calc(-1 * var(--size-4-2));
+	/* Pull under the input so the strip peeks out (~20–24px / --size-4-5) */
+	margin-top: calc(-1 * var(--size-4-5));
 	/* Compensate overlap so hint/provider text stays fully visible */
-	padding: calc(var(--size-2-2) + var(--size-4-2)) var(--size-4-2)
+	padding: calc(var(--size-2-2) + var(--size-4-5)) var(--size-4-2)
 		var(--size-2-1);
 	border: 1px solid
 		color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
@@ -794,8 +794,9 @@
 	transition-delay: 0s;
 }
 
-.cm-editor .local-gpt-creativity-badge,
-.cm-editor .local-gpt-reasoning-badge {
+/* Beat Obsidian default `button` chrome (border/shadow) — plain text chips */
+.cm-editor button.local-gpt-creativity-badge,
+.cm-editor button.local-gpt-reasoning-badge {
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -804,6 +805,8 @@
 	padding: 0;
 	border: none;
 	background: transparent;
+	box-shadow: none;
+	outline: none;
 	color: var(--text-muted);
 	font-size: var(--font-smallest);
 	line-height: 1.4;
@@ -811,16 +814,26 @@
 	cursor: pointer;
 	pointer-events: auto;
 	opacity: 0.92;
+	-webkit-appearance: none;
+	appearance: none;
 }
 
-.cm-editor .local-gpt-creativity-badge:hover,
-.cm-editor .local-gpt-reasoning-badge:hover {
+.cm-editor button.local-gpt-creativity-badge:hover,
+.cm-editor button.local-gpt-reasoning-badge:hover {
 	color: var(--text-normal);
 	opacity: 1;
+	background: transparent;
+	box-shadow: none;
 }
 
-.cm-editor .local-gpt-creativity-badge:focus-visible,
-.cm-editor .local-gpt-reasoning-badge:focus-visible {
+.cm-editor button.local-gpt-creativity-badge:focus,
+.cm-editor button.local-gpt-reasoning-badge:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+.cm-editor button.local-gpt-creativity-badge:focus-visible,
+.cm-editor button.local-gpt-reasoning-badge:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 }
 
@@ -834,12 +847,15 @@
 
 .cm-editor
 	.local-gpt-provider-badge-meta.local-gpt-badge-highlight
-	.local-gpt-creativity-badge,
+	button.local-gpt-creativity-badge,
 .cm-editor
 	.local-gpt-provider-badge-meta.local-gpt-badge-highlight
-	.local-gpt-reasoning-badge {
+	button.local-gpt-reasoning-badge {
 	color: var(--text-accent);
 	opacity: 1;
+	border: none;
+	background: transparent;
+	box-shadow: none;
 }
 
 .cm-editor .local-gpt-system-indicator {
@@ -872,8 +888,8 @@
 	}
 
 	.cm-editor .local-gpt-provider-badge-label,
-	.cm-editor .local-gpt-creativity-badge,
-	.cm-editor .local-gpt-reasoning-badge,
+	.cm-editor button.local-gpt-creativity-badge,
+	.cm-editor button.local-gpt-reasoning-badge,
 	.cm-editor .local-gpt-provider-badge-hint,
 	.cm-editor .local-gpt-system-indicator-label {
 		font-size: 0.7rem;
