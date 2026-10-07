@@ -773,6 +773,7 @@
 
 .cm-editor .local-gpt-provider-badge-meta {
 	display: flex;
+	align-self: center;
 	align-items: center;
 	justify-content: flex-end;
 	gap: var(--size-2-2);
@@ -791,7 +792,8 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: var(--font-smallest);
+	/* Match hint metrics so right baseline aligns with left */
+	font-size: var(--font-ui-smaller);
 	line-height: 1;
 	color: var(--text-muted);
 	text-align: right;
@@ -806,6 +808,7 @@
 .cm-editor button.local-gpt-creativity-badge,
 .cm-editor button.local-gpt-reasoning-badge {
 	flex: 0 0 auto;
+	align-self: center;
 	display: inline-flex;
 	align-items: center;
 	gap: 0.2em;
@@ -815,8 +818,11 @@
 	background: transparent;
 	box-shadow: none;
 	outline: none;
+	/* Match hint metrics; kill Obsidian button min-height */
+	min-height: 0;
+	height: auto;
 	color: var(--text-muted);
-	font-size: var(--font-smallest);
+	font-size: var(--font-ui-smaller);
 	line-height: 1;
 	white-space: nowrap;
 	cursor: pointer;
