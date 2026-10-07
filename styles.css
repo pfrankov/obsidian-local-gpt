@@ -713,14 +713,17 @@
 }
 
 .cm-editor .local-gpt-provider-badge {
-	/* Geometry from history (3ae5a89^); content only in visible ~1em peek */
+	/* Geometry from history; padding-top = hidden underlay so content fills visible peek */
 	position: absolute;
 	left: 0;
 	right: 0;
 	bottom: calc(var(--line-height-normal) * -1em);
 	height: 3em;
 	box-sizing: border-box;
-	padding: 2em var(--size-4-2) var(--size-2-1);
+	padding-top: calc(3em - (var(--line-height-normal) * 1em));
+	padding-right: var(--size-4-2);
+	padding-bottom: 0;
+	padding-left: var(--size-4-2);
 	z-index: 0;
 	display: flex;
 	align-items: center;
