@@ -1,6 +1,6 @@
 {
   "name": "obsidian-local-gpt",
-  "version": "4.3.4",
+  "version": "4.3.5",
   "description": "Local GPT assistance for maximum privacy and offline access",
   "main": "main.js",
   "scripts": {
