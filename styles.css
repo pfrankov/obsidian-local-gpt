@@ -796,11 +796,7 @@
 	border: 1px solid
 		color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
 	border-radius: var(--radius-s);
-	background: color-mix(
-		in srgb,
-		var(--background-primary) 70%,
-		transparent
-	);
+	background: color-mix(in srgb, var(--background-primary) 70%, transparent);
 	color: var(--text-muted);
 	font-size: var(--font-smallest);
 	line-height: 1.4;
@@ -829,8 +825,12 @@
 	transition-delay: 0.5s;
 }
 
-.cm-editor .local-gpt-provider-badge-meta.local-gpt-badge-highlight .local-gpt-creativity-badge,
-.cm-editor .local-gpt-provider-badge-meta.local-gpt-badge-highlight .local-gpt-reasoning-badge {
+.cm-editor
+	.local-gpt-provider-badge-meta.local-gpt-badge-highlight
+	.local-gpt-creativity-badge,
+.cm-editor
+	.local-gpt-provider-badge-meta.local-gpt-badge-highlight
+	.local-gpt-reasoning-badge {
 	color: var(--text-accent);
 	opacity: 1;
 	border-color: color-mix(in srgb, var(--text-accent) 35%, transparent);
