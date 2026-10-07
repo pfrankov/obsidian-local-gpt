@@ -42,6 +42,27 @@ function createPaletteView(
 }
 
 describe("Action Palette CM widget identity", () => {
+	it("passes structured footer names through the widget without splitting them", () => {
+		const { host, view } = createPaletteView();
+		showActionPalette(view, 0, {
+			onSubmit: () => undefined,
+			modelLabel: "ambiguous legacy label",
+			providerDetails: {
+				providerName: "Provider · East",
+				modelName: "Model · Part",
+				creativityBadge: "",
+			},
+		});
+		expect(
+			host
+				.querySelector(".local-gpt-provider-badge-label")
+				?.textContent?.trim(),
+		).toBe("Provider · East · Model · Part");
+		expect(host.querySelector(".local-gpt-creativity-badge")).toBeNull();
+		view.destroy();
+		host.remove();
+	});
+
 	it("reuses the same widget DOM across document edits (eq/updateDOM)", () => {
 		const { host, view } = createPaletteView();
 		showActionPalette(view, 0, {

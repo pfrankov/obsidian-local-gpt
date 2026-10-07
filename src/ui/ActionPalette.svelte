@@ -48,6 +48,7 @@
 	export let includeReasoning = true;
 	export let value = "";
 	export let providerLabel = "";
+	export let providerDetails: import("./actionPaletteOptions").ProviderLabelParts | undefined = undefined;
 	export let providerId: string | undefined = undefined;
 	export let getFiles: GetFilesCallback | undefined = undefined;
 	export let getProviders: GetProvidersCallback | undefined = undefined;
@@ -83,7 +84,7 @@
 	let creativityDropdownElement: HTMLDivElement | null = null;
 	let systemDropdownElement: HTMLDivElement | null = null;
 
-	let state = createActionPaletteState(value, providerLabel);
+	let state = createActionPaletteState(value, providerLabel, providerDetails);
 	let invalidateEpoch = 0;
 	let fileItems: FileReference[] = [];
 	let commandItems: CommandReference[] = [];

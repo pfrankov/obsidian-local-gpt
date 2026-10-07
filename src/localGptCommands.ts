@@ -1,3 +1,4 @@
+import type { ProviderLabelParts } from "./ui/actionPaletteOptions";
 import type { ReasoningSelection } from "./interfaces";
 import { getReasoningModes, resolveReasoningEffort } from "./reasoningEffort";
 import { selectProvider, overrideProviderModel } from "./providerRequest";
@@ -151,6 +152,7 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 				},
 				placeholder: I18n.t("commands.actionPalette.placeholder"),
 				modelLabel: paletteLabel.modelLabel,
+				providerDetails: paletteLabel.providerDetails,
 				providerId: paletteLabel.currentProviderId,
 				getFiles: () => getActionPaletteFiles(plugin),
 				getProviders: () => getActionPaletteProviders(),
@@ -201,6 +203,7 @@ export function getActionPaletteInitialSelectedFiles(
 
 async function getActionPaletteLabel(plugin: LocalGPT) {
 	let modelLabel = "";
+	let providerDetails: ProviderLabelParts | undefined;
 	let currentProviderId: string | undefined;
 	try {
 		const aiRequestWaiter = await waitForAI();
@@ -221,6 +224,11 @@ async function getActionPaletteLabel(plugin: LocalGPT) {
 				getEffectiveCreativityKey(plugin.settings);
 			const creativityLabel = formatCreativityBadgeLabel(creativityKey);
 
+			providerDetails = {
+				providerName: provider.name,
+				modelName: modelToShow || "",
+				creativityBadge: creativityLabel,
+			};
 			modelLabel = [provider.name, modelToShow, creativityLabel]
 				.filter(Boolean)
 				.join(" · ");
@@ -229,7 +237,7 @@ async function getActionPaletteLabel(plugin: LocalGPT) {
 		void error;
 	}
 
-	return { modelLabel, currentProviderId };
+	return { modelLabel, currentProviderId, providerDetails };
 }
 
 function getActionPaletteFiles(plugin: LocalGPT) {
