@@ -229,11 +229,6 @@
 		/>
 	{/if}
 
-	{#if state.reasoningLabel}
-		<button type="button" class="local-gpt-reasoning-badge" title={I18n.t("commands.actionPalette.changeReasoning")} on:click={() => controller.activateCommandDropdown("reasoning")}>
-			{state.reasoningLabel}
-		</button>
-	{/if}
 	<div class="local-gpt-provider-badge">
 		{#if state.selectedSystemPromptName}
 			<div
@@ -251,13 +246,41 @@
 			</div>
 		{/if}
 
-		{#if providerLabel}
+		{#if state.providerName || state.modelName || state.creativityBadge || state.reasoningLabel}
 			<div
 				class={state.badgeHighlight
-					? "local-gpt-provider-badge-label local-gpt-badge-highlight"
-					: "local-gpt-provider-badge-label"}
+					? "local-gpt-provider-badge-meta local-gpt-badge-highlight"
+					: "local-gpt-provider-badge-meta"}
 			>
-				{providerLabel}
+				{#if state.providerName || state.modelName}
+					<div class="local-gpt-provider-badge-label">
+						{[state.providerName, state.modelName]
+							.filter(Boolean)
+							.join(" · ")}
+					</div>
+				{/if}
+				{#if state.creativityBadge}
+					<button
+						type="button"
+						class="local-gpt-creativity-badge"
+						title={I18n.t("settings.creativity")}
+						on:click={() =>
+							controller.activateCommandDropdown("creativity")}
+					>
+						{state.creativityBadge}
+					</button>
+				{/if}
+				{#if state.reasoningLabel}
+					<button
+						type="button"
+						class="local-gpt-reasoning-badge"
+						title={I18n.t("commands.actionPalette.changeReasoning")}
+						on:click={() =>
+							controller.activateCommandDropdown("reasoning")}
+					>
+						🧠 {state.reasoningLabel}
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>

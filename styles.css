@@ -714,6 +714,7 @@
 	justify-content: space-between;
 	gap: var(--size-4-2);
 	min-width: 0;
+	overflow: hidden;
 	margin-top: -1px;
 	padding: var(--size-2-2) var(--size-4-2) var(--size-2-1);
 	border: 1px solid
@@ -744,37 +745,81 @@
 }
 
 .cm-editor .local-gpt-provider-badge-hint {
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: var(--font-ui-smaller);
 	line-height: 1.6;
 	color: var(--text-muted);
 	opacity: 0.74;
-	white-space: nowrap;
+}
+
+.cm-editor .local-gpt-provider-badge-meta {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--size-2-2);
+	flex: 0 1 auto;
+	/* Keep chips fully visible: do not shrink below chip intrinsic width. */
+	min-width: min-content;
+	max-width: 72%;
 	overflow: hidden;
-	text-overflow: ellipsis;
+	pointer-events: auto;
 }
 
 .cm-editor .local-gpt-provider-badge-label {
 	display: block;
-	flex: 0 1 52%;
+	flex: 1 1 0;
 	min-width: 0;
-	max-width: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: var(--font-smallest);
 	line-height: 1.6;
 	color: var(--text-muted);
 	text-align: right;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 	opacity: 0.82;
 	transition:
 		color 250ms ease-in-out,
 		opacity 250ms ease-in-out;
 	transition-delay: 0s;
-	pointer-events: auto;
 }
 
+.cm-editor .local-gpt-creativity-badge,
+.cm-editor .local-gpt-reasoning-badge {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2em;
+	margin: 0;
+	padding: 1px 6px;
+	border: 1px solid
+		color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
+	border-radius: var(--radius-s);
+	background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
+	line-height: 1.4;
+	white-space: nowrap;
+	cursor: pointer;
+	pointer-events: auto;
+	opacity: 0.92;
+}
+
+.cm-editor .local-gpt-creativity-badge:hover,
+.cm-editor .local-gpt-reasoning-badge:hover {
+	color: var(--text-normal);
+	opacity: 1;
+}
+
+.cm-editor .local-gpt-creativity-badge:focus-visible,
+.cm-editor .local-gpt-reasoning-badge:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+}
+
+.cm-editor .local-gpt-provider-badge-meta.local-gpt-badge-highlight,
 .cm-editor .local-gpt-provider-badge-label.local-gpt-badge-highlight,
 .cm-editor .local-gpt-system-indicator.local-gpt-badge-highlight {
 	color: var(--text-accent);
@@ -782,11 +827,22 @@
 	transition-delay: 0.5s;
 }
 
+.cm-editor
+	.local-gpt-provider-badge-meta.local-gpt-badge-highlight
+	.local-gpt-creativity-badge,
+.cm-editor
+	.local-gpt-provider-badge-meta.local-gpt-badge-highlight
+	.local-gpt-reasoning-badge {
+	color: var(--text-accent);
+	opacity: 1;
+	border-color: color-mix(in srgb, var(--text-accent) 35%, transparent);
+}
+
 .cm-editor .local-gpt-system-indicator {
 	display: block;
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	min-width: 0;
-	max-width: none;
+	overflow: hidden;
 	color: var(--text-muted);
 	pointer-events: auto;
 }
@@ -806,11 +862,14 @@
 		gap: var(--size-2-1);
 	}
 
-	.cm-editor .local-gpt-provider-badge-label {
-		flex-basis: 44%;
+	.cm-editor .local-gpt-provider-badge-meta {
+		max-width: 78%;
+		gap: var(--size-2-1);
 	}
 
 	.cm-editor .local-gpt-provider-badge-label,
+	.cm-editor .local-gpt-creativity-badge,
+	.cm-editor .local-gpt-reasoning-badge,
 	.cm-editor .local-gpt-provider-badge-hint,
 	.cm-editor .local-gpt-system-indicator-label {
 		font-size: 0.7rem;
@@ -1382,21 +1441,14 @@
 	}
 }
 
-.local-gpt-reasoning-badge,
-.local-gpt-request-status {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	padding: 3px 7px;
-	margin: 4px 0;
-	max-width: 100%;
-	white-space: normal;
-}
 .local-gpt-request-status {
 	display: inline-block;
-	margin-right: 6px;
-}
-.local-gpt-reasoning-badge:focus-visible {
-	outline: 2px solid var(--interactive-accent);
+	margin: 4px 6px 4px 0;
+	padding: 3px 7px;
+	max-width: 100%;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: normal;
 }

@@ -147,11 +147,10 @@ export function reasoningEffortOptionsFromSources(
 }
 
 export function formatReasoningBadgeLabel(options: {
-	selected: boolean;
+	selected?: boolean;
 	mode?: string;
 }): string {
-	const effort = I18n.t("settings.reasoningEffort");
-	const modeLabel = reasoningEffortLabel(options.mode);
-	if (options.selected) return `${effort}: ${modeLabel}`;
-	return `${effort}: ${I18n.t("settings.reasoningEffortInherit")} (${modeLabel})`;
+	const mode = options.mode;
+	if (!mode || mode === "default") return "";
+	return reasoningEffortLabel(mode);
 }

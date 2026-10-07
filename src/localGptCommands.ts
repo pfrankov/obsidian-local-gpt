@@ -227,13 +227,7 @@ async function getActionPaletteLabel(plugin: LocalGPT) {
 			};
 			const creativityLabel = creativityLabelMap[creativityKey] || "";
 
-			modelLabel = [
-				provider.name,
-				modelToShow,
-				creativityLabel
-					? `${I18n.t("settings.creativity")}: ${creativityLabel}`
-					: "",
-			]
+			modelLabel = [provider.name, modelToShow, creativityLabel]
 				.filter(Boolean)
 				.join(" · ");
 		}

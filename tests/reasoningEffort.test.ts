@@ -486,16 +486,18 @@ describe("reasoning mode presentation", () => {
 		]);
 	});
 
-	it("formats the palette badge as global setting with effective mode", () => {
+	it("formats the palette badge as a short mode label and hides API default", () => {
 		expect(
 			formatReasoningBadgeLabel({ selected: false, mode: undefined }),
-		).toBe(
-			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortInherit")} (${I18n.t("settings.reasoningEffortDefault")})`,
-		);
+		).toBe("");
+		expect(
+			formatReasoningBadgeLabel({ selected: true, mode: "default" }),
+		).toBe("");
+		expect(
+			formatReasoningBadgeLabel({ selected: false, mode: "high" }),
+		).toBe(I18n.t("settings.reasoningEffortHigh"));
 		expect(
 			formatReasoningBadgeLabel({ selected: true, mode: "high" }),
-		).toBe(
-			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortHigh")}`,
-		);
+		).toBe(I18n.t("settings.reasoningEffortHigh"));
 	});
 });
