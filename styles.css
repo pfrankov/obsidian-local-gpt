@@ -722,7 +722,7 @@
 	height: 3em;
 	z-index: 0;
 	display: flex;
-	align-items: flex-end;
+	align-items: center;
 	justify-content: space-between;
 	gap: var(--size-4-2);
 	min-width: 0;
