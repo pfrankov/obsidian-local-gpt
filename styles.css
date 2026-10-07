@@ -351,6 +351,7 @@
 }
 
 .cm-editor .local-gpt-action-palette {
+	position: relative;
 	width: 100%;
 	box-sizing: border-box;
 	padding: var(--size-4-2) var(--size-4-3);
@@ -385,7 +386,8 @@
 		background-color var(--anim-duration-moderate) ease;
 	min-height: var(--line-height-normal);
 	line-height: var(--line-height-normal);
-	z-index: var(--layer-popover);
+	/* Cover the badge strip so the footer peeks out from under the field */
+	z-index: 1;
 }
 
 /* Contenteditable placeholder */
@@ -709,14 +711,19 @@
 }
 
 .cm-editor .local-gpt-provider-badge {
+	position: relative;
+	z-index: 0;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--size-4-2);
 	min-width: 0;
 	overflow: hidden;
-	margin-top: -1px;
-	padding: var(--size-2-2) var(--size-4-2) var(--size-2-1);
+	/* Pull under the input so the strip peeks out (~12px / --size-4-2) */
+	margin-top: calc(-1 * var(--size-4-2));
+	/* Compensate overlap so hint/provider text stays fully visible */
+	padding: calc(var(--size-2-2) + var(--size-4-2)) var(--size-4-2)
+		var(--size-2-1);
 	border: 1px solid
 		color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
 	border-top: 0;
