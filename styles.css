@@ -718,7 +718,11 @@
 	left: 0;
 	right: 0;
 	bottom: calc(var(--line-height-normal) * -1em);
-	padding: var(--size-2-1) var(--size-4-2);
+	/* Content sits in visible ~1em peek under the field (top ~2em is underlay). */
+	padding-top: 2em;
+	padding-right: var(--size-4-2);
+	padding-bottom: var(--size-2-1);
+	padding-left: var(--size-4-2);
 	height: 3em;
 	z-index: 0;
 	display: flex;
@@ -762,7 +766,7 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: var(--font-ui-smaller);
-	line-height: 1.6;
+	line-height: 1;
 	color: var(--text-muted);
 	opacity: 0.74;
 }
@@ -788,7 +792,7 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: var(--font-smallest);
-	line-height: 1.6;
+	line-height: 1;
 	color: var(--text-muted);
 	text-align: right;
 	opacity: 0.82;
@@ -813,7 +817,7 @@
 	outline: none;
 	color: var(--text-muted);
 	font-size: var(--font-smallest);
-	line-height: 1.4;
+	line-height: 1;
 	white-space: nowrap;
 	cursor: pointer;
 	pointer-events: auto;
