@@ -713,17 +713,14 @@
 }
 
 .cm-editor .local-gpt-provider-badge {
-	/* Geometry exact from 3ae5a89^; chrome kept from current redesign */
+	/* Geometry from history (3ae5a89^); content only in visible ~1em peek */
 	position: absolute;
 	left: 0;
 	right: 0;
 	bottom: calc(var(--line-height-normal) * -1em);
-	/* Content sits in visible ~1em peek under the field (top ~2em is underlay). */
-	padding-top: 2em;
-	padding-right: var(--size-4-2);
-	padding-bottom: var(--size-2-1);
-	padding-left: var(--size-4-2);
 	height: 3em;
+	box-sizing: border-box;
+	padding: 2em var(--size-4-2) var(--size-2-1);
 	z-index: 0;
 	display: flex;
 	align-items: center;
@@ -731,7 +728,6 @@
 	gap: var(--size-4-2);
 	min-width: 0;
 	overflow: hidden;
-	box-sizing: border-box;
 	pointer-events: none;
 	border: 1px solid
 		color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
@@ -762,6 +758,8 @@
 .cm-editor .local-gpt-provider-badge-hint {
 	flex: 1 1 0;
 	min-width: 0;
+	margin: 0;
+	padding: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -773,11 +771,12 @@
 
 .cm-editor .local-gpt-provider-badge-meta {
 	display: flex;
-	align-self: center;
 	align-items: center;
-	justify-content: flex-end;
 	gap: var(--size-2-2);
 	flex: 0 1 auto;
+	margin: 0;
+	padding: 0;
+	min-height: 0;
 	/* Keep chips fully visible: do not shrink below chip intrinsic width. */
 	min-width: min-content;
 	max-width: 72%;
@@ -789,10 +788,12 @@
 	display: block;
 	flex: 1 1 0;
 	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	/* Match hint metrics so right baseline aligns with left */
 	font-size: var(--font-ui-smaller);
 	line-height: 1;
 	color: var(--text-muted);
@@ -808,7 +809,6 @@
 .cm-editor button.local-gpt-creativity-badge,
 .cm-editor button.local-gpt-reasoning-badge {
 	flex: 0 0 auto;
-	align-self: center;
 	display: inline-flex;
 	align-items: center;
 	gap: 0.2em;
@@ -818,9 +818,10 @@
 	background: transparent;
 	box-shadow: none;
 	outline: none;
-	/* Match hint metrics; kill Obsidian button min-height */
+	/* Kill Obsidian button min-height; match hint metrics */
 	min-height: 0;
 	height: auto;
+	vertical-align: middle;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	line-height: 1;
