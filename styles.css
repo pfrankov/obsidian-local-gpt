@@ -714,6 +714,7 @@
 	justify-content: space-between;
 	gap: var(--size-4-2);
 	min-width: 0;
+	overflow: hidden;
 	margin-top: -1px;
 	padding: var(--size-2-2) var(--size-4-2) var(--size-2-1);
 	border: 1px solid
@@ -744,15 +745,15 @@
 }
 
 .cm-editor .local-gpt-provider-badge-hint {
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: var(--font-ui-smaller);
 	line-height: 1.6;
 	color: var(--text-muted);
 	opacity: 0.74;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
 .cm-editor .local-gpt-provider-badge-meta {
@@ -760,24 +761,25 @@
 	align-items: center;
 	justify-content: flex-end;
 	gap: var(--size-2-2);
-	flex: 0 1 58%;
-	min-width: 0;
-	max-width: none;
+	flex: 0 1 auto;
+	/* Keep chips fully visible: do not shrink below chip intrinsic width. */
+	min-width: min-content;
+	max-width: 72%;
+	overflow: hidden;
 	pointer-events: auto;
 }
 
 .cm-editor .local-gpt-provider-badge-label {
 	display: block;
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	min-width: 0;
-	max-width: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: var(--font-smallest);
 	line-height: 1.6;
 	color: var(--text-muted);
 	text-align: right;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 	opacity: 0.82;
 	transition:
 		color 250ms ease-in-out,
@@ -838,9 +840,9 @@
 
 .cm-editor .local-gpt-system-indicator {
 	display: block;
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	min-width: 0;
-	max-width: none;
+	overflow: hidden;
 	color: var(--text-muted);
 	pointer-events: auto;
 }
@@ -861,7 +863,7 @@
 	}
 
 	.cm-editor .local-gpt-provider-badge-meta {
-		flex-basis: 50%;
+		max-width: 78%;
 		gap: var(--size-2-1);
 	}
 
