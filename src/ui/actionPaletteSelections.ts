@@ -13,6 +13,7 @@ import {
 	filterModelItems,
 	filterProviderItems,
 	filterSystemPromptItems,
+	formatCreativityBadgeLabel,
 	getCreativityOptions,
 } from "./actionPaletteOptions";
 import type { ActionPaletteControllerOptions } from "./actionPaletteController";
@@ -82,7 +83,7 @@ export async function selectCreativity(
 ) {
 	try {
 		await context.options.onCreativityChange()?.(option.id);
-		context.state.creativityBadge = option.name;
+		context.state.creativityBadge = formatCreativityBadgeLabel(option.id);
 		context.setProviderBadgeLabel(
 			context.state.providerName,
 			context.state.modelName,

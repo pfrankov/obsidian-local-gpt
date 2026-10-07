@@ -14,6 +14,7 @@ import { I18n } from "./i18n";
 import { populateActionContextMenu } from "./actionMenu";
 import { getActionIdentifier, getRunnableActions } from "./actionUtils";
 import { hideActionPalette, showActionPalette } from "./ui/actionPalettePlugin";
+import { formatCreativityBadgeLabel } from "./ui/actionPaletteOptions";
 
 export function registerLocalGPTCommands(plugin: LocalGPT) {
 	registerContextMenuCommand(plugin);
@@ -218,14 +219,7 @@ async function getActionPaletteLabel(plugin: LocalGPT) {
 			const creativityKey =
 				plugin.actionPaletteCreativityKey ??
 				getEffectiveCreativityKey(plugin.settings);
-			const creativityLabelMap: Record<string, string> = {
-				default: I18n.t("settings.creativityDefault"),
-				"": I18n.t("settings.creativityNone"),
-				low: I18n.t("settings.creativityLow"),
-				medium: I18n.t("settings.creativityMedium"),
-				high: I18n.t("settings.creativityHigh"),
-			};
-			const creativityLabel = creativityLabelMap[creativityKey] || "";
+			const creativityLabel = formatCreativityBadgeLabel(creativityKey);
 
 			modelLabel = [provider.name, modelToShow, creativityLabel]
 				.filter(Boolean)

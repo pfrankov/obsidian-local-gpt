@@ -794,11 +794,9 @@
 	align-items: center;
 	gap: 0.2em;
 	margin: 0;
-	padding: 1px 6px;
-	border: 1px solid
-		color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
-	border-radius: var(--radius-s);
-	background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+	padding: 0;
+	border: none;
+	background: transparent;
 	color: var(--text-muted);
 	font-size: var(--font-smallest);
 	line-height: 1.4;
@@ -835,7 +833,6 @@
 	.local-gpt-reasoning-badge {
 	color: var(--text-accent);
 	opacity: 1;
-	border-color: color-mix(in srgb, var(--text-accent) 35%, transparent);
 }
 
 .cm-editor .local-gpt-system-indicator {
