@@ -857,6 +857,9 @@
 
 .cm-editor .local-gpt-provider-badge-meta.local-gpt-badge-highlight,
 .cm-editor .local-gpt-provider-badge-label.local-gpt-badge-highlight,
+.cm-editor
+	.local-gpt-provider-badge-meta.local-gpt-badge-highlight
+	.local-gpt-provider-badge-label,
 .cm-editor .local-gpt-system-indicator.local-gpt-badge-highlight {
 	color: var(--text-accent);
 	opacity: 1;

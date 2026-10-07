@@ -167,6 +167,12 @@ export async function showCreativityDropdown(context: SelectionContext) {
 		console.error("Error showing creativity dropdown:", error);
 	}
 	context.commit();
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		context.state.cursorPosition >= 0
+			? context.state.cursorPosition
+			: context.state.textContent.length,
+	);
 }
 
 export async function showSystemDropdown(context: SelectionContext) {

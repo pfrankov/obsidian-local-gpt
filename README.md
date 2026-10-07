@@ -10,7 +10,7 @@ The most casual AI assistant for Obsidian.
 
 _Action Palette_
 
-In the Action Palette, Enter submits the prompt when a `/` or `@` search has no results. Escape closes the search menu; Shift+Enter inserts a newline.
+In the Action Palette, Enter submits the prompt when a `/` or `@` search has no results. Escape closes the search menu; Shift+Enter inserts a newline. Clicking the Creativity chip keeps keyboard selection available with the arrow keys and Enter.
 
 ## Features
 ### Works with images  

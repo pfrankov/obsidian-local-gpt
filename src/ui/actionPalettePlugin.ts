@@ -1,3 +1,4 @@
+import type { ProviderLabelParts } from "./actionPaletteOptions";
 import type {
 	ReasoningSelection,
 	ReasoningPaletteSnapshot,
@@ -14,6 +15,7 @@ import { I18n } from "../i18n";
 import ActionPalette from "./ActionPalette.svelte";
 
 export interface ActionPaletteOptions {
+	providerDetails?: ProviderLabelParts;
 	getReasoningSnapshot?: () => Promise<ReasoningPaletteSnapshot>;
 	includeReasoning?: boolean;
 	onSubmit: (
@@ -127,6 +129,7 @@ class SvelteActionPaletteWidget extends WidgetType {
 					this.options.placeholder ||
 					I18n.t("commands.actionPalette.placeholder"),
 				providerLabel: this.options.modelLabel || "",
+				providerDetails: this.options.providerDetails,
 				providerId: this.options.providerId,
 				getReasoningSnapshot: this.options.getReasoningSnapshot,
 				includeReasoning:

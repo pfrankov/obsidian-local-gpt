@@ -9,6 +9,7 @@ import type {
 } from "../interfaces";
 import type { DropdownItem, DropdownKind } from "./actionPaletteTypes";
 import { getPromptHistoryLength } from "./actionPaletteHistory";
+import type { ProviderLabelParts } from "./actionPaletteOptions";
 import { getProviderLabelParts } from "./actionPaletteOptions";
 
 export interface ActionPaletteState {
@@ -43,9 +44,10 @@ export interface ActionPaletteState {
 export function createActionPaletteState(
 	value: string,
 	providerLabel: string,
+	providerDetails?: ProviderLabelParts,
 ): ActionPaletteState {
 	const { providerName, modelName, creativityBadge } =
-		getProviderLabelParts(providerLabel);
+		providerDetails ?? getProviderLabelParts(providerLabel);
 
 	return {
 		reasoningLabel: "",

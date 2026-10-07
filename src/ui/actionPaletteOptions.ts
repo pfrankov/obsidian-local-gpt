@@ -200,13 +200,26 @@ export function fuzzyMatch(target: string, query: string): boolean {
 	return true;
 }
 
-export function getProviderLabelParts(providerLabel: string) {
-	const [providerName = "", modelName = "", creativityBadge = ""] =
-		providerLabel.split(" · ");
+export interface ProviderLabelParts {
+	providerName: string;
+	modelName: string;
+	creativityBadge: string;
+}
+
+export function getProviderLabelParts(
+	providerLabel: string,
+): ProviderLabelParts {
+	const parts = providerLabel.split(" · ");
+	const last = parts[parts.length - 1]?.trim() || "";
+	const creativityBadge =
+		parts.length > 2 &&
+		getCreativityOptions().some((option) => option.name === last)
+			? parts.pop()!.trim()
+			: "";
 	return {
-		providerName,
-		modelName: modelName.trim(),
-		creativityBadge: creativityBadge.trim(),
+		providerName: parts.shift() || "",
+		modelName: parts.join(" · ").trim(),
+		creativityBadge,
 	};
 }
 
