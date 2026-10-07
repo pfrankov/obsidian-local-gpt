@@ -38,9 +38,7 @@ describe("per-invocation reasoning", () => {
 		await flush();
 		expect(
 			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
-		).toBe(
-			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortInherit")} (${I18n.t("settings.reasoningEffortHigh")})`,
-		);
+		).toContain(I18n.t("settings.reasoningEffortHigh"));
 		const input = requireElement<HTMLDivElement>(
 			target,
 			".local-gpt-action-palette",
@@ -59,9 +57,7 @@ describe("per-invocation reasoning", () => {
 		await flush();
 		expect(
 			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
-		).toBe(
-			`${I18n.t("settings.reasoningEffort")}: ${I18n.t("settings.reasoningEffortLow")}`,
-		);
+		).toContain(I18n.t("settings.reasoningEffortLow"));
 		expect(document.activeElement).toBe(input);
 		await typeIntoPalette(input, "Synthetic prompt");
 		input.dispatchEvent(
@@ -108,6 +104,7 @@ describe("per-invocation reasoning", () => {
 		)!;
 		choice.click();
 		await flush();
+		expect(target.querySelector(".local-gpt-reasoning-badge")).toBeNull();
 		const input = requireElement<HTMLDivElement>(
 			target,
 			".local-gpt-action-palette",

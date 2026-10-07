@@ -249,7 +249,15 @@ describe("ActionPalette component", () => {
 		);
 		expect(providerLabel.textContent).toContain("OpenRouter");
 		expect(providerLabel.textContent).toContain("z-ai/glm-4.7");
-		expect(providerLabel.textContent).toContain("None");
+		expect(providerLabel.textContent).not.toContain("None");
+		const creativityBadge = requireElement<HTMLElement>(
+			target,
+			".local-gpt-creativity-badge",
+		);
+		expect(creativityBadge.textContent).toContain("None");
+		expect(creativityBadge.getAttribute("title")).toBe(
+			I18n.t("settings.creativity"),
+		);
 
 		const textbox = requireElement<HTMLDivElement>(
 			target,
