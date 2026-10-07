@@ -168,10 +168,6 @@ class SvelteActionPaletteWidget extends WidgetType {
 		this.app?.$destroy();
 		this.app = null;
 		this.container = null;
-		// Obsidian aria-label tooltips can linger after the host is destroyed.
-		document
-			.querySelectorAll("body > .tooltip")
-			.forEach((node) => node.remove());
 	}
 }
 

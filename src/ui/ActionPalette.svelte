@@ -1,3 +1,7 @@
+<script context="module" lang="ts">
+	let nextLabelId = 0;
+</script>
+
 <script lang="ts">
 	import { createEventDispatcher, onDestroy, onMount } from "svelte";
 	import { I18n } from "../i18n";
@@ -33,6 +37,8 @@
 		installPaletteOutsidePointerRelease,
 	} from "./actionPaletteDom";
 	import { formatSystemPreview } from "./actionPaletteOptions";
+
+	const labelId = `local-gpt-action-palette-label-${++nextLabelId}`;
 
 	export let placeholder: string = I18n.t(
 		"commands.actionPalette.placeholder",
@@ -190,13 +196,16 @@
 </script>
 
 <div class="local-gpt-action-palette-shell">
+	<!-- aria-label triggers a body-level Obsidian tooltip. A referenced label
+	     preserves the accessible name without creating that detached tooltip. -->
+	<span id={labelId} hidden>{I18n.t("commands.actionPalette.name")}</span>
 	<div
 		bind:this={contentElement}
 		class="local-gpt-action-palette"
 		contenteditable="true"
 		role="textbox"
 		tabindex="0"
-		aria-label={I18n.t("commands.actionPalette.name")}
+		aria-labelledby={labelId}
 		on:keydown={(event) => controller.handleKeydown(event)}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
