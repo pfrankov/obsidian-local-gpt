@@ -258,21 +258,19 @@ describe("reasoning palette keyboard UX", () => {
 		await typeIntoPalette(input, "/reasoning");
 		await flush();
 
-		// Arrow to High (inherit, default, low, high → index 3)
-		for (let i = 0; i < 3; i++) {
-			input.dispatchEvent(
-				new KeyboardEvent("keydown", {
-					key: "ArrowDown",
-					bubbles: true,
-					cancelable: true,
-				}),
-			);
-			await flush();
-		}
+		// Opens on the inherited High; arrow up to Low (inherit, default, low, high)
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "ArrowUp",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
 		expect(
 			target.querySelector(".local-gpt-dropdown-item.local-gpt-selected")
 				?.textContent,
-		).toContain(I18n.t("settings.reasoningEffortHigh"));
+		).toContain(I18n.t("settings.reasoningEffortLow"));
 
 		const enter = new KeyboardEvent("keydown", {
 			key: "Enter",
@@ -284,7 +282,7 @@ describe("reasoning palette keyboard UX", () => {
 		expect(document.activeElement).toBe(input);
 		expect(
 			target.querySelector(".local-gpt-reasoning-badge")?.textContent,
-		).toContain(I18n.t("settings.reasoningEffortHigh"));
+		).toContain(I18n.t("settings.reasoningEffortLow"));
 
 		// Simulate Obsidian/CM capture-phase Mod+A competing for the event.
 		let editorSawModA = false;
@@ -372,10 +370,22 @@ describe("reasoning palette keyboard UX", () => {
 		expect(
 			target.querySelector(".local-gpt-dropdown-item.local-gpt-selected")
 				?.textContent,
-		).toContain(I18n.t("settings.reasoningEffortInherit"));
+		).toContain(I18n.t("settings.reasoningEffortHigh"));
 		input.dispatchEvent(
 			new KeyboardEvent("keydown", {
-				key: "ArrowDown",
+				key: "ArrowUp",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		await flush();
+		expect(
+			target.querySelector(".local-gpt-dropdown-item.local-gpt-selected")
+				?.textContent,
+		).toContain(I18n.t("settings.reasoningEffortLow"));
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "ArrowUp",
 				bubbles: true,
 				cancelable: true,
 			}),
@@ -438,7 +448,7 @@ describe("reasoning palette keyboard UX", () => {
 });
 
 describe("keyboard selection focus restoration", () => {
-	it("restores caret after ArrowDown+Enter even if the editor steals focus mid-flight", async () => {
+	it("restores caret after ArrowUp+Enter even if the editor steals focus mid-flight", async () => {
 		const { target, component } = createComponent({
 			getReasoningSnapshot: async () => snapshot,
 		});
@@ -452,15 +462,7 @@ describe("keyboard selection focus restoration", () => {
 		input.focus();
 		input.dispatchEvent(
 			new KeyboardEvent("keydown", {
-				key: "ArrowDown",
-				bubbles: true,
-				cancelable: true,
-			}),
-		);
-		await flush();
-		input.dispatchEvent(
-			new KeyboardEvent("keydown", {
-				key: "ArrowDown",
+				key: "ArrowUp",
 				bubbles: true,
 				cancelable: true,
 			}),

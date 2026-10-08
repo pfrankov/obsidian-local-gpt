@@ -93,11 +93,16 @@ export function applyReasoningFilter(context: ActionPaletteController) {
 	context.updateFilteredDropdownItems(
 		options.filter((option) => option.name.toLowerCase().includes(query)),
 	);
-	// "" = Use global setting (inherit), "default" = explicit API default.
-	highlightPreferredItem(context, "reasoning", [
-		highlighted,
-		context.state.reasoningSelection?.mode ?? "",
-	]);
+	// Explicit choice wins ("default" = API default). When inheriting, prefer
+	// the effective mode the chip shows, then "" (Use global setting).
+	const selected = context.state.reasoningSelection;
+	highlightPreferredItem(
+		context,
+		"reasoning",
+		selected
+			? [highlighted, selected.mode]
+			: [highlighted, context.state.reasoningSnapshot?.effectiveMode, ""],
+	);
 }
 
 export function selectReasoning(

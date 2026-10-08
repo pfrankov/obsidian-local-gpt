@@ -104,7 +104,7 @@ it.each([1, 2])(
 				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
 			);
 			expect(onSubmit.mock.calls[0][0].reasoningSelection?.mode).toBe(
-				"default",
+				"max",
 			);
 		} finally {
 			component.$destroy();
@@ -320,7 +320,7 @@ it.each([1, 2])(
 			chip().click();
 			await flush();
 			expect(highlightedText(target)).toBe(
-				I18n.t("settings.reasoningEffortInherit"),
+				I18n.t("settings.reasoningEffortHigh"),
 			);
 			await pickReasoning(target, I18n.t("settings.reasoningEffortLow"));
 			for (let click = 0; click < clicks; click++) {
@@ -392,3 +392,33 @@ it("scrolls the preferred item into view once rendered", async () => {
 	highlightPreferredItem(context, "creativity", ["missing"]);
 	expect(context.state.selectedIndex).toBe(0);
 });
+
+it.each([
+	[undefined, "settings.reasoningEffortInherit"],
+	["default", "settings.reasoningEffortDefault"],
+])(
+	"highlights the inherited state when the chip is hidden (effective %s)",
+	async (effectiveMode, labelKey) => {
+		const { target, component } = createComponent({
+			getReasoningSnapshot: async () => ({
+				...reasoningSnapshot,
+				effectiveMode,
+			}),
+		});
+		try {
+			await flush();
+			expect(
+				target.querySelector(".local-gpt-reasoning-badge"),
+			).toBeNull();
+			const input = requireElement<HTMLDivElement>(
+				target,
+				".local-gpt-action-palette",
+			);
+			await typeIntoPalette(input, "/reasoning ");
+			await flush();
+			expect(highlightedText(target)).toBe(I18n.t(labelKey));
+		} finally {
+			component.$destroy();
+		}
+	},
+);
