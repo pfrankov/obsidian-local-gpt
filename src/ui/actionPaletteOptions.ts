@@ -36,6 +36,16 @@ export function formatCreativityBadgeLabel(creativityKey: string): string {
 	return option?.name || "";
 }
 
+/** Creativity key shown by a footer chip label; empty label is API default. */
+export function getCreativityKeyForBadge(creativityBadge: string): string {
+	return (
+		getCreativityOptions().find(
+			(option) =>
+				formatCreativityBadgeLabel(option.id) === creativityBadge,
+		)?.id ?? "default"
+	);
+}
+
 export function getAvailableCommands(
 	includeReasoning = true,
 ): CommandReference[] {

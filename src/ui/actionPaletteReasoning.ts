@@ -1,4 +1,8 @@
-import { restorePromptFocus } from "./actionPaletteDom";
+import {
+	getHighlightedItemId,
+	highlightPreferredItem,
+	restorePromptFocus,
+} from "./actionPaletteDom";
 import { I18n } from "../i18n";
 import type { CreativityReference } from "../interfaces";
 import type { ActionPaletteController } from "./actionPaletteController";
@@ -85,9 +89,15 @@ export function applyReasoningFilter(context: ActionPaletteController) {
 			name: reasoningEffortLabel(mode),
 		})),
 	].filter((option) => option.name.trim().length > 0);
+	const highlighted = getHighlightedItemId(context.state, "reasoning");
 	context.updateFilteredDropdownItems(
 		options.filter((option) => option.name.toLowerCase().includes(query)),
 	);
+	// "" = Use global setting (inherit), "default" = explicit API default.
+	highlightPreferredItem(context, "reasoning", [
+		highlighted,
+		context.state.reasoningSelection?.mode ?? "",
+	]);
 }
 
 export function selectReasoning(

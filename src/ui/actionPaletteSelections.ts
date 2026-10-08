@@ -1,4 +1,8 @@
-import { restorePromptFocus } from "./actionPaletteDom";
+import {
+	getHighlightedItemId,
+	highlightPreferredItem,
+	restorePromptFocus,
+} from "./actionPaletteDom";
 import type {
 	CreativityReference,
 	ModelReference,
@@ -14,6 +18,7 @@ import {
 	filterProviderItems,
 	filterSystemPromptItems,
 	formatCreativityBadgeLabel,
+	getCreativityKeyForBadge,
 	getCreativityOptions,
 } from "./actionPaletteOptions";
 import type { ActionPaletteControllerOptions } from "./actionPaletteController";
@@ -161,7 +166,6 @@ export async function showCreativityDropdown(context: SelectionContext) {
 		applyCreativityFilter(context);
 		if (context.state.filteredItems.length > 0) {
 			context.state.activeDropdown = "creativity";
-			context.state.selectedIndex = 0;
 		}
 	} catch (error) {
 		console.error("Error showing creativity dropdown:", error);
@@ -226,7 +230,12 @@ export function applyCreativityFilter(context: SelectionContext) {
 	if (!context.state.allCreativities.length) return;
 	const query = context.getCommandQuery("creativity");
 	const matches = filterCreativityItems(context.state.allCreativities, query);
+	const highlighted = getHighlightedItemId(context.state, "creativity");
 	context.updateFilteredDropdownItems(matches);
+	highlightPreferredItem(context, "creativity", [
+		highlighted,
+		getCreativityKeyForBadge(context.state.creativityBadge),
+	]);
 	if (!query) return;
 
 	const exact = matches.find(

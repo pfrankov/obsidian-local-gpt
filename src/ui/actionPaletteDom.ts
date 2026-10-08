@@ -1,5 +1,5 @@
 import { tick } from "svelte";
-import type { DropdownKind } from "./actionPaletteTypes";
+import type { DropdownItem, DropdownKind } from "./actionPaletteTypes";
 
 export function getCurrentCursorPosition(
 	contentElement: HTMLDivElement | null,
@@ -125,6 +125,55 @@ export function scrollSelectedIntoView(
 			behavior: "smooth",
 		});
 	}
+}
+
+interface HighlightContext {
+	state: {
+		activeDropdown: DropdownKind;
+		filteredItems: DropdownItem[];
+		selectedIndex: number;
+	};
+	options: { getDropdownElement: (kind: DropdownKind) => HTMLElement | null };
+	commit(): void;
+}
+
+function itemId(item: DropdownItem | undefined) {
+	const id = (item as { id?: unknown } | undefined)?.id;
+	return typeof id === "string" ? id : undefined;
+}
+
+/** Id of the highlighted item while `kind` is the open picker. */
+export function getHighlightedItemId(
+	state: HighlightContext["state"],
+	kind: DropdownKind,
+) {
+	if (state.activeDropdown !== kind) return undefined;
+	return itemId(state.filteredItems[state.selectedIndex]);
+}
+
+/**
+ * Highlight the first id in `preferredIds` present in the filtered items
+ * (falls back to the first item) and scroll it into view once rendered.
+ */
+export function highlightPreferredItem(
+	context: HighlightContext,
+	kind: Exclude<DropdownKind, "none">,
+	preferredIds: (string | undefined)[],
+) {
+	const items = context.state.filteredItems;
+	const index = preferredIds
+		.filter((id): id is string => id !== undefined)
+		.map((id) => items.findIndex((item) => itemId(item) === id))
+		.find((match) => match >= 0);
+	context.state.selectedIndex = index ?? (items.length > 0 ? 0 : -1);
+	context.commit();
+	void tick().then(() => {
+		if (context.state.activeDropdown !== kind) return;
+		scrollSelectedIntoView(
+			context.options.getDropdownElement(kind),
+			context.state.selectedIndex,
+		);
+	});
 }
 
 export function getDropdownElementForKind(
