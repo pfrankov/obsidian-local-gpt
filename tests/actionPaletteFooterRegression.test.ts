@@ -13,38 +13,46 @@ afterEach(() => {
 	document.body.innerHTML = "";
 });
 
-it("restores textbox focus after clicking Creativity and allows keyboard selection", async () => {
-	const onCreativityChange = vi.fn();
-	const { target, component } = createComponent({
-		providerLabel: `Provider · Model · ${formatCreativityBadgeLabel("low")}`,
-		onCreativityChange,
-	});
-	try {
-		await flush();
-		const input = requireElement<HTMLElement>(
-			target,
-			".local-gpt-action-palette",
-		);
-		const chip = requireElement<HTMLButtonElement>(
-			target,
-			".local-gpt-creativity-badge",
-		);
-		chip.focus();
-		chip.click();
-		await flush();
-		expect(document.activeElement).toBe(input);
-		document.activeElement!.dispatchEvent(
-			new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-		);
-		document.activeElement!.dispatchEvent(
-			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-		);
-		await flush();
-		expect(onCreativityChange).toHaveBeenCalledOnce();
-	} finally {
-		component.$destroy();
-	}
-});
+it.each([1, 2])(
+	"restores textbox focus after %i Creativity clicks and allows keyboard selection",
+	async (clicks) => {
+		const onCreativityChange = vi.fn();
+		const { target, component } = createComponent({
+			providerLabel: `Provider · Model · ${formatCreativityBadgeLabel("low")}`,
+			onCreativityChange,
+		});
+		try {
+			await flush();
+			const input = requireElement<HTMLElement>(
+				target,
+				".local-gpt-action-palette",
+			);
+			const chip = requireElement<HTMLButtonElement>(
+				target,
+				".local-gpt-creativity-badge",
+			);
+			for (let click = 0; click < clicks; click++) {
+				chip.focus();
+				chip.click();
+				await flush();
+			}
+			expect(document.activeElement).toBe(input);
+			document.activeElement!.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "ArrowDown",
+					bubbles: true,
+				}),
+			);
+			document.activeElement!.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			await flush();
+			expect(onCreativityChange).toHaveBeenCalledOnce();
+		} finally {
+			component.$destroy();
+		}
+	},
+);
 
 it("preserves delimiter-containing model names without inventing a creativity chip", async () => {
 	const { target, component } = createComponent({

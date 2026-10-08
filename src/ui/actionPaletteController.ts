@@ -388,6 +388,14 @@ export class ActionPaletteController {
 			return true;
 		}
 		dropdownController.refresh();
+		if (commandName === "creativity") {
+			restorePromptFocus(
+				() => this.options.getContentElement(),
+				this.state.cursorPosition >= 0
+					? this.state.cursorPosition
+					: this.state.textContent.length,
+			);
+		}
 		return true;
 	}
 
