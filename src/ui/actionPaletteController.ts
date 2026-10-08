@@ -388,6 +388,15 @@ export class ActionPaletteController {
 			return true;
 		}
 		dropdownController.refresh();
+		// Footer chips toggle these pickers; a repeat click lands focus on the chip.
+		if (commandName === "creativity" || commandName === "reasoning") {
+			restorePromptFocus(
+				() => this.options.getContentElement(),
+				this.state.cursorPosition >= 0
+					? this.state.cursorPosition
+					: this.state.textContent.length,
+			);
+		}
 		return true;
 	}
 

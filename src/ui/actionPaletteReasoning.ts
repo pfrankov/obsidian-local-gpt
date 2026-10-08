@@ -1,4 +1,8 @@
-import { restorePromptFocus } from "./actionPaletteDom";
+import {
+	getHighlightedItemId,
+	highlightPreferredItem,
+	restorePromptFocus,
+} from "./actionPaletteDom";
 import { I18n } from "../i18n";
 import type { CreativityReference } from "../interfaces";
 import type { ActionPaletteController } from "./actionPaletteController";
@@ -85,8 +89,19 @@ export function applyReasoningFilter(context: ActionPaletteController) {
 			name: reasoningEffortLabel(mode),
 		})),
 	].filter((option) => option.name.trim().length > 0);
+	const highlighted = getHighlightedItemId(context.state, "reasoning");
 	context.updateFilteredDropdownItems(
 		options.filter((option) => option.name.toLowerCase().includes(query)),
+	);
+	// Explicit choice wins ("default" = API default). When inheriting, prefer
+	// the effective mode the chip shows, then "" (Use global setting).
+	const selected = context.state.reasoningSelection;
+	highlightPreferredItem(
+		context,
+		"reasoning",
+		selected
+			? [highlighted, selected.mode]
+			: [highlighted, context.state.reasoningSnapshot?.effectiveMode, ""],
 	);
 }
 
