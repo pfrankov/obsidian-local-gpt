@@ -54,6 +54,58 @@ it.each([1, 2])(
 	},
 );
 
+it.each([1, 2])(
+	"restores textbox focus after %i Reasoning clicks and allows keyboard selection",
+	async (clicks) => {
+		const onSubmit = vi.fn();
+		const { target, component } = createComponent({
+			getReasoningSnapshot: async () => ({
+				providerId: "fixture",
+				model: "glm-5.3-flash",
+				modes: ["low", "high", "max"],
+				effectiveMode: "high",
+			}),
+			onSubmit,
+		});
+		try {
+			await flush();
+			const input = requireElement<HTMLElement>(
+				target,
+				".local-gpt-action-palette",
+			);
+			const chip = requireElement<HTMLButtonElement>(
+				target,
+				".local-gpt-reasoning-badge",
+			);
+			for (let click = 0; click < clicks; click++) {
+				chip.focus();
+				chip.click();
+				await flush();
+			}
+			expect(document.activeElement).toBe(input);
+			document.activeElement!.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "ArrowDown",
+					bubbles: true,
+				}),
+			);
+			document.activeElement!.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			await flush();
+			expect(target.querySelector(".local-gpt-dropdown")).toBeNull();
+			input.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			);
+			expect(onSubmit.mock.calls[0][0].reasoningSelection?.mode).toBe(
+				"default",
+			);
+		} finally {
+			component.$destroy();
+		}
+	},
+);
+
 it("preserves delimiter-containing model names without inventing a creativity chip", async () => {
 	const { target, component } = createComponent({
 		providerLabel: "Provider · foo · bar",
