@@ -282,6 +282,7 @@ export default class LocalGPT extends Plugin {
 			}
 
 			const finalText = removeThinkingTags(fullText).trim();
+			if (!finalText) return;
 			const trackedRange = selectionTrackerId
 				? getTrackedRange(editorView, selectionTrackerId)
 				: null;
