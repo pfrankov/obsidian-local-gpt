@@ -1,7 +1,7 @@
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LocalGPT from "../src/main";
-import { App, PluginManifest, TFile } from "obsidian";
+import { App, Notice, PluginManifest, TFile } from "obsidian";
 import type { LocalGPTSettings } from "../src/interfaces";
 import { showActionPalette } from "../src/ui/actionPalettePlugin";
 
@@ -177,6 +177,138 @@ describe("LocalGPT", () => {
 
 		expect(result).toBe("\nFinal\n");
 	});
+
+	describe.each([false, true])(
+		"result placement with replace=%s",
+		(replace) => {
+			let execute: ReturnType<typeof vi.fn>;
+			let editor: any;
+
+			beforeEach(() => {
+				plugin.settings = {
+					aiProviders: {
+						main: "provider",
+						embedding: null,
+						vision: null,
+					},
+					defaults: {},
+					actions: [],
+					_version: 11,
+				};
+				execute = vi.fn();
+				vi.mocked(waitForAI).mockResolvedValue({
+					promise: Promise.resolve({
+						version: 5,
+						providers: [
+							{
+								id: "provider",
+								name: "Provider",
+								type: "openai",
+							},
+						],
+						execute,
+						checkCompatibility: vi.fn(),
+					} as any),
+					cancel: vi.fn(),
+				});
+				vi.spyOn(plugin, "enhanceWithContext").mockResolvedValue("");
+				editor = {
+					cm: { state: { field: vi.fn() }, plugin: vi.fn() },
+					getSelection: () => "dive",
+					getCursor: (which: string) => ({
+						line: 0,
+						ch: which === "from" ? 0 : 4,
+					}),
+					posToOffset: (position: { ch: number }) => position.ch,
+					offsetToPos: (offset: number) => ({ line: 0, ch: offset }),
+					lastLine: vi.fn().mockReturnValue(0),
+					replaceRange: vi.fn(),
+				};
+			});
+
+			it.each(["", " \n\t", "<think>Only reasoning</think>"])(
+				"does not write an empty visible answer: %j",
+				async (result) => {
+					execute.mockResolvedValue(result);
+					await plugin.runAction(
+						{ name: "Translate", prompt: "Translate", replace },
+						editor,
+					);
+					expect(editor.replaceRange).not.toHaveBeenCalled();
+					expect(Notice).not.toHaveBeenCalled();
+					expect(plugin.abortControllers).toEqual([]);
+				},
+			);
+
+			it("leaves the note unchanged after a provider error and shows it once", async () => {
+				execute.mockRejectedValue(
+					new Error("Synthetic provider failure"),
+				);
+				await plugin.runAction(
+					{ name: "Translate", prompt: "Translate", replace },
+					editor,
+				);
+				expect(editor.replaceRange).not.toHaveBeenCalled();
+				expect(Notice).toHaveBeenCalledExactlyOnceWith(
+					expect.stringContaining("Synthetic provider failure"),
+				);
+				expect(plugin.abortControllers).toEqual([]);
+			});
+
+			it("does not write empty text before the last line", async () => {
+				editor.lastLine.mockReturnValue(1);
+				execute.mockResolvedValue("");
+				await plugin.runAction(
+					{ name: "Translate", prompt: "Translate", replace },
+					editor,
+				);
+				expect(editor.replaceRange).not.toHaveBeenCalled();
+			});
+
+			it("preserves nonempty Markdown and indentation after thinking removal", async () => {
+				const answer = "# Heading\n\n- 潜水\n  - Detail";
+				execute.mockResolvedValue(
+					`<think>Reasoning</think> \n${answer}\n `,
+				);
+				await plugin.runAction(
+					{ name: "Translate", prompt: "Translate", replace },
+					editor,
+				);
+				if (replace) {
+					expect(editor.replaceRange).toHaveBeenCalledExactlyOnceWith(
+						answer,
+						{ line: 0, ch: 0 },
+						{ line: 0, ch: 4 },
+					);
+				} else {
+					expect(editor.replaceRange).toHaveBeenCalledExactlyOnceWith(
+						`\n\n${answer}\n`,
+						{ line: 1, ch: 0 },
+					);
+				}
+				expect(Notice).not.toHaveBeenCalled();
+			});
+
+			it.each(["", "潜水"])(
+				"preserves late cancellation behavior for %j",
+				async (result) => {
+					execute.mockImplementation(async ({ abortController }) => {
+						abortController.abort();
+						return result;
+					});
+					await plugin.runAction(
+						{ name: "Translate", prompt: "Translate", replace },
+						editor,
+					);
+					expect(editor.replaceRange).toHaveBeenCalledTimes(
+						result ? 1 : 0,
+					);
+					expect(Notice).not.toHaveBeenCalled();
+					expect(plugin.abortControllers).toEqual([]);
+				},
+			);
+		},
+	);
 
 	it("runFreeform forwards system prompt to executeAction", async () => {
 		const executeAction = vi

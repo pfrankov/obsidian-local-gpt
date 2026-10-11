@@ -155,6 +155,9 @@ lands in the right spot even if surrounding text changed. Each saved action
 declares whether the answer should replace the selection or be inserted after
 it; Action Palette always inserts.
 
+If no answer remains after removing thinking text and surrounding whitespace,
+the note is left unchanged, including when an action would replace the selection.
+
 Once streaming finishes the answer is just text in the note. No side panel, no
 chat history.
 
