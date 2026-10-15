@@ -1,8 +1,7 @@
 import type { App } from "obsidian";
 
 /** Obsidian wikilink embeds the vision path can load (not SVG/AVIF). */
-const EMBEDDED_IMAGE_WIKILINK =
-	/!\[\[(.+?\.(?:png|jpe?g|gif|webp))]]/gi;
+const EMBEDDED_IMAGE_WIKILINK = /!\[\[(.+?\.(?:png|jpe?g|gif|webp))]]/gi;
 
 /**
  * Collect wikilink image embeds from selected text and strip them from the
