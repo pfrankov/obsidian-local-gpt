@@ -1,12 +1,12 @@
 import { getIcon, Platform, setIcon } from "obsidian";
 
 /**
- * Lucide "replace" (Obsidian ships it since its bundled Lucide ≥ 0.137).
- * Older apps (minAppVersion 0.15 bundles an earlier Lucide) fall back to
- * "text-cursor-input", which exists in every Lucide build Obsidian shipped.
+ * Lucide "list-restart" (bundled with Obsidian ~1.5+). Older apps
+ * (minAppVersion 0.15 bundles an earlier Lucide) fall back to "refresh-cw",
+ * which exists in every Lucide build Obsidian shipped.
  */
-export const REPLACE_SELECTION_ICON = "replace";
-export const REPLACE_SELECTION_FALLBACK_ICON = "text-cursor-input";
+export const REPLACE_SELECTION_ICON = "list-restart";
+export const REPLACE_SELECTION_FALLBACK_ICON = "refresh-cw";
 
 export function getReplaceSelectionIconId(): string {
 	return typeof getIcon === "function" && getIcon(REPLACE_SELECTION_ICON)

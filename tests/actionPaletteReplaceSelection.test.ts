@@ -226,9 +226,12 @@ describe("replace-selection hotkey and icon helpers", () => {
 		).toBe(false);
 	});
 
-	it("prefers Lucide 'replace' and falls back to 'text-cursor-input' on older Obsidian", () => {
+	it("prefers Lucide 'list-restart' and falls back to 'refresh-cw' on older Obsidian", () => {
+		expect(REPLACE_SELECTION_ICON).toBe("list-restart");
+		expect(REPLACE_SELECTION_FALLBACK_ICON).toBe("refresh-cw");
 		vi.mocked(getIconIds).mockReturnValueOnce([REPLACE_SELECTION_ICON]);
 		expect(getReplaceSelectionIconId()).toBe(REPLACE_SELECTION_ICON);
+		expect(getIcon).toHaveBeenLastCalledWith("list-restart");
 		expect(getReplaceSelectionIconId()).toBe(
 			REPLACE_SELECTION_FALLBACK_ICON,
 		);
