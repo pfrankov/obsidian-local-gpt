@@ -311,20 +311,21 @@
 					</button>
 				{/if}
 				{#if state.replaceAvailable}
-					<!-- Icon-only toggle; aria-label doubles as Obsidian's tooltip. -->
+					<!-- Icon-only toggle. `title` (native tooltip + accessible name),
+					     like the other chips: an aria-label would spawn Obsidian's
+					     body-level tooltip, which outlives the palette on Esc. -->
 					<button
 						type="button"
 						class={state.replaceSelection
 							? "local-gpt-replace-toggle is-active"
 							: "local-gpt-replace-toggle"}
 						aria-pressed={state.replaceSelection}
-						aria-label={I18n.t(
+						title={I18n.t(
 							state.replaceSelection
 								? "commands.actionPalette.replaceSelectionOn"
 								: "commands.actionPalette.replaceSelectionOff",
 							{ hotkey: replaceHotkey },
 						)}
-						data-tooltip-position="top"
 						use:obsidianIcon={replaceIconId}
 						on:click={() => controller.handleReplaceToggleClick()}
 					></button>

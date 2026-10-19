@@ -85,10 +85,13 @@ describe("Action Palette replace-selection toggle", () => {
 		expect(toggle.textContent?.trim()).toBe("");
 		expect(toggle.classList.contains("is-active")).toBe(false);
 		expect(toggle.getAttribute("aria-pressed")).toBe("false");
-		expect(toggle.getAttribute("aria-label")).toBe(
+		expect(toggle.getAttribute("title")).toBe(
 			"Replace selection: off (Alt+R)",
 		);
 		expect(toggle.getAttribute("style")).toBeNull();
+		// No aria-label: Obsidian would attach a body-level tooltip to it that
+		// survives the palette being closed with Esc (no pointerout fires).
+		expect(toggle.hasAttribute("aria-label")).toBe(false);
 		// Icon comes from Obsidian's setIcon (mock writes data-icon).
 		expect(setIcon).toHaveBeenCalledWith(toggle, expect.any(String));
 		expect(toggle.dataset.icon).toBe(getReplaceSelectionIconId());
@@ -108,7 +111,7 @@ describe("Action Palette replace-selection toggle", () => {
 
 		expect(toggle.classList.contains("is-active")).toBe(true);
 		expect(toggle.getAttribute("aria-pressed")).toBe("true");
-		expect(toggle.getAttribute("aria-label")).toBe(
+		expect(toggle.getAttribute("title")).toBe(
 			"Replace selection: on (Alt+R)",
 		);
 		expect(changeSpy).toHaveBeenLastCalledWith(true);

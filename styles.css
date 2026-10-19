@@ -859,13 +859,19 @@
 	outline: 2px solid var(--interactive-accent);
 }
 
-/* Replace-selection toggle: icon only (setIcon), muted when off, accent when on. */
+/* Replace-selection toggle: icon only (setIcon). Off = faint glyph,
+   on = accent glyph on an accent-tinted, borderless pill. Same padding in
+   both states so toggling never shifts the footer. */
 .cm-editor button.local-gpt-replace-toggle {
-	--icon-size: var(--icon-xs);
-	--icon-stroke: var(--icon-xs-stroke-width);
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+	padding: var(--size-2-1);
+	border-radius: var(--radius-s);
+	color: var(--text-faint);
 }
 
 .cm-editor button.local-gpt-replace-toggle svg {
+	flex: 0 0 auto;
 	width: var(--icon-size);
 	height: var(--icon-size);
 	stroke-width: var(--icon-stroke);
@@ -874,6 +880,7 @@
 .cm-editor button.local-gpt-replace-toggle.is-active,
 .cm-editor button.local-gpt-replace-toggle.is-active:hover {
 	color: var(--text-accent);
+	background-color: hsla(var(--interactive-accent-hsl), 0.2);
 	opacity: 1;
 }
 
