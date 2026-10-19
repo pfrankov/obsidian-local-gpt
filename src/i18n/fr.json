@@ -13,7 +13,9 @@
 			"hint": "Utilisez / pour les commandes, @ pour les fichiers",
 			"changeReasoning": "Raisonnement pour cette requête",
 			"noMatchingCommands": "Aucune commande correspondante",
-			"noMatchingFiles": "Aucun fichier correspondant"
+			"noMatchingFiles": "Aucun fichier correspondant",
+			"replaceSelectionOn": "Remplacer la sélection : activé ({{hotkey}})",
+			"replaceSelectionOff": "Remplacer la sélection : désactivé ({{hotkey}})"
 		}
 	},
 	"statusBar": {

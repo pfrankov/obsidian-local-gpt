@@ -53,6 +53,8 @@ export default class LocalGPT extends Plugin {
 	actionPaletteModel: string | null = null;
 	actionPaletteModelProviderId: string | null = null;
 	actionPaletteCreativityKey: string | null = null; // "", "low", "medium", "high"
+	// Session-only (not saved): Action Palette replaces the selection.
+	actionPaletteReplaceSelection = false;
 	abortControllers: AbortController[] = [];
 	updatingInterval!: number;
 	/** True when AI Providers service API supports reasoningMode (v5+). */
@@ -127,13 +129,14 @@ export default class LocalGPT extends Plugin {
 		customTemperature?: number | null,
 		systemPrompt?: string,
 		reasoningSelection?: ReasoningSelection,
+		replaceSelection = false,
 	) {
 		return this.executeAction(
 			{
 				prompt: userInput,
 				reasoningSelection,
 				system: systemPrompt,
-				replace: false,
+				replace: replaceSelection,
 				selectedFiles,
 				overrideProviderId: overrideProviderId || undefined,
 				temperature: customTemperature,

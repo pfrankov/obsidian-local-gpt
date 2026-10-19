@@ -37,6 +37,11 @@
 		installPaletteOutsidePointerRelease,
 	} from "./actionPaletteDom";
 	import { formatSystemPreview } from "./actionPaletteOptions";
+	import {
+		getReplaceSelectionHotkeyLabel,
+		getReplaceSelectionIconId,
+		obsidianIcon,
+	} from "./actionPaletteIcons";
 
 	const labelId = `local-gpt-action-palette-label-${++nextLabelId}`;
 
@@ -71,6 +76,16 @@
 		| ((event: ActionPaletteSubmitEvent) => void)
 		| undefined = undefined;
 	export let onCancel: (() => void) | undefined = undefined;
+	/** Palette opened over a selection: show the replace toggle. */
+	export let canReplaceSelection = false;
+	/** Initial replace-selection state (session-sticky in the plugin). */
+	export let replaceSelection = false;
+	export let onReplaceSelectionChange:
+		| ((replaceSelection: boolean) => void)
+		| undefined = undefined;
+
+	const replaceIconId = getReplaceSelectionIconId();
+	const replaceHotkey = getReplaceSelectionHotkeyLabel();
 
 	const dispatch = createEventDispatcher<PaletteEvents>();
 
@@ -112,6 +127,9 @@
 		onSystemPromptChange: () => onSystemPromptChange,
 		onSubmit: () => onSubmit,
 		onCancel: () => onCancel,
+		getCanReplaceSelection: () => canReplaceSelection,
+		getInitialReplaceSelection: () => replaceSelection,
+		onReplaceSelectionChange: () => onReplaceSelectionChange,
 		setProviderLabel: (nextProviderLabel) => {
 			providerLabel = nextProviderLabel;
 		},
@@ -136,6 +154,7 @@
 	});
 
 	controller.restoreSelectedSystemPrompt();
+	controller.initializeReplaceSelection();
 	if (includeReasoning && getReasoningSnapshot) void controller.refreshReasoning();
 	onMount(() => {
 		const stopModA = installPaletteModAGuard(() => contentElement);
@@ -256,7 +275,7 @@
 			</div>
 		{/if}
 
-		{#if state.providerName || state.modelName || state.creativityBadge || state.reasoningLabel}
+		{#if state.providerName || state.modelName || state.creativityBadge || state.reasoningLabel || state.replaceAvailable}
 			<div
 				class={state.badgeHighlight
 					? "local-gpt-provider-badge-meta local-gpt-badge-highlight"
@@ -290,6 +309,25 @@
 					>
 						🧠 {state.reasoningLabel}
 					</button>
+				{/if}
+				{#if state.replaceAvailable}
+					<!-- Icon-only toggle; aria-label doubles as Obsidian's tooltip. -->
+					<button
+						type="button"
+						class={state.replaceSelection
+							? "local-gpt-replace-toggle is-active"
+							: "local-gpt-replace-toggle"}
+						aria-pressed={state.replaceSelection}
+						aria-label={I18n.t(
+							state.replaceSelection
+								? "commands.actionPalette.replaceSelectionOn"
+								: "commands.actionPalette.replaceSelectionOff",
+							{ hotkey: replaceHotkey },
+						)}
+						data-tooltip-position="top"
+						use:obsidianIcon={replaceIconId}
+						on:click={() => controller.handleReplaceToggleClick()}
+					></button>
 				{/if}
 			</div>
 		{/if}

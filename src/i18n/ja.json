@@ -13,7 +13,9 @@
 			"hint": "コマンドには /、ファイルには @ を使用",
 			"changeReasoning": "このリクエストの推論",
 			"noMatchingCommands": "一致するコマンドがありません",
-			"noMatchingFiles": "一致するファイルがありません"
+			"noMatchingFiles": "一致するファイルがありません",
+			"replaceSelectionOn": "選択範囲を置き換え: オン ({{hotkey}})",
+			"replaceSelectionOff": "選択範囲を置き換え: オフ ({{hotkey}})"
 		}
 	},
 	"statusBar": {

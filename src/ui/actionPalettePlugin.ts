@@ -24,8 +24,14 @@ export interface ActionPaletteOptions {
 		selectedFiles?: string[],
 		systemPrompt?: string,
 		reasoningSelection?: ReasoningSelection,
+		replaceSelection?: boolean,
 	) => void;
 	onCancel?: () => void;
+	/** Show the replace-selection toggle (palette opened over a selection). */
+	canReplaceSelection?: boolean;
+	/** Initial state of the replace-selection toggle. */
+	replaceSelection?: boolean;
+	onReplaceSelectionChange?: (replaceSelection: boolean) => void;
 	placeholder?: string;
 	/**
 	 * Optional label showing currently selected provider/model
@@ -154,17 +160,22 @@ class SvelteActionPaletteWidget extends WidgetType {
 				selectedSystemPromptId: this.options.selectedSystemPromptId,
 				onSystemPromptChange: this.options.onSystemPromptChange,
 				initialSelectedFiles: this.options.initialSelectedFiles,
+				canReplaceSelection: this.options.canReplaceSelection === true,
+				replaceSelection: this.options.replaceSelection === true,
+				onReplaceSelectionChange: this.options.onReplaceSelectionChange,
 				onSubmit: (event: {
 					text: string;
 					selectedFiles: string[];
 					systemPrompt?: string;
 					reasoningSelection?: ReasoningSelection;
+					replaceSelection?: boolean;
 				}) => {
 					this.options.onSubmit?.(
 						event.text,
 						event.selectedFiles,
 						event.systemPrompt,
 						event.reasoningSelection,
+						event.replaceSelection,
 					);
 				},
 				onCancel: () => {

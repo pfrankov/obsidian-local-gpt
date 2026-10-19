@@ -39,6 +39,10 @@ export interface ActionPaletteState {
 	modelName: string;
 	creativityBadge: string;
 	selectedSystemPromptName: string;
+	/** True when the palette was opened over a non-empty editor selection. */
+	replaceAvailable: boolean;
+	/** Replace the selection with the answer instead of inserting below it. */
+	replaceSelection: boolean;
 }
 
 export function createActionPaletteState(
@@ -74,5 +78,7 @@ export function createActionPaletteState(
 		modelName,
 		creativityBadge,
 		selectedSystemPromptName: "",
+		replaceAvailable: false,
+		replaceSelection: false,
 	};
 }

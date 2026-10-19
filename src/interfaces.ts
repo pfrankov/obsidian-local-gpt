@@ -120,6 +120,8 @@ export interface ActionPaletteSubmitEvent {
 	text: string;
 	selectedFiles: string[];
 	systemPrompt?: string;
+	/** Present only when the palette was opened with a selection. */
+	replaceSelection?: boolean;
 }
 
 export type GetFilesCallback = () => FileReference[];
