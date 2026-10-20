@@ -443,7 +443,10 @@ describe("LocalGPT", () => {
 		expect(runFreeform.mock.calls[0][0]).toBe(editor);
 		expect(runFreeform.mock.calls[0][1]).toBe("Summarize this note");
 		expect(runFreeform.mock.calls[0][2]).toEqual(["notes/active.md"]);
-		expect(runFreeform.mock.calls[0]).toHaveLength(7);
+		expect(runFreeform.mock.calls[0]).toHaveLength(8);
+		expect(options.canReplaceSelection).toBe(false);
+		// No selection: replace stays off.
+		expect(runFreeform.mock.calls[0][7]).toBe(false);
 		expect(runFreeform.mock.calls[0][4]).toBe(1);
 		options.onCreativityChange("default");
 		options.onSubmit("API default", []);
@@ -452,6 +455,83 @@ describe("LocalGPT", () => {
 		options.onSubmit("Explicit zero", []);
 		expect(runFreeform.mock.calls[2][4]).toBe(0);
 		expect(runFreeform.mock.calls[0][6]).toBeUndefined();
+	});
+
+	it("offers replace-selection only with a selection and forwards it to runFreeform (session-sticky)", async () => {
+		const addCommand = vi.fn();
+		const runFreeform = vi
+			.spyOn(plugin as any, "runFreeform")
+			.mockResolvedValue(undefined);
+		(plugin as any).addCommand = addCommand;
+		(plugin as any).app.workspace.getActiveFile = vi
+			.fn()
+			.mockReturnValue(null);
+		(plugin as any).settings = {
+			aiProviders: { main: null, embedding: null, vision: null },
+			defaults: { creativity: "high", contextLimit: "local" },
+			actions: [],
+			actionPalette: { systemPromptActionId: null },
+			_version: 10,
+		};
+		(plugin as any).addCommands();
+		const paletteCommand = addCommand.mock.calls
+			.map(([command]) => command)
+			.find(
+				(command: { id: string }) =>
+					command.id === "local-gpt-action-palette",
+			);
+		const editor = {
+			cm: {},
+			getCursor: vi.fn().mockReturnValue({ line: 0, ch: 0 }),
+			posToOffset: vi.fn().mockReturnValue(0),
+			getSelection: vi.fn().mockReturnValue("Selected sentence."),
+		};
+
+		expect((plugin as any).actionPaletteReplaceSelection).toBe(false);
+		await paletteCommand.editorCallback(editor);
+		const [, , options] = (showActionPalette as any).mock.calls.at(-1);
+		expect(options.canReplaceSelection).toBe(true);
+		expect(options.replaceSelection).toBe(false);
+
+		options.onSubmit("Rewrite", [], undefined, undefined, true);
+		expect(runFreeform.mock.calls.at(-1)?.[7]).toBe(true);
+		options.onSubmit("Insert", [], undefined, undefined, false);
+		expect(runFreeform.mock.calls.at(-1)?.[7]).toBe(false);
+
+		// The choice sticks for the session (next palette opens with it).
+		options.onReplaceSelectionChange(true);
+		expect((plugin as any).actionPaletteReplaceSelection).toBe(true);
+		await paletteCommand.editorCallback(editor);
+		const [, , reopened] = (showActionPalette as any).mock.calls.at(-1);
+		expect(reopened.replaceSelection).toBe(true);
+	});
+
+	it("runFreeform passes replace=true to executeAction in replace mode", async () => {
+		const executeAction = vi
+			.spyOn(plugin as any, "executeAction")
+			.mockResolvedValue(undefined);
+		const editor = {} as any;
+
+		await (plugin as any).runFreeform(editor, "Rewrite");
+		expect(executeAction.mock.calls[0][0]).toEqual(
+			expect.objectContaining({ replace: false }),
+		);
+		await (plugin as any).runFreeform(
+			editor,
+			"Rewrite",
+			[],
+			null,
+			null,
+			undefined,
+			undefined,
+			true,
+		);
+		expect(executeAction.mock.calls[1][0]).toEqual(
+			expect.objectContaining({
+				replace: true,
+				selectionContextMode: "selection",
+			}),
+		);
 	});
 
 	it("uses the user prompt as the retrieval query when only file context is selected", async () => {

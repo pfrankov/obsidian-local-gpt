@@ -85,8 +85,15 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 				editor,
 			);
 			const paletteLabel = await getActionPaletteLabel(plugin);
+			// Replace mode only makes sense over a selection; hide it otherwise.
+			const canReplaceSelection = Boolean(editor.getSelection());
 
 			showActionPalette(editorView, insertPos, {
+				canReplaceSelection,
+				replaceSelection: plugin.actionPaletteReplaceSelection,
+				onReplaceSelectionChange: (replaceSelection: boolean) => {
+					plugin.actionPaletteReplaceSelection = replaceSelection;
+				},
 				includeReasoning: plugin.reasoningApiAvailable,
 				getReasoningSnapshot: plugin.reasoningApiAvailable
 					? async () => {
@@ -121,6 +128,7 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 					selectedFiles: string[] = [],
 					systemPrompt?: string,
 					reasoningSelection?: ReasoningSelection,
+					replaceSelection?: boolean,
 				) => {
 					const overrideProviderId =
 						plugin.actionPaletteProviderId ||
@@ -140,6 +148,7 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 							temperatureOverride,
 							systemPrompt,
 							reasoningSelection,
+							canReplaceSelection && replaceSelection === true,
 						)
 						.finally(() => {});
 

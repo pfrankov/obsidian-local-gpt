@@ -10,7 +10,7 @@ The most casual AI assistant for Obsidian.
 
 _Action Palette_
 
-In the Action Palette, Enter submits the prompt when a `/` or `@` search has no results. Escape closes the search menu; Shift+Enter inserts a newline. Clicking the Creativity chip keeps keyboard selection available with the arrow keys and Enter.
+In the Action Palette, Enter submits the prompt when a `/` or `@` search has no results. Escape closes the search menu; Shift+Enter inserts a newline. Clicking the Creativity chip keeps keyboard selection available with the arrow keys and Enter. When text is selected, a replace icon appears next to the chips: click it or press Alt+R (⌥R on macOS) to replace the selection with the answer instead of inserting it below. The choice is remembered until Obsidian restarts.
 
 ## Features
 ### Works with images  

@@ -23,6 +23,24 @@ interface NavigationContext {
 	updateContentDisplay(): void;
 	submitAction(): void;
 	commit(): void;
+	toggleReplaceSelection?(): boolean;
+}
+
+/**
+ * Alt+R (Option+R on macOS) toggles replace-selection mode. Matched by
+ * `event.code` so it works on any keyboard layout and on macOS, where
+ * Option+R reports `key === "®"`. Ctrl/Cmd stay free: Mod+R/Mod+Shift+R
+ * collide with Electron reload accelerators.
+ */
+export function isReplaceSelectionHotkey(event: KeyboardEvent) {
+	return (
+		!event.isComposing &&
+		event.altKey &&
+		!event.ctrlKey &&
+		!event.metaKey &&
+		!event.shiftKey &&
+		event.code === "KeyR"
+	);
 }
 
 export function handleDropdownNavigation(
@@ -46,6 +64,11 @@ export function handlePaletteShortcuts(
 	context: NavigationContext,
 	event: KeyboardEvent,
 ) {
+	if (isReplaceSelectionHotkey(event) && context.toggleReplaceSelection?.()) {
+		event.preventDefault();
+		event.stopPropagation();
+		return true;
+	}
 	const mod = event.ctrlKey || event.metaKey;
 	if (!mod) return false;
 	const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;

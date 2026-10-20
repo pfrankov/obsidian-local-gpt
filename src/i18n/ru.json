@@ -13,7 +13,9 @@
 			"hint": "Используйте / для команд, @ для файлов",
 			"changeReasoning": "Рассуждение для этого запроса",
 			"noMatchingCommands": "Нет подходящих команд",
-			"noMatchingFiles": "Нет подходящих файлов"
+			"noMatchingFiles": "Нет подходящих файлов",
+			"replaceSelectionOn": "Заменять выделение: вкл. ({{hotkey}})",
+			"replaceSelectionOff": "Заменять выделение: выкл. ({{hotkey}})"
 		}
 	},
 	"statusBar": {

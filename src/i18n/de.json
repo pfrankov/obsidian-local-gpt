@@ -13,7 +13,9 @@
 			"hint": "Nutzen Sie / für Befehle, @ für Dateien",
 			"changeReasoning": "Denkmodus für diese Anfrage",
 			"noMatchingCommands": "Keine passenden Befehle",
-			"noMatchingFiles": "Keine passenden Dateien"
+			"noMatchingFiles": "Keine passenden Dateien",
+			"replaceSelectionOn": "Auswahl ersetzen: an ({{hotkey}})",
+			"replaceSelectionOff": "Auswahl ersetzen: aus ({{hotkey}})"
 		}
 	},
 	"statusBar": {

@@ -810,7 +810,8 @@
 
 /* Beat Obsidian default `button` chrome (border/shadow) — plain text chips */
 .cm-editor button.local-gpt-creativity-badge,
-.cm-editor button.local-gpt-reasoning-badge {
+.cm-editor button.local-gpt-reasoning-badge,
+.cm-editor button.local-gpt-replace-toggle {
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -837,7 +838,8 @@
 }
 
 .cm-editor button.local-gpt-creativity-badge:hover,
-.cm-editor button.local-gpt-reasoning-badge:hover {
+.cm-editor button.local-gpt-reasoning-badge:hover,
+.cm-editor button.local-gpt-replace-toggle:hover {
 	color: var(--text-normal);
 	opacity: 1;
 	background: transparent;
@@ -845,14 +847,41 @@
 }
 
 .cm-editor button.local-gpt-creativity-badge:focus,
-.cm-editor button.local-gpt-reasoning-badge:focus {
+.cm-editor button.local-gpt-reasoning-badge:focus,
+.cm-editor button.local-gpt-replace-toggle:focus {
 	outline: none;
 	box-shadow: none;
 }
 
 .cm-editor button.local-gpt-creativity-badge:focus-visible,
-.cm-editor button.local-gpt-reasoning-badge:focus-visible {
+.cm-editor button.local-gpt-reasoning-badge:focus-visible,
+.cm-editor button.local-gpt-replace-toggle:focus-visible {
 	outline: 2px solid var(--interactive-accent);
+}
+
+/* Replace-selection toggle: icon only (setIcon). Off = faint glyph,
+   on = accent glyph on an accent-tinted, borderless pill. Same padding in
+   both states so toggling never shifts the footer. */
+.cm-editor button.local-gpt-replace-toggle {
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+	padding: var(--size-2-1);
+	border-radius: var(--radius-s);
+	color: var(--text-faint);
+}
+
+.cm-editor button.local-gpt-replace-toggle svg {
+	flex: 0 0 auto;
+	width: var(--icon-size);
+	height: var(--icon-size);
+	stroke-width: var(--icon-stroke);
+}
+
+.cm-editor button.local-gpt-replace-toggle.is-active,
+.cm-editor button.local-gpt-replace-toggle.is-active:hover {
+	color: var(--text-accent);
+	background-color: hsla(var(--interactive-accent-hsl), 0.2);
+	opacity: 1;
 }
 
 .cm-editor .local-gpt-provider-badge-meta.local-gpt-badge-highlight,

@@ -13,7 +13,9 @@
 			"hint": "Gebruik / voor commando's, @ voor bestanden",
 			"changeReasoning": "Redeneren voor dit verzoek",
 			"noMatchingCommands": "Geen overeenkomende opdrachten",
-			"noMatchingFiles": "Geen overeenkomende bestanden"
+			"noMatchingFiles": "Geen overeenkomende bestanden",
+			"replaceSelectionOn": "Selectie vervangen: aan ({{hotkey}})",
+			"replaceSelectionOff": "Selectie vervangen: uit ({{hotkey}})"
 		}
 	},
 	"statusBar": {

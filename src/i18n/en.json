@@ -13,7 +13,9 @@
 			"hint": "Use / for commands, @ for files",
 			"changeReasoning": "Reasoning for this request",
 			"noMatchingCommands": "No matching commands",
-			"noMatchingFiles": "No matching files"
+			"noMatchingFiles": "No matching files",
+			"replaceSelectionOn": "Replace selection: on ({{hotkey}})",
+			"replaceSelectionOff": "Replace selection: off ({{hotkey}})"
 		}
 	},
 	"statusBar": {

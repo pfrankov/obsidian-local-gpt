@@ -106,6 +106,12 @@ export interface ActionPaletteControllerOptions {
 		| undefined;
 	onSubmit: () => ((event: ActionPaletteSubmitEvent) => void) | undefined;
 	onCancel: () => (() => void) | undefined;
+	/** Whether the palette was opened over a selection (replace allowed). */
+	getCanReplaceSelection?: () => boolean;
+	getInitialReplaceSelection?: () => boolean;
+	onReplaceSelectionChange?: () =>
+		| ((replaceSelection: boolean) => void)
+		| undefined;
 	setProviderLabel: (label: string) => void;
 	getContentElement: () => HTMLDivElement | null;
 	/** When false, hide /reasoning and skip reasoning snapshot. */
@@ -153,6 +159,35 @@ export class ActionPaletteController {
 				refresh: () => applySystemFilterSelection(this),
 			},
 		};
+	}
+
+	initializeReplaceSelection() {
+		const available = this.options.getCanReplaceSelection?.() === true;
+		this.state.replaceAvailable = available;
+		this.state.replaceSelection =
+			available && this.options.getInitialReplaceSelection?.() === true;
+	}
+
+	/** Flip replace mode (click or Alt+R). No-op without a selection. */
+	toggleReplaceSelection(): boolean {
+		if (!this.state.replaceAvailable) return false;
+		this.state.replaceSelection = !this.state.replaceSelection;
+		this.options.onReplaceSelectionChange?.()?.(
+			this.state.replaceSelection,
+		);
+		this.commit();
+		return true;
+	}
+
+	/** Footer icon click: toggle and keep typing in the prompt. */
+	handleReplaceToggleClick() {
+		this.toggleReplaceSelection();
+		restorePromptFocus(
+			() => this.options.getContentElement(),
+			this.state.cursorPosition >= 0
+				? this.state.cursorPosition
+				: this.state.textContent.length,
+		);
 	}
 
 	refreshReasoning() {
@@ -350,6 +385,9 @@ export class ActionPaletteController {
 			text: this.state.textContent,
 			selectedFiles: this.state.selectedFiles,
 			systemPrompt: this.state.selectedSystemPromptValue,
+			...(this.state.replaceAvailable
+				? { replaceSelection: this.state.replaceSelection }
+				: {}),
 		};
 		this.options.onSubmit()?.(payload);
 		this.options.dispatchSubmit(payload);
