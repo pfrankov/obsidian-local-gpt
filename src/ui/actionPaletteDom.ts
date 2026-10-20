@@ -236,7 +236,8 @@ export function restorePromptFocus(
 ) {
 	const run = () => {
 		const el = getContentElement();
-		if (!el) return;
+		// Detached (palette closed meanwhile): never re-arm or steal focus.
+		if (!el || !el.isConnected) return;
 		beginHoldingPromptFocus(el);
 		const position =
 			typeof cursorPosition === "number"
