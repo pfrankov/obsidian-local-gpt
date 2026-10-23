@@ -27,7 +27,11 @@ import {
 	addToPromptHistory,
 	getPromptHistoryLength,
 } from "./actionPaletteHistory";
-import type { DropdownItem, DropdownKind } from "./actionPaletteTypes";
+import {
+	MENTION_PREFIX,
+	type DropdownItem,
+	type DropdownKind,
+} from "./actionPaletteTypes";
 import {
 	getCommandQuery as getCommandQueryFromText,
 	parseTextToTokens as parseTextToTokenResult,
@@ -399,9 +403,10 @@ export class ActionPaletteController {
 	}
 
 	parseTextToTokens(text: string): TextToken[] {
+		// Resolving mentions enumerates the vault; ordinary typing needs no files.
 		const result = parseTextToTokenResult(
 			text,
-			this.getFiles(),
+			text.includes(MENTION_PREFIX) ? this.getFiles() : [],
 			this.state.selectedFiles,
 			getAvailableCommands(this.options.includeReasoning?.() ?? true),
 		);
