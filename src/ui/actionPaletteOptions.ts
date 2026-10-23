@@ -99,17 +99,18 @@ export function filterAvailableFiles(
 ): FileReference[] {
 	const normalizedQuery = query.toLowerCase();
 
-	return availableFiles
-		.filter((file) => {
-			const fullFileName = getFullFileName(file);
-			const isQueryMatch =
-				file.basename.toLowerCase().includes(normalizedQuery) ||
-				fullFileName.toLowerCase().includes(normalizedQuery);
-			const isNotAlreadySelected = !selectedFiles.includes(file.path);
-
-			return isQueryMatch && isNotAlreadySelected;
-		})
-		.slice(0, MAX_DROPDOWN_RESULTS);
+	const matches: FileReference[] = [];
+	for (const file of availableFiles) {
+		const fullFileName = getFullFileName(file);
+		const isQueryMatch =
+			file.basename.toLowerCase().includes(normalizedQuery) ||
+			fullFileName.toLowerCase().includes(normalizedQuery);
+		if (isQueryMatch && !selectedFiles.includes(file.path)) {
+			matches.push(file);
+			if (matches.length === MAX_DROPDOWN_RESULTS) break;
+		}
+	}
+	return matches;
 }
 
 export function filterProviderItems(

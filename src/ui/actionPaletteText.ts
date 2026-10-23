@@ -17,13 +17,16 @@ export function findMatchingFile(
 	selectedFiles: string[],
 ): FileReference | undefined {
 	const normalizedFileName = fileName.toLowerCase();
-	const matchingFiles = availableFiles.filter(
-		(file) => getFullFileName(file).toLowerCase() === normalizedFileName,
-	);
-	return (
-		matchingFiles.find((file) => selectedFiles.includes(file.path)) ||
-		matchingFiles[0]
-	);
+	let firstMatch: FileReference | undefined;
+	for (const file of availableFiles) {
+		if (getFullFileName(file).toLowerCase() !== normalizedFileName)
+			continue;
+		firstMatch ??= file;
+		if (selectedFiles.length === 0 || selectedFiles.includes(file.path)) {
+			return file;
+		}
+	}
+	return firstMatch;
 }
 
 export function getFileMention(file: FileReference) {
