@@ -256,3 +256,38 @@ describe("completed @ mention detection", () => {
 		);
 	});
 });
+
+describe("palette file source lifetime", () => {
+	it("disposes on replacement, hide, and editor destruction", () => {
+		const { host, view } = createPaletteView();
+		let created = 0;
+		let disposed = 0;
+		const options = {
+			onSubmit: () => undefined,
+			createFileSource: () => {
+				created++;
+				return {
+					getFiles: () => [],
+					dispose: () => {
+						disposed++;
+					},
+				};
+			},
+		};
+		showActionPalette(view, 0, options);
+		expect(created).toBe(1);
+		view.dispatch({ changes: { from: 5, insert: "!" } });
+		expect(created).toBe(1);
+		expect(disposed).toBe(0);
+		showActionPalette(view, 0, options);
+		expect(created).toBe(2);
+		expect(disposed).toBe(1);
+		hideActionPalette(view);
+		expect(disposed).toBe(2);
+		showActionPalette(view, 0, options);
+		view.destroy();
+		expect(created).toBe(3);
+		expect(disposed).toBe(3);
+		host.remove();
+	});
+});

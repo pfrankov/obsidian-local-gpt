@@ -1,3 +1,4 @@
+import { createPaletteFileSource } from "./ui/actionPaletteFiles";
 import type { ProviderLabelParts } from "./ui/actionPaletteOptions";
 import type { ReasoningSelection } from "./interfaces";
 import { getReasoningModes, resolveReasoningEffort } from "./reasoningEffort";
@@ -163,7 +164,8 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 				modelLabel: paletteLabel.modelLabel,
 				providerDetails: paletteLabel.providerDetails,
 				providerId: paletteLabel.currentProviderId,
-				getFiles: () => getActionPaletteFiles(plugin),
+				createFileSource: () =>
+					createPaletteFileSource(plugin.app.vault),
 				getProviders: () => getActionPaletteProviders(),
 				getModels: (providerId) => getActionPaletteModels(providerId),
 				onProviderChange: async (providerId: string) => {
@@ -247,19 +249,6 @@ async function getActionPaletteLabel(plugin: LocalGPT) {
 	}
 
 	return { modelLabel, currentProviderId, providerDetails };
-}
-
-function getActionPaletteFiles(plugin: LocalGPT) {
-	return plugin.app.vault
-		.getMarkdownFiles()
-		.concat(
-			plugin.app.vault.getFiles().filter((f) => f.extension === "pdf"),
-		)
-		.map((file) => ({
-			path: file.path,
-			basename: file.basename,
-			extension: file.extension,
-		}));
 }
 
 async function getActionPaletteProviders() {
