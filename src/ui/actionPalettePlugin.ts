@@ -1,3 +1,4 @@
+import type { PaletteFileSource } from "./actionPaletteFiles";
 import type { ProviderLabelParts } from "./actionPaletteOptions";
 import type {
 	ReasoningSelection,
@@ -16,6 +17,8 @@ import ActionPalette from "./ActionPalette.svelte";
 import { endHoldingPromptFocus } from "./actionPaletteDom";
 
 export interface ActionPaletteOptions {
+	/** Created on mount and disposed with the widget. */
+	createFileSource?: () => PaletteFileSource;
 	providerDetails?: ProviderLabelParts;
 	getReasoningSnapshot?: () => Promise<ReasoningPaletteSnapshot>;
 	includeReasoning?: boolean;
@@ -87,6 +90,7 @@ export interface ActionPaletteOptions {
 class SvelteActionPaletteWidget extends WidgetType {
 	private container: HTMLElement | null = null;
 	private app: ActionPalette | null = null;
+	private fileSource: PaletteFileSource | undefined;
 
 	constructor(private options: ActionPaletteOptions) {
 		super();
@@ -137,6 +141,7 @@ class SvelteActionPaletteWidget extends WidgetType {
 		const mountTarget = document.createElement("div");
 		this.container.appendChild(mountTarget);
 
+		this.fileSource = this.options.createFileSource?.();
 		this.app = new ActionPalette({
 			target: mountTarget,
 			props: {
@@ -150,7 +155,7 @@ class SvelteActionPaletteWidget extends WidgetType {
 				includeReasoning:
 					this.options.includeReasoning !== false &&
 					Boolean(this.options.getReasoningSnapshot),
-				getFiles: this.options.getFiles,
+				getFiles: this.fileSource?.getFiles ?? this.options.getFiles,
 				getProviders: this.options.getProviders,
 				onProviderChange: this.options.onProviderChange,
 				getModels: this.options.getModels,
@@ -188,6 +193,8 @@ class SvelteActionPaletteWidget extends WidgetType {
 	}
 
 	destroy(_dom: HTMLElement): void {
+		this.fileSource?.dispose();
+		this.fileSource = undefined;
 		this.app?.$destroy();
 		this.app = null;
 		this.container = null;
