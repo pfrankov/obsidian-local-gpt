@@ -82,7 +82,7 @@ export interface ActionPaletteOptions {
 	/**
 	 * Function to handle model change
 	 */
-	onModelChange?: (model: string) => Promise<void>;
+	onModelChange?: (model: string, providerId?: string) => Promise<void>;
 	/**
 	 * Function to handle creativity change (palette-only)
 	 * Accepts a key: "", "low", "medium", "high"

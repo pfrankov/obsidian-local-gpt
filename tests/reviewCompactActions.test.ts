@@ -1,6 +1,6 @@
 import { test, expect, vi, afterEach } from "vitest";
 import { tick } from "svelte";
-import { createComponent } from "./helpers/actionPalette";
+import { createComponent, typeIntoPalette } from "./helpers/actionPalette";
 
 const selection = { providerId: "cloud", model: "precise" };
 const actions = [
@@ -328,5 +328,82 @@ test("ArrowDown, ArrowUp, and Enter navigate and execute saved actions when prom
 	await settle();
 	expect(onRunSavedAction).toHaveBeenCalledWith("third", []);
 	expect(onSubmit).not.toHaveBeenCalled();
+	component.$destroy();
+});
+
+test("scrolls highlighted saved action row into view on ArrowDown/ArrowUp and restores freeform badge when typing", async () => {
+	const getModels = vi.fn(async (id: string) => [
+		{ id: id === "cloud" ? "precise" : "fast", name: id === "cloud" ? "precise" : "fast" },
+	]);
+	const onSubmit = vi.fn();
+	const { target, component } = createComponent({
+		...props,
+		getModels,
+		onSubmit,
+	});
+	await settle();
+
+	const input = target.querySelector<HTMLDivElement>(
+		".local-gpt-action-palette",
+	)!;
+	const footerLabel = target.querySelector<HTMLElement>(
+		".local-gpt-provider-badge-label",
+	)!;
+	const rows = target.querySelectorAll<HTMLElement>(
+		".local-gpt-saved-action",
+	);
+	const scrollSpies = Array.from(rows).map((row) => {
+		const spy = vi.fn();
+		row.scrollIntoView = spy;
+		return spy;
+	});
+
+	// ArrowDown highlights first action (Cloud · precise) and scrolls it into view
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", {
+			key: "ArrowDown",
+			bubbles: true,
+			cancelable: true,
+		}),
+	);
+	await settle();
+	expect(scrollSpies[0]).toHaveBeenCalledWith({ block: "nearest" });
+	expect(footerLabel.textContent).toBe("Cloud · precise");
+
+	// ArrowDown highlights second action and scrolls it into view
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", {
+			key: "ArrowDown",
+			bubbles: true,
+			cancelable: true,
+		}),
+	);
+	await settle();
+	expect(scrollSpies[1]).toHaveBeenCalledWith({ block: "nearest" });
+
+	// ArrowUp moves back to first action (Cloud · precise) and scrolls it into view
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", {
+			key: "ArrowUp",
+			bubbles: true,
+			cancelable: true,
+		}),
+	);
+	await settle();
+	expect(scrollSpies[0]).toHaveBeenCalledTimes(2);
+	expect(footerLabel.textContent).toBe("Cloud · precise");
+
+	// Typing a freeform prompt leaves action preview and restores freeform provider/model badge
+	await typeIntoPalette(input, "freeform question");
+	await settle();
+	expect(footerLabel.textContent).toBe("Local · fast");
+
+	// Opening model dropdown now queries the restored base provider ("local"), not "cloud"
+	target
+		.querySelector<HTMLButtonElement>(".local-gpt-model-badge-button")!
+		.click();
+	await settle();
+	expect(getModels).toHaveBeenLastCalledWith("local");
+
 	component.$destroy();
 });
