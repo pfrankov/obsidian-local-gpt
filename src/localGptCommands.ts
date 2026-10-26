@@ -1,5 +1,5 @@
 import { actionModelLabel } from "./actionModels";
-import type { ActionModelChoice, ActionModelSelection } from "./interfaces";
+import type { ActionModelSelection } from "./interfaces";
 import { createPaletteFileSource } from "./ui/actionPaletteFiles";
 import type { ProviderLabelParts } from "./ui/actionPaletteOptions";
 import type { ReasoningSelection } from "./interfaces";
@@ -15,7 +15,10 @@ import type {
 } from "@obsidian-ai-providers/sdk";
 import type LocalGPT from "./main";
 import { I18n } from "./i18n";
-import { populateActionContextMenu } from "./actionMenu";
+import {
+	formatActionModelBadge,
+	populateActionContextMenu,
+} from "./actionMenu";
 import { getActionIdentifier, getRunnableActions } from "./actionUtils";
 import { hideActionPalette, showActionPalette } from "./ui/actionPalettePlugin";
 import { formatCreativityBadgeLabel } from "./ui/actionPaletteOptions";
@@ -97,18 +100,20 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 			);
 			const paletteLabel = await getActionPaletteLabel(plugin);
 			const service = await (await waitForAI()).promise;
+			const initialFreeformProviderId = plugin.actionPaletteProviderId;
+			const initialFreeformModel = plugin.actionPaletteModel;
+			const initialFreeformModelProviderId =
+				plugin.actionPaletteModelProviderId;
 			const savedActions = () =>
 				getRunnableActions(plugin.settings.actions).map((action) => ({
 					id: getActionIdentifier(action),
 					name: action.name,
 					selection: action.modelSelection,
-					shortModelLabel:
-						action.modelSelection?.model ??
-						service.providers.find(
-							(provider) =>
-								provider.id ===
-								plugin.settings.aiProviders.main,
-						)?.model,
+					shortModelLabel: formatActionModelBadge(
+						action,
+						plugin.settings.actions,
+						service.providers,
+					),
 					modelLabel: actionModelLabel(
 						action,
 						service.providers,
@@ -120,9 +125,23 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 
 			showActionPalette(editorView, insertPos, {
 				savedActions: savedActions(),
-				getActionModels: () => getSavedActionModels(service),
 				onActionModelChange: async (id, selection) => {
-					await rememberActionModel(plugin, id, selection);
+					plugin.actionPaletteProviderId = initialFreeformProviderId;
+					plugin.actionPaletteModel = initialFreeformModel;
+					plugin.actionPaletteModelProviderId =
+						initialFreeformModelProviderId;
+					const mainProvider = service.providers.find(
+						(provider) =>
+							provider.id === plugin.settings.aiProviders.main,
+					);
+					const effectiveSelection =
+						selection &&
+						mainProvider &&
+						selection.providerId === mainProvider.id &&
+						selection.model === mainProvider.model
+							? undefined
+							: selection;
+					await rememberActionModel(plugin, id, effectiveSelection);
 					return savedActions();
 				},
 				onRunSavedAction: (id, selectedFiles) => {
@@ -321,9 +340,20 @@ async function getActionPaletteModels(providerId: string) {
 			(p: IAIProvider) => p.id === providerId,
 		);
 		if (!provider) return [];
-		const models =
+		const fetched =
 			provider.availableModels ||
 			(await aiProviders.fetchModels(provider));
+		const models = Array.isArray(fetched)
+			? [
+					...new Set(
+						[provider.model, ...fetched].filter(
+							(model): model is string => Boolean(model),
+						),
+					),
+				]
+			: provider.model
+				? [provider.model]
+				: [];
 		return models.map((m) => ({ id: m, name: m }));
 	} catch (error) {
 		console.error("Error fetching models:", error);
@@ -364,32 +394,4 @@ export async function rememberActionModel(
 		else delete action.modelSelection;
 		throw error;
 	}
-}
-
-async function getSavedActionModels(
-	service: IAIProvidersService,
-): Promise<ActionModelChoice[]> {
-	const lists = await Promise.all(
-		service.providers.map(async (provider) => {
-			let models = provider.availableModels;
-			if (!models) {
-				try {
-					models = await service.fetchModels(provider);
-				} catch {
-					models = [];
-				}
-			}
-			return [
-				...new Set(
-					[provider.model, ...models].filter(
-						(model): model is string => Boolean(model),
-					),
-				),
-			].map((model) => ({
-				selection: { providerId: provider.id, model },
-				label: `${provider.name} · ${model}`,
-			}));
-		}),
-	);
-	return lists.flat();
 }

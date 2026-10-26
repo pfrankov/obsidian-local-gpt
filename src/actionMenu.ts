@@ -44,14 +44,14 @@ function collectProviderIdsForModel(
 	return providerIds;
 }
 
-function formatContextMenuActionTitle(
+export function formatActionModelBadge(
 	action: LocalGPTAction,
 	actions: LocalGPTAction[],
 	providers?: ContextMenuProviderLike[],
-): string {
+): string | undefined {
 	const selection = action.modelSelection;
 	if (!selection) {
-		return action.name;
+		return undefined;
 	}
 	const providerIds = collectProviderIdsForModel(
 		selection.model,
@@ -63,9 +63,18 @@ function formatContextMenuActionTitle(
 			providers
 				?.find((provider) => provider.id === selection.providerId)
 				?.name?.trim() || selection.providerId;
-		return `${action.name} · ${providerName} · ${selection.model}`;
+		return `${providerName} · ${selection.model}`;
 	}
-	return `${action.name} · ${selection.model}`;
+	return selection.model;
+}
+
+function formatContextMenuActionTitle(
+	action: LocalGPTAction,
+	actions: LocalGPTAction[],
+	providers?: ContextMenuProviderLike[],
+): string {
+	const badge = formatActionModelBadge(action, actions, providers);
+	return badge ? `${action.name} · ${badge}` : action.name;
 }
 
 export const populateActionContextMenu = (

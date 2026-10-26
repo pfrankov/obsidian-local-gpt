@@ -92,6 +92,7 @@
 	export let onRunSavedAction: ((id: string, selectedFiles: string[]) => void) | undefined = undefined;
 	export let getActionModels: (() => Promise<ActionModelChoice[]>) | undefined = undefined;
 	export let onActionModelChange: ((id: string, selection?: ActionModelSelection) => Promise<SavedActionReference[]>) | undefined = undefined;
+	void getActionModels;
 
 	const replaceIconId = getReplaceSelectionIconId();
 	const replaceHotkey = getReplaceSelectionHotkeyLabel();
@@ -109,6 +110,25 @@
 	let systemDropdownElement: HTMLDivElement | null = null;
 
 	let state = createActionPaletteState(value, providerLabel, providerDetails);
+	const fallbackParts =
+		!state.providerName &&
+		!state.modelName &&
+		savedActions.length > 0 &&
+		savedActions[0].modelLabel
+			? savedActions[0].modelLabel.split(" · ")
+			: [];
+	if (!state.providerName && fallbackParts[0]) {
+		state.providerName = fallbackParts[0];
+	}
+	if (!state.modelName && fallbackParts[1]) {
+		state.modelName = fallbackParts[1];
+	}
+	let baseProviderId = providerId;
+	let baseProviderName = state.providerName;
+	let baseModelName = state.modelName;
+	let highlightedActionId: string | null = null;
+	let pendingActionSelection: ActionModelSelection | null = null;
+
 	let invalidateEpoch = 0;
 	let fileItems: FileReference[] = [];
 	let commandItems: CommandReference[] = [];
@@ -116,6 +136,71 @@
 	let modelItems: ModelReference[] = [];
 	let creativityItems: CreativityReference[] = [];
 	let systemItems: SystemPromptReference[] = [];
+
+	async function handlePaletteProviderChange(nextProviderId: string) {
+		const selectedProvider = state.allProviders.find(
+			(item) => item.id === nextProviderId,
+		);
+		const nextModel = selectedProvider?.name || state.modelName;
+		if (highlightedActionId && onActionModelChange) {
+			const targetId = highlightedActionId;
+			try {
+				savedActions = await onActionModelChange(targetId, {
+					providerId: nextProviderId,
+					model: nextModel,
+				});
+				const idx = savedActions.findIndex((a) => a.id === targetId);
+				if (idx >= 0) selectedActionIndex = idx;
+			} catch (error) {
+				console.error("Failed to save action model:", error);
+			}
+			return;
+		}
+		baseProviderId = nextProviderId;
+		baseProviderName = selectedProvider?.providerName || state.providerName;
+		baseModelName = nextModel;
+		pendingActionSelection = nextModel
+			? { providerId: nextProviderId, model: nextModel }
+			: null;
+		await onProviderChange?.(nextProviderId);
+	}
+
+	async function handlePaletteModelChange(nextModel: string) {
+		let effectiveProviderId: string | undefined =
+			providerId ||
+			baseProviderId ||
+			state.allProviders[0]?.id;
+		if (!effectiveProviderId && getProviders) {
+			try {
+				const providers = await getProviders();
+				effectiveProviderId = providers[0]?.id;
+			} catch {
+				effectiveProviderId = undefined;
+			}
+		}
+		effectiveProviderId = effectiveProviderId || "default";
+		if (highlightedActionId && onActionModelChange) {
+			const targetId = highlightedActionId;
+			try {
+				savedActions = await onActionModelChange(targetId, {
+					providerId: effectiveProviderId,
+					model: nextModel,
+				});
+				const idx = savedActions.findIndex((a) => a.id === targetId);
+				if (idx >= 0) selectedActionIndex = idx;
+			} catch (error) {
+				console.error("Failed to save action model:", error);
+			}
+			return;
+		}
+		baseProviderId = effectiveProviderId;
+		baseModelName = nextModel;
+		pendingActionSelection = {
+			providerId: effectiveProviderId,
+			model: nextModel,
+		};
+		await onModelChange?.(nextModel);
+	}
 
 	const controller = new ActionPaletteController(state, {
 		getValue: () => value,
@@ -130,8 +215,8 @@
 		getProviders: () => getProviders,
 		getModels: () => getModels,
 		getSystemPrompts: () => getSystemPrompts,
-		onProviderChange: () => onProviderChange,
-		onModelChange: () => onModelChange,
+		onProviderChange: () => handlePaletteProviderChange,
+		onModelChange: () => handlePaletteModelChange,
 		onCreativityChange: () => onCreativityChange,
 		onSystemPromptChange: () => onSystemPromptChange,
 		onSubmit: () => onSubmit,
@@ -212,11 +297,123 @@
 
 	let selectedActionIndex = -1;
 
-	$: showSavedActions = savedActions.length > 0 && !state.textTokens.some((token) => token.type !== "file" && token.content.trim()) && state.activeDropdown === "none" && Boolean(onRunSavedAction && getActionModels && onActionModelChange);
-	$: if (!showSavedActions || savedActions.length === 0) {
-		selectedActionIndex = -1;
-	} else if (selectedActionIndex >= savedActions.length) {
-		selectedActionIndex = savedActions.length - 1;
+	$: hasNonFilePromptText = state.textTokens.some(
+		(token) => token.type !== "file" && token.content.trim(),
+	);
+	$: isCommandOnlyText =
+		!hasNonFilePromptText ||
+		state.textTokens.every(
+			(token) =>
+				token.type === "file" ||
+				token.type === "command" ||
+				!token.content.trim() ||
+				token.content.trim().startsWith("/"),
+		);
+	$: showSavedActions =
+		savedActions.length > 0 &&
+		!hasNonFilePromptText &&
+		state.activeDropdown === "none" &&
+		Boolean(onRunSavedAction);
+	function syncSavedActionsState(
+		visible: boolean,
+		index: number,
+		actions: SavedActionReference[],
+		commandOnly: boolean,
+		dropdown: string,
+	) {
+		if (!visible || actions.length === 0) {
+			if (selectedActionIndex !== -1) {
+				selectedActionIndex = -1;
+			}
+			if (!commandOnly && dropdown === "none") {
+				highlightedActionId = null;
+				pendingActionSelection = null;
+			}
+			return;
+		}
+		if (index >= actions.length) {
+			selectedActionIndex = actions.length - 1;
+			return;
+		}
+		let effectiveIndex = index;
+		if (effectiveIndex < 0 && highlightedActionId) {
+			const restoredIndex = actions.findIndex(
+				(item) => item.id === highlightedActionId,
+			);
+			if (restoredIndex >= 0) {
+				selectedActionIndex = restoredIndex;
+				effectiveIndex = restoredIndex;
+			}
+		}
+		if (effectiveIndex >= 0 && effectiveIndex < actions.length) {
+			const activeAction = actions[effectiveIndex];
+			highlightedActionId = activeAction.id;
+			if (!pendingActionSelection) {
+				const labelParts = activeAction.modelLabel
+					? activeAction.modelLabel.split(" · ")
+					: [];
+				const nextProviderName =
+					labelParts.length > 1
+						? labelParts[0]
+						: baseProviderName || state.providerName;
+				const nextModelName =
+					activeAction.selection?.model ||
+					(labelParts.length > 1
+						? labelParts.slice(1).join(" · ")
+						: activeAction.shortModelLabel ||
+							activeAction.modelLabel ||
+							baseModelName ||
+							state.modelName);
+				providerId =
+					activeAction.selection?.providerId ?? baseProviderId;
+				if (
+					state.providerName !== nextProviderName ||
+					state.modelName !== nextModelName
+				) {
+					controller.setProviderBadgeLabel(
+						nextProviderName,
+						nextModelName,
+					);
+					state = state;
+				}
+			}
+		} else {
+			highlightedActionId = null;
+			if (
+				!pendingActionSelection &&
+				(baseProviderName || baseModelName) &&
+				(state.providerName !== baseProviderName ||
+					state.modelName !== baseModelName)
+			) {
+				providerId = baseProviderId;
+				controller.setProviderBadgeLabel(
+					baseProviderName,
+					baseModelName,
+				);
+				state = state;
+			}
+		}
+	}
+
+	$: syncSavedActionsState(
+		showSavedActions,
+		selectedActionIndex,
+		savedActions,
+		isCommandOnlyText,
+		state.activeDropdown,
+	);
+
+	async function runSavedAction(id: string) {
+		if (pendingActionSelection && onActionModelChange) {
+			const selectionToApply = pendingActionSelection;
+			pendingActionSelection = null;
+			try {
+				savedActions = await onActionModelChange(id, selectionToApply);
+			} catch (error) {
+				console.error("Failed to save action model:", error);
+			}
+		}
+		onRunSavedAction?.(id, state.selectedFiles);
 	}
 
 	function handlePromptKeydown(event: KeyboardEvent) {
@@ -245,10 +442,7 @@
 				selectedActionIndex < savedActions.length
 			) {
 				event.preventDefault();
-				onRunSavedAction?.(
-					savedActions[selectedActionIndex].id,
-					state.selectedFiles,
-				);
+				void runSavedAction(savedActions[selectedActionIndex].id);
 				return;
 			}
 		}
@@ -271,8 +465,12 @@
 
 <div class="local-gpt-action-palette-shell">
 	<div class:has-saved-actions={showSavedActions} class="local-gpt-action-palette-surface">
-	{#if showSavedActions && onRunSavedAction && getActionModels && onActionModelChange}
-		<SavedActionList bind:actions={savedActions} bind:selectedIndex={selectedActionIndex} onRun={(id) => onRunSavedAction?.(id, state.selectedFiles)} getModels={getActionModels} onModelChange={onActionModelChange} />
+	{#if showSavedActions && onRunSavedAction}
+		<SavedActionList
+			bind:actions={savedActions}
+			bind:selectedIndex={selectedActionIndex}
+			onRun={(id) => void runSavedAction(id)}
+		/>
 	{/if}
 	<!-- aria-label triggers a body-level Obsidian tooltip. A referenced label
 	     preserves the accessible name without creating that detached tooltip. -->
@@ -317,7 +515,6 @@
 		/>
 	{/if}
 
-	{#if !showSavedActions}
 	<div class="local-gpt-provider-badge">
 		{#if state.selectedSystemPromptName}
 			<div
@@ -342,11 +539,19 @@
 					: "local-gpt-provider-badge-meta"}
 			>
 				{#if state.providerName || state.modelName}
-					<div class="local-gpt-provider-badge-label">
-						{[state.providerName, state.modelName]
-							.filter(Boolean)
-							.join(" · ")}
-					</div>
+					<div class="local-gpt-provider-badge-label">{#if state.providerName}<button
+								type="button"
+								class="local-gpt-provider-badge-button"
+								title={I18n.t("commands.actionPalette.changeProvider")}
+								on:click={() =>
+									controller.activateCommandDropdown("provider")}
+							>{state.providerName}</button>{/if}{#if state.providerName && state.modelName}{` · `}{/if}{#if state.modelName}<button
+								type="button"
+								class="local-gpt-model-badge-button"
+								title={I18n.t("commands.actionPalette.changeModel")}
+								on:click={() =>
+									controller.activateCommandDropdown("model")}
+							>{state.modelName}</button>{/if}</div>
 				{/if}
 				{#if state.creativityBadge}
 					<button
@@ -393,5 +598,4 @@
 			</div>
 		{/if}
 	</div>
-	{/if}
 </div>
