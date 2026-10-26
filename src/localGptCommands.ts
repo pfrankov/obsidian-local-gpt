@@ -105,21 +105,35 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 			const initialFreeformModelProviderId =
 				plugin.actionPaletteModelProviderId;
 			const savedActions = () =>
-				getRunnableActions(plugin.settings.actions).map((action) => ({
-					id: getActionIdentifier(action),
-					name: action.name,
-					selection: action.modelSelection,
-					shortModelLabel: formatActionModelBadge(
-						action,
-						plugin.settings.actions,
-						service.providers,
-					),
-					modelLabel: actionModelLabel(
-						action,
-						service.providers,
-						plugin.settings,
-					),
-				}));
+				getRunnableActions(plugin.settings.actions).map((action) => {
+					const effectiveProviderId =
+						action.modelSelection?.providerId ??
+						plugin.settings.aiProviders.main ??
+						undefined;
+					const effectiveProvider = service.providers.find(
+						(item) => item.id === effectiveProviderId,
+					);
+					return {
+						id: getActionIdentifier(action),
+						name: action.name,
+						selection: action.modelSelection,
+						effectiveProviderId,
+						effectiveProviderName: effectiveProvider?.name,
+						effectiveModel:
+							action.modelSelection?.model ??
+							effectiveProvider?.model,
+						shortModelLabel: formatActionModelBadge(
+							action,
+							plugin.settings.actions,
+							service.providers,
+						),
+						modelLabel: actionModelLabel(
+							action,
+							service.providers,
+							plugin.settings,
+						),
+					};
+				});
 			// Replace mode only makes sense over a selection; hide it otherwise.
 			const canReplaceSelection = Boolean(editor.getSelection());
 
@@ -228,10 +242,17 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 					plugin.actionPaletteModel = null;
 					plugin.actionPaletteModelProviderId = null;
 				},
-				onModelChange: async (model: string) => {
+				onModelChange: async (
+					model: string,
+					nextProviderId?: string,
+				) => {
 					const providerId =
+						nextProviderId ||
 						plugin.actionPaletteProviderId ||
 						plugin.settings.aiProviders.main;
+					if (nextProviderId) {
+						plugin.actionPaletteProviderId = nextProviderId;
+					}
 					plugin.actionPaletteModel = model;
 					plugin.actionPaletteModelProviderId = providerId;
 				},

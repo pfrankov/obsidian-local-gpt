@@ -7,6 +7,17 @@
 
 	let containerElement: HTMLDivElement | null = null;
 
+	$: if (
+		containerElement &&
+		selectedIndex >= 0 &&
+		selectedIndex < actions.length
+	) {
+		const rows = containerElement.querySelectorAll<HTMLElement>(
+			".local-gpt-saved-action",
+		);
+		rows[selectedIndex]?.scrollIntoView?.({ block: "nearest" });
+	}
+
 	function focusRowButton(index: number) {
 		const buttons = containerElement?.querySelectorAll<HTMLButtonElement>(
 			".local-gpt-saved-action-run",

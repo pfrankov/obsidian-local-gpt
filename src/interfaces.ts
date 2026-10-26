@@ -64,6 +64,9 @@ export interface SavedActionReference {
 	modelLabel: string;
 	shortModelLabel?: string;
 	selection?: ActionModelSelection;
+	effectiveProviderId?: string;
+	effectiveProviderName?: string;
+	effectiveModel?: string;
 }
 
 export interface ActionModelChoice {
@@ -150,7 +153,10 @@ export type OnProviderChangeCallback = (providerId: string) => Promise<void>;
 export type GetModelsCallback = (
 	providerId: string,
 ) => Promise<ModelReference[]>;
-export type OnModelChangeCallback = (model: string) => Promise<void>;
+export type OnModelChangeCallback = (
+	model: string,
+	providerId?: string,
+) => Promise<void>;
 export type OnCreativityChangeCallback = (
 	creativityKey: string,
 ) => Promise<void> | void;

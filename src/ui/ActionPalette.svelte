@@ -177,12 +177,13 @@
 				effectiveProviderId = undefined;
 			}
 		}
-		effectiveProviderId = effectiveProviderId || "default";
-		baseProviderId = effectiveProviderId;
+		const resolvedProviderId = effectiveProviderId || "default";
+		providerId = resolvedProviderId;
+		baseProviderId = resolvedProviderId;
 		baseProviderName = state.providerName || baseProviderName;
 		baseModelName = nextModel;
 		sessionOverrideSelection = {
-			providerId: effectiveProviderId,
+			providerId: resolvedProviderId,
 			model: nextModel,
 		};
 		if (highlightedActionId) {
@@ -191,7 +192,7 @@
 			);
 			if (idx >= 0) selectedActionIndex = idx;
 		}
-		await onModelChange?.(nextModel);
+		await onModelChange?.(nextModel, effectiveProviderId);
 	}
 
 	const controller = new ActionPaletteController(state, {
@@ -306,6 +307,24 @@
 		!hasNonFilePromptText &&
 		state.activeDropdown === "none" &&
 		Boolean(onRunSavedAction);
+	function restoreBaseProviderPreview() {
+		highlightedActionId = null;
+		if (!sessionOverrideSelection) {
+			providerId = baseProviderId;
+			if (
+				(baseProviderName || baseModelName) &&
+				(state.providerName !== baseProviderName ||
+					state.modelName !== baseModelName)
+			) {
+				controller.setProviderBadgeLabel(
+					baseProviderName,
+					baseModelName,
+				);
+				state = state;
+			}
+		}
+	}
+
 	function syncSavedActionsState(
 		visible: boolean,
 		index: number,
@@ -318,7 +337,7 @@
 				selectedActionIndex = -1;
 			}
 			if (!commandOnly && dropdown === "none") {
-				highlightedActionId = null;
+				restoreBaseProviderPreview();
 			}
 			return;
 		}
@@ -350,11 +369,13 @@
 					? strippedLabel.split(" · ")
 					: [];
 				const nextProviderName =
-					labelParts.length > 1
+					activeAction.effectiveProviderName ||
+					(labelParts.length > 1
 						? labelParts[0]
-						: baseProviderName || state.providerName;
+						: baseProviderName || state.providerName);
 				const nextModelName =
 					activeAction.selection?.model ||
+					activeAction.effectiveModel ||
 					(labelParts.length > 1
 						? labelParts.slice(1).join(" · ")
 						: activeAction.shortModelLabel ||
@@ -362,7 +383,9 @@
 							baseModelName ||
 							state.modelName);
 				providerId =
-					activeAction.selection?.providerId ?? baseProviderId;
+					activeAction.selection?.providerId ??
+					activeAction.effectiveProviderId ??
+					baseProviderId;
 				if (
 					state.providerName !== nextProviderName ||
 					state.modelName !== nextModelName
@@ -375,20 +398,7 @@
 				}
 			}
 		} else {
-			highlightedActionId = null;
-			if (
-				!sessionOverrideSelection &&
-				(baseProviderName || baseModelName) &&
-				(state.providerName !== baseProviderName ||
-					state.modelName !== baseModelName)
-			) {
-				providerId = baseProviderId;
-				controller.setProviderBadgeLabel(
-					baseProviderName,
-					baseModelName,
-				);
-				state = state;
-			}
+			restoreBaseProviderPreview();
 		}
 	}
 
