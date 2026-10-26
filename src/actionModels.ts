@@ -3,11 +3,60 @@ import type {
 	IAIProvidersService,
 } from "@obsidian-ai-providers/sdk";
 import type {
+	ActionModelChoice,
 	ActionModelSelection,
 	LocalGPTAction,
 	LocalGPTSettings,
 } from "./interfaces";
 import { I18n } from "./i18n";
+
+const ACTION_MODEL_SEPARATOR = "::";
+
+export function collectActionModelChoices(
+	providers: IAIProvider[],
+): ActionModelChoice[] {
+	const choices: ActionModelChoice[] = [];
+	for (const provider of providers) {
+		const models = [
+			...new Set(
+				[provider.model, ...(provider.availableModels ?? [])].filter(
+					(model): model is string => Boolean(model?.trim()),
+				),
+			),
+		];
+		for (const model of models) {
+			choices.push({
+				selection: { providerId: provider.id, model },
+				label: `${provider.name} · ${model}`,
+			});
+		}
+	}
+	return choices;
+}
+
+export function encodeActionModelSelection(
+	selection?: ActionModelSelection,
+): string {
+	if (!selection?.providerId || !selection.model) {
+		return "";
+	}
+	return `${selection.providerId}${ACTION_MODEL_SEPARATOR}${selection.model}`;
+}
+
+export function decodeActionModelSelection(
+	value: string,
+): ActionModelSelection | undefined {
+	const separatorIndex = value.indexOf(ACTION_MODEL_SEPARATOR);
+	if (separatorIndex <= 0) {
+		return undefined;
+	}
+	const providerId = value.slice(0, separatorIndex);
+	const model = value.slice(separatorIndex + ACTION_MODEL_SEPARATOR.length);
+	if (!providerId || !model) {
+		return undefined;
+	}
+	return { providerId, model };
+}
 
 /** Resolve before embeddings or generation: an explicit choice never falls back. */
 export function resolveActionModel(

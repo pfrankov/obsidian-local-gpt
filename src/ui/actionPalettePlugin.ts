@@ -20,7 +20,11 @@ import { endHoldingPromptFocus } from "./actionPaletteDom";
 
 export interface ActionPaletteOptions {
 	savedActions?: SavedActionReference[];
-	onRunSavedAction?: (id: string, selectedFiles: string[]) => void;
+	onRunSavedAction?: (
+		id: string,
+		selectedFiles: string[],
+		selectionOverride?: ActionModelSelection,
+	) => void;
 	onActionModelChange?: (
 		id: string,
 		selection?: ActionModelSelection,

@@ -1,7 +1,7 @@
 import { Notice, Platform, Setting, setIcon } from "obsidian";
 import Sortable from "sortablejs";
 import type LocalGPT from "./main";
-import type { LocalGPTAction } from "./interfaces";
+import type { ActionModelChoice, LocalGPTAction } from "./interfaces";
 import { I18n } from "./i18n";
 import type { ReasoningModeSource } from "./reasoningEffort";
 import { isSeparatorAction, moveAction } from "./actionUtils";
@@ -23,6 +23,7 @@ interface PendingActionScroll {
 interface RenderActionsListOptions {
 	reasoningModes?: string[];
 	reasoningModeSources?: ReasoningModeSource[];
+	actionModelChoices?: ActionModelChoice[];
 	containerEl: HTMLElement;
 	plugin: LocalGPT;
 	editExistingAction?: LocalGPTAction;
@@ -173,6 +174,7 @@ export function renderActionsList(options: RenderActionsListOptions) {
 			renderActionEditorForm({
 				reasoningModes: options.reasoningModes,
 				reasoningModeSources: options.reasoningModeSources,
+				actionModelChoices: options.actionModelChoices,
 				container: actionRow.infoEl,
 				plugin: options.plugin,
 				actionToEdit: action,

@@ -150,11 +150,12 @@ export default class LocalGPT extends Plugin {
 		action: LocalGPTAction,
 		editor: Editor,
 		selectedFiles?: string[],
+		modelSelectionOverride?: LocalGPTAction["modelSelection"],
 	) {
 		return this.executeAction(
 			{
 				selectedFiles,
-				modelSelection: action.modelSelection,
+				modelSelection: modelSelectionOverride ?? action.modelSelection,
 				prompt: action.prompt,
 				reasoningEffort: action.reasoningEffort,
 				system: action.system,

@@ -49,6 +49,7 @@
 		"visionProvider": "Fournisseur d'IA de vision",
 		"visionProviderDesc": "Facultatif. Utilisé pour les images. Si non défini, le fournisseur principal sera utilisé.",
 		"creativity": "Créativité",
+		"actionModel": "Modèle",
 		"creativityNone": "⚪ Aucune",
 		"creativityLow": "️💡 Basse",
 		"creativityMedium": "🎨 Moyenne",

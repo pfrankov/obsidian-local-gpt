@@ -1,6 +1,10 @@
 import { Notice, Setting } from "obsidian";
 import type LocalGPT from "./main";
-import type { LocalGPTAction } from "./interfaces";
+import type { ActionModelChoice, LocalGPTAction } from "./interfaces";
+import {
+	decodeActionModelSelection,
+	encodeActionModelSelection,
+} from "./actionModels";
 import { I18n } from "./i18n";
 import {
 	isReasoningEffort,
@@ -12,6 +16,7 @@ import { ensureActionId } from "./actionUtils";
 interface RenderActionEditorOptions {
 	reasoningModes?: string[];
 	reasoningModeSources?: ReasoningModeSource[];
+	actionModelChoices?: ActionModelChoice[];
 	container: HTMLElement;
 	plugin: LocalGPT;
 	actionToEdit: LocalGPTAction;
@@ -24,6 +29,7 @@ interface RenderActionEditorOptions {
 export function renderActionEditor({
 	reasoningModes = [],
 	reasoningModeSources,
+	actionModelChoices = [],
 	container,
 	plugin,
 	actionToEdit,
@@ -143,6 +149,41 @@ export function renderActionEditor({
 						actionToEdit.temperature =
 							selection === "default" ? null : Number(selection);
 				});
+		});
+
+	const currentModelValue = encodeActionModelSelection(
+		actionToEdit.modelSelection,
+	);
+	const hasCurrentModelChoice = actionModelChoices.some(
+		(choice) =>
+			encodeActionModelSelection(choice.selection) === currentModelValue,
+	);
+
+	new Setting(container)
+		.setName(I18n.t("settings.actionModel"))
+		.setDesc(I18n.t("commands.actionPalette.changeActionModel"))
+		.addDropdown((dropdown) => {
+			dropdown.addOption("", I18n.t("settings.reasoningEffortInherit"));
+			for (const choice of actionModelChoices) {
+				dropdown.addOption(
+					encodeActionModelSelection(choice.selection),
+					choice.label,
+				);
+			}
+			if (actionToEdit.modelSelection && !hasCurrentModelChoice) {
+				dropdown.addOption(
+					currentModelValue,
+					`${actionToEdit.modelSelection.providerId} · ${actionToEdit.modelSelection.model} (${I18n.t("settings.reasoningUnavailable")})`,
+				);
+			}
+			dropdown.setValue(currentModelValue).onChange((value) => {
+				const selection = decodeActionModelSelection(value);
+				if (selection) {
+					actionToEdit.modelSelection = selection;
+				} else {
+					delete actionToEdit.modelSelection;
+				}
+			});
 		});
 
 	const actionButtonsRow = new Setting(container).setName("");

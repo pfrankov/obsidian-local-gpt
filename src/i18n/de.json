@@ -49,6 +49,7 @@
 		"visionProvider": "Vision AI Provider",
 		"visionProviderDesc": "Optional. Dies wird für Bilder verwendet. Wenn nicht festgelegt, wird der Haupt-AI-Provider verwendet.",
 		"creativity": "Kreativität",
+		"actionModel": "Modell",
 		"creativityNone": "⚪ Keine",
 		"creativityLow": "️💡 Niedrig",
 		"creativityMedium": "🎨 Mittel",

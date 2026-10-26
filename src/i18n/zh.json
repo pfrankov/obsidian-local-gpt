@@ -49,6 +49,7 @@
 		"visionProvider": "视觉AI提供商",
 		"visionProviderDesc": "可选。此选项用于图片。如果未设置，将使用主要的AI提供商。",
 		"creativity": "创造力",
+		"actionModel": "模型",
 		"creativityNone": "⚪ 无",
 		"creativityLow": "️💡 低",
 		"creativityMedium": "🎨 中",

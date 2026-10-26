@@ -125,32 +125,25 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 
 			showActionPalette(editorView, insertPos, {
 				savedActions: savedActions(),
-				onActionModelChange: async (id, selection) => {
-					plugin.actionPaletteProviderId = initialFreeformProviderId;
-					plugin.actionPaletteModel = initialFreeformModel;
-					plugin.actionPaletteModelProviderId =
-						initialFreeformModelProviderId;
-					const mainProvider = service.providers.find(
-						(provider) =>
-							provider.id === plugin.settings.aiProviders.main,
-					);
-					const effectiveSelection =
-						selection &&
-						mainProvider &&
-						selection.providerId === mainProvider.id &&
-						selection.model === mainProvider.model
-							? undefined
-							: selection;
-					await rememberActionModel(plugin, id, effectiveSelection);
-					return savedActions();
-				},
-				onRunSavedAction: (id, selectedFiles) => {
+				onRunSavedAction: (id, selectedFiles, selectionOverride) => {
 					const action = plugin.settings.actions.find(
 						(item) => getActionIdentifier(item) === id,
 					);
 					if (!action) return;
+					if (selectionOverride) {
+						plugin.actionPaletteProviderId =
+							initialFreeformProviderId;
+						plugin.actionPaletteModel = initialFreeformModel;
+						plugin.actionPaletteModelProviderId =
+							initialFreeformModelProviderId;
+					}
 					hideActionPalette(editorView);
-					void plugin.runAction(action, editor, selectedFiles);
+					void plugin.runAction(
+						action,
+						editor,
+						selectedFiles,
+						selectionOverride,
+					);
 				},
 				canReplaceSelection,
 				replaceSelection: plugin.actionPaletteReplaceSelection,

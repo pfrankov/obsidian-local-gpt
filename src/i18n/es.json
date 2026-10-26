@@ -49,6 +49,7 @@
 		"visionProvider": "Proveedor de visión",
 		"visionProviderDesc": "Opcional. Se utiliza para imágenes. Si no se establece, se usará el proveedor principal.",
 		"creativity": "Creatividad",
+		"actionModel": "Modelo",
 		"creativityNone": "⚪ Ninguna",
 		"creativityLow": "️💡 Baja",
 		"creativityMedium": "🎨 Media",

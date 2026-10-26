@@ -9,7 +9,8 @@ import {
 } from "./reasoningEffort";
 import { DEFAULT_SETTINGS } from "defaultSettings";
 import LocalGPT from "./main";
-import type { LocalGPTAction } from "./interfaces";
+import type { ActionModelChoice, LocalGPTAction } from "./interfaces";
+import { collectActionModelChoices } from "./actionModels";
 import { waitForAI } from "@obsidian-ai-providers/sdk";
 import {
 	aiProvidersUpgradeMessage,
@@ -42,6 +43,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	modelsOptions: Record<string, string> = {};
 	private reasoningModes: string[] = [];
 	private reasoningModeSources: ReasoningModeSource[] = [];
+	private actionModelChoices: ActionModelChoice[] = [];
 	// Controls visibility of the Advanced settings section
 	private isAdvancedMode = false;
 	private pendingScroll?: {
@@ -76,6 +78,9 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 				: [];
 			this.reasoningModes = this.reasoningModeSources.map(
 				(source) => source.mode,
+			);
+			this.actionModelChoices = collectActionModelChoices(
+				aiProvidersResponse.providers,
 			);
 
 			if (!reasoningAvailable) {
@@ -384,6 +389,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 			renderActionEditorForm({
 				reasoningModes: this.reasoningModes,
 				reasoningModeSources: this.reasoningModeSources,
+				actionModelChoices: this.actionModelChoices,
 				container: containerEl,
 				plugin: this.plugin,
 				actionToEdit: editingAction,
@@ -397,6 +403,7 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 		renderActionsList({
 			reasoningModes: this.reasoningModes,
 			reasoningModeSources: this.reasoningModeSources,
+			actionModelChoices: this.actionModelChoices,
 			containerEl,
 			plugin: this.plugin,
 			editExistingAction: this.editExistingAction,

@@ -49,6 +49,7 @@
 		"visionProvider": "Провайдер для изображений",
 		"visionProviderDesc": "Опционально. Используется для работы с изображениями. Если не выбран, будет использован основной AI-провайдер.",
 		"creativity": "Креативность",
+		"actionModel": "Модель",
 		"creativityNone": "⚪ Отсутствует",
 		"creativityLow": "️💡 Низкая",
 		"creativityMedium": "🎨 Средняя",

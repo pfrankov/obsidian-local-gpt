@@ -49,6 +49,7 @@
 		"visionProvider": "ビジョンAIプロバイダー",
 		"visionProviderDesc": "オプション。画像に使用されます。設定されていない場合は、メインプロバイダーが使用されます。",
 		"creativity": "創造性",
+		"actionModel": "モデル",
 		"creativityNone": "⚪ なし",
 		"creativityLow": "️💡 低",
 		"creativityMedium": "🎨 中",

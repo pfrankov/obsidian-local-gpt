@@ -14,13 +14,12 @@ const actions = [
 	{
 		id: "b",
 		name: "Summarize",
-		modelLabel: "Local · fast",
+		modelLabel: "Use default · Local · fast",
 	},
 ];
 const props = {
 	savedActions: actions,
 	onRunSavedAction: vi.fn(),
-	onActionModelChange: async () => actions,
 	providerId: "local",
 	providerLabel: "Local · fast",
 	providerDetails: { providerName: "Local", modelName: "fast" },
@@ -69,20 +68,11 @@ test("row shows model badge only when overridden, without inline select; bottom 
 	component.$destroy();
 });
 
-test("highlighting a saved action syncs the bottom badge and picking a model from the bottom badge updates that action", async () => {
-	const onActionModelChange = vi.fn(async (_id, nextSelection) => [
-		actions[0],
-		{
-			id: "b",
-			name: "Summarize",
-			modelLabel: "Local · precise",
-			shortModelLabel: "precise",
-			selection: nextSelection,
-		},
-	]);
+test("highlighting a saved action syncs the bottom badge and picking a model from the bottom badge overrides only the current run", async () => {
+	const onRunSavedAction = vi.fn();
 	const { target, component } = createComponent({
 		...props,
-		onActionModelChange,
+		onRunSavedAction,
 	});
 	await settle();
 	const input = target.querySelector<HTMLDivElement>(
@@ -103,7 +93,7 @@ test("highlighting a saved action syncs the bottom badge and picking a model fro
 	await settle();
 	expect(footerLabel.textContent).toBe("Cloud · precise");
 
-	// ArrowDown highlights second action (Local · fast)
+	// ArrowDown highlights second action (Use default · Local · fast -> Local · fast)
 	input.dispatchEvent(
 		new KeyboardEvent("keydown", {
 			key: "ArrowDown",
@@ -114,7 +104,7 @@ test("highlighting a saved action syncs the bottom badge and picking a model fro
 	await settle();
 	expect(footerLabel.textContent).toBe("Local · fast");
 
-	// Click model button in bottom badge and pick "precise"
+	// Click model button in bottom badge and pick "precise" as a one-off override
 	target
 		.querySelector<HTMLButtonElement>(".local-gpt-model-badge-button")!
 		.click();
@@ -126,24 +116,32 @@ test("highlighting a saved action syncs the bottom badge and picking a model fro
 	items[1].click();
 	await settle();
 
-	expect(onActionModelChange).toHaveBeenCalledWith("b", {
+	expect(footerLabel.textContent).toBe("Local · precise");
+	const rows = target.querySelectorAll<HTMLElement>(".local-gpt-saved-action");
+	// Inherited action row still does not show a persistent model badge
+	expect(rows[1].querySelector(".local-gpt-saved-action-model")).toBeNull();
+
+	// Pressing Enter runs the highlighted action with the one-off override
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", {
+			key: "Enter",
+			bubbles: true,
+			cancelable: true,
+		}),
+	);
+	await settle();
+	expect(onRunSavedAction).toHaveBeenCalledWith("b", [], {
 		providerId: "local",
 		model: "precise",
 	});
-	const rows = target.querySelectorAll<HTMLElement>(".local-gpt-saved-action");
-	expect(
-		rows[1].querySelector(".local-gpt-saved-action-model")?.textContent,
-	).toBe("precise");
 	component.$destroy();
 });
 
-test("changing model via bottom badge before clicking a saved action remembers that model for the clicked action", async () => {
+test("changing model via bottom badge before clicking a saved action applies a one-off override to the clicked action", async () => {
 	const onRunSavedAction = vi.fn();
-	const onActionModelChange = vi.fn(async () => actions);
 	const { target, component } = createComponent({
 		...props,
 		onRunSavedAction,
-		onActionModelChange,
 	});
 	await settle();
 
@@ -158,18 +156,17 @@ test("changing model via bottom badge before clicking a saved action remembers t
 	items[1].click();
 	await settle();
 
-	// Now click the second saved action ("Summarize")
+	// Now click the first saved action ("Translate", which has persistent Cloud · precise)
 	const runButtons = target.querySelectorAll<HTMLButtonElement>(
 		".local-gpt-saved-action-run",
 	);
-	runButtons[1].click();
+	runButtons[0].click();
 	await settle();
 
-	expect(onActionModelChange).toHaveBeenCalledWith("b", {
+	expect(onRunSavedAction).toHaveBeenCalledWith("a", [], {
 		providerId: "local",
 		model: "precise",
 	});
-	expect(onRunSavedAction).toHaveBeenCalledWith("b", []);
 	component.$destroy();
 });
 
@@ -249,12 +246,12 @@ test("ArrowDown, ArrowUp, and Enter navigate and execute saved actions when prom
 		{
 			id: "second",
 			name: "Summarize",
-			modelLabel: "OpenAI · gpt-5.4-mini",
+			modelLabel: "Use default · OpenAI · gpt-5.4-mini",
 		},
 		{
 			id: "third",
 			name: "Fix spelling",
-			modelLabel: "Z.AI · GLM-4.5-Air",
+			modelLabel: "Use default · Z.AI · GLM-4.5-Air",
 		},
 	];
 	const { target, component } = createComponent({
@@ -331,6 +328,5 @@ test("ArrowDown, ArrowUp, and Enter navigate and execute saved actions when prom
 	await settle();
 	expect(onRunSavedAction).toHaveBeenCalledWith("third", []);
 	expect(onSubmit).not.toHaveBeenCalled();
-
 	component.$destroy();
 });

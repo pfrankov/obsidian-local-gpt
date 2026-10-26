@@ -49,6 +49,7 @@
 		"visionProvider": "Visie AI-provider",
 		"visionProviderDesc": "Optioneel. Gebruikt voor afbeeldingen. Indien niet ingesteld, wordt de hoofdprovider gebruikt.",
 		"creativity": "Creativiteit",
+		"actionModel": "Model",
 		"creativityNone": "⚪ Geen",
 		"creativityLow": "️💡 Laag",
 		"creativityMedium": "🎨 Gemiddeld",

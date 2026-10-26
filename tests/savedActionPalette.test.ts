@@ -7,19 +7,10 @@ afterEach(() => {
 	localStorage.clear();
 });
 
-it("runs the saved Action by id, hides the row model badge when default, and remembers a model chosen via the bottom badge", async () => {
+it("runs the saved Action by id, hides the row model badge when default, and passes a one-off model override from the bottom badge", async () => {
 	const onRun = vi.fn();
 	const onSubmit = vi.fn();
 	const selection = { providerId: "local", model: "precise" };
-	const onChange = vi.fn(async () => [
-		{
-			id: "translate",
-			name: "Translate",
-			modelLabel: "Local · precise",
-			shortModelLabel: "precise",
-			selection,
-		},
-	]);
 	const { target, component } = createComponent({
 		providerId: "local",
 		providerDetails: { providerName: "Local", modelName: "fast" },
@@ -31,12 +22,11 @@ it("runs the saved Action by id, hides the row model badge when default, and rem
 			{
 				id: "translate",
 				name: "Translate",
-				modelLabel: "Local · fast",
+				modelLabel: "Use default · Local · fast",
 			},
 		],
 		onRunSavedAction: onRun,
 		onSubmit,
-		onActionModelChange: onChange,
 	});
 	await tick();
 
@@ -73,17 +63,19 @@ it("runs the saved Action by id, hides the row model badge when default, and rem
 	items[1].click();
 
 	await vi.waitFor(() =>
-		expect(onChange).toHaveBeenCalledWith("translate", selection),
+		expect(
+			requireElement(target, ".local-gpt-provider-badge-label")
+				.textContent,
+		).toContain("Local · precise"),
 	);
-	await tick();
-	expect(
-		requireElement(target, ".local-gpt-saved-action-model").textContent,
-	).toContain("precise");
+	// Row remains without a persistent badge
+	expect(target.querySelector(".local-gpt-saved-action-model")).toBeNull();
+
 	requireElement<HTMLButtonElement>(
 		target,
 		".local-gpt-saved-action-run",
 	).click();
-	expect(onRun).toHaveBeenCalledWith("translate", []);
+	expect(onRun).toHaveBeenCalledWith("translate", [], selection);
 	expect(onSubmit).not.toHaveBeenCalled();
 	component.$destroy();
 });

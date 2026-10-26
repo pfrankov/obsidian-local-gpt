@@ -89,10 +89,17 @@
 		| undefined = undefined;
 
 	export let savedActions: SavedActionReference[] = [];
-	export let onRunSavedAction: ((id: string, selectedFiles: string[]) => void) | undefined = undefined;
+	export let onRunSavedAction:
+		| ((
+				id: string,
+				selectedFiles: string[],
+				selectionOverride?: ActionModelSelection,
+		  ) => void)
+		| undefined = undefined;
 	export let getActionModels: (() => Promise<ActionModelChoice[]>) | undefined = undefined;
 	export let onActionModelChange: ((id: string, selection?: ActionModelSelection) => Promise<SavedActionReference[]>) | undefined = undefined;
 	void getActionModels;
+	void onActionModelChange;
 
 	const replaceIconId = getReplaceSelectionIconId();
 	const replaceHotkey = getReplaceSelectionHotkeyLabel();
@@ -127,7 +134,7 @@
 	let baseProviderName = state.providerName;
 	let baseModelName = state.modelName;
 	let highlightedActionId: string | null = null;
-	let pendingActionSelection: ActionModelSelection | null = null;
+	let sessionOverrideSelection: ActionModelSelection | null = null;
 
 	let invalidateEpoch = 0;
 	let fileItems: FileReference[] = [];
@@ -142,26 +149,18 @@
 			(item) => item.id === nextProviderId,
 		);
 		const nextModel = selectedProvider?.name || state.modelName;
-		if (highlightedActionId && onActionModelChange) {
-			const targetId = highlightedActionId;
-			try {
-				savedActions = await onActionModelChange(targetId, {
-					providerId: nextProviderId,
-					model: nextModel,
-				});
-				const idx = savedActions.findIndex((a) => a.id === targetId);
-				if (idx >= 0) selectedActionIndex = idx;
-			} catch (error) {
-				console.error("Failed to save action model:", error);
-			}
-			return;
-		}
 		baseProviderId = nextProviderId;
 		baseProviderName = selectedProvider?.providerName || state.providerName;
 		baseModelName = nextModel;
-		pendingActionSelection = nextModel
+		sessionOverrideSelection = nextModel
 			? { providerId: nextProviderId, model: nextModel }
 			: null;
+		if (highlightedActionId) {
+			const idx = savedActions.findIndex(
+				(item) => item.id === highlightedActionId,
+			);
+			if (idx >= 0) selectedActionIndex = idx;
+		}
 		await onProviderChange?.(nextProviderId);
 	}
 
@@ -179,26 +178,19 @@
 			}
 		}
 		effectiveProviderId = effectiveProviderId || "default";
-		if (highlightedActionId && onActionModelChange) {
-			const targetId = highlightedActionId;
-			try {
-				savedActions = await onActionModelChange(targetId, {
-					providerId: effectiveProviderId,
-					model: nextModel,
-				});
-				const idx = savedActions.findIndex((a) => a.id === targetId);
-				if (idx >= 0) selectedActionIndex = idx;
-			} catch (error) {
-				console.error("Failed to save action model:", error);
-			}
-			return;
-		}
 		baseProviderId = effectiveProviderId;
+		baseProviderName = state.providerName || baseProviderName;
 		baseModelName = nextModel;
-		pendingActionSelection = {
+		sessionOverrideSelection = {
 			providerId: effectiveProviderId,
 			model: nextModel,
 		};
+		if (highlightedActionId) {
+			const idx = savedActions.findIndex(
+				(item) => item.id === highlightedActionId,
+			);
+			if (idx >= 0) selectedActionIndex = idx;
+		}
 		await onModelChange?.(nextModel);
 	}
 
@@ -327,7 +319,6 @@
 			}
 			if (!commandOnly && dropdown === "none") {
 				highlightedActionId = null;
-				pendingActionSelection = null;
 			}
 			return;
 		}
@@ -348,9 +339,15 @@
 		if (effectiveIndex >= 0 && effectiveIndex < actions.length) {
 			const activeAction = actions[effectiveIndex];
 			highlightedActionId = activeAction.id;
-			if (!pendingActionSelection) {
-				const labelParts = activeAction.modelLabel
-					? activeAction.modelLabel.split(" · ")
+			if (!sessionOverrideSelection) {
+				const defaultPrefix = `${I18n.t("commands.actionPalette.actionModelDefault")} · `;
+				const strippedLabel = activeAction.modelLabel?.startsWith(
+					defaultPrefix,
+				)
+					? activeAction.modelLabel.slice(defaultPrefix.length)
+					: activeAction.modelLabel;
+				const labelParts = strippedLabel
+					? strippedLabel.split(" · ")
 					: [];
 				const nextProviderName =
 					labelParts.length > 1
@@ -361,7 +358,7 @@
 					(labelParts.length > 1
 						? labelParts.slice(1).join(" · ")
 						: activeAction.shortModelLabel ||
-							activeAction.modelLabel ||
+							strippedLabel ||
 							baseModelName ||
 							state.modelName);
 				providerId =
@@ -380,7 +377,7 @@
 		} else {
 			highlightedActionId = null;
 			if (
-				!pendingActionSelection &&
+				!sessionOverrideSelection &&
 				(baseProviderName || baseModelName) &&
 				(state.providerName !== baseProviderName ||
 					state.modelName !== baseModelName)
@@ -403,17 +400,16 @@
 		state.activeDropdown,
 	);
 
-	async function runSavedAction(id: string) {
-		if (pendingActionSelection && onActionModelChange) {
-			const selectionToApply = pendingActionSelection;
-			pendingActionSelection = null;
-			try {
-				savedActions = await onActionModelChange(id, selectionToApply);
-			} catch (error) {
-				console.error("Failed to save action model:", error);
-			}
+	function runSavedAction(id: string) {
+		if (sessionOverrideSelection) {
+			onRunSavedAction?.(
+				id,
+				state.selectedFiles,
+				sessionOverrideSelection,
+			);
+		} else {
+			onRunSavedAction?.(id, state.selectedFiles);
 		}
-		onRunSavedAction?.(id, state.selectedFiles);
 	}
 
 	function handlePromptKeydown(event: KeyboardEvent) {

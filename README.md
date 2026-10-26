@@ -14,14 +14,15 @@ In the Action Palette, Enter submits the prompt when a `/` or `@` search has no 
 
 ### Models for saved actions
 
-The Action Palette shows your saved actions when the prompt is empty, displaying a
-model badge beside an action only when it overrides the default model. Highlight an
-action and use the bottom provider/model badge (or **/provider** and **/model**) to
-choose its provider and model, or pick a provider/model first and then run a saved
-action. Local GPT remembers that choice for the action, including launches from its
-command, hotkey, or context menu. Choosing the configured default provider and
-model again clears the override so the action inherits the main provider. There is
-no separate model setting in the action editor.
+In **Settings → Actions → Edit**, each action can either inherit the global provider
+(**Use global setting**, the default) or bind a specific provider and model. The
+Action Palette and context menu display a model badge beside an action only when it
+overrides the global model.
+
+In the Action Palette, your saved actions appear when the prompt is empty. Use the
+bottom provider/model badge (or **/provider** and **/model**) to override the
+provider or model for the current run only — without modifying the saved action's
+configured model in settings.
 
 Saved actions keep their prompt, system prompt, creativity, reasoning and replace
 behavior; freeform palette choices remain separate. Model choices are local
