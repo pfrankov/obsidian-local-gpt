@@ -146,3 +146,134 @@ test("context menu exposes remembered model and executes original Action without
 	expect(action.modelSelection).toEqual(selection);
 	expect(action.temperature).toBe(0);
 });
+
+test("first click on model chip calls showPicker and blur closes select without stealing focus", async () => {
+	const showPickerSpy = vi.fn();
+	(HTMLSelectElement.prototype as any).showPicker = showPickerSpy;
+	try {
+		const { target, component } = createComponent(props);
+		await settle();
+		target
+			.querySelector<HTMLButtonElement>(".local-gpt-saved-action-model")!
+			.click();
+		await settle();
+		const select = target.querySelector<HTMLSelectElement>("select")!;
+		expect(select).not.toBeNull();
+		expect(showPickerSpy).toHaveBeenCalledTimes(1);
+
+		const input = target.querySelector<HTMLDivElement>(
+			".local-gpt-action-palette",
+		)!;
+		input.focus();
+		select.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+		await settle();
+		expect(target.querySelector("select")).toBeNull();
+		expect(target.querySelector(".local-gpt-saved-action-model")).not.toBeNull();
+		expect(document.activeElement).toBe(input);
+		component.$destroy();
+	} finally {
+		delete (HTMLSelectElement.prototype as any).showPicker;
+	}
+});
+
+test("ArrowDown, ArrowUp, and Enter navigate and execute saved actions when prompt input is empty", async () => {
+	const onRunSavedAction = vi.fn();
+	const onSubmit = vi.fn();
+	const multiActions = [
+		{
+			id: "first",
+			name: "Continue writing",
+			modelLabel: "Z.AI · GLM-4.7",
+			shortModelLabel: "GLM-4.7",
+		},
+		{
+			id: "second",
+			name: "Summarize",
+			modelLabel: "OpenAI · gpt-5.4-mini",
+			shortModelLabel: "gpt-5.4-mini",
+		},
+		{
+			id: "third",
+			name: "Fix spelling",
+			modelLabel: "Z.AI · GLM-4.5-Air",
+			shortModelLabel: "GLM-4.5-Air",
+		},
+	];
+	const { target, component } = createComponent({
+		...props,
+		savedActions: multiActions,
+		onRunSavedAction,
+		onSubmit,
+		initialSelectedFiles: ["note.md"],
+		getFiles: () => [
+			{ path: "note.md", basename: "note", extension: "md" },
+		],
+	});
+	await settle();
+
+	const input = target.querySelector<HTMLDivElement>(
+		".local-gpt-action-palette",
+	)!;
+	const rows = () =>
+		Array.from(
+			target.querySelectorAll<HTMLElement>(".local-gpt-saved-action"),
+		);
+
+	// Initially no row is highlighted
+	expect(rows().some((row) => row.classList.contains("is-selected"))).toBe(
+		false,
+	);
+
+	// ArrowDown highlights the first saved action
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+	);
+	await settle();
+	expect(rows()[0].classList.contains("is-selected")).toBe(true);
+
+	// ArrowDown again highlights the second saved action
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+	);
+	await settle();
+	expect(rows()[1].classList.contains("is-selected")).toBe(true);
+
+	// ArrowUp moves back to the first saved action, and ArrowUp again wraps to the last
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+	);
+	await settle();
+	expect(rows()[0].classList.contains("is-selected")).toBe(true);
+
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+	);
+	await settle();
+	expect(rows()[2].classList.contains("is-selected")).toBe(true);
+
+	// Enter executes the highlighted saved action with selectedFiles and does not submit freeform
+	input.dispatchEvent(
+		new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+	);
+	await settle();
+	expect(onRunSavedAction).toHaveBeenCalledWith("third", ["note.md"]);
+	expect(onSubmit).not.toHaveBeenCalled();
+
+	// Arrow keys also navigate when focus is on a saved action button itself
+	const runButtons = () =>
+		Array.from(
+			target.querySelectorAll<HTMLButtonElement>(
+				".local-gpt-saved-action-run",
+			),
+		);
+	runButtons()[0].focus();
+	await settle();
+	runButtons()[0].dispatchEvent(
+		new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+	);
+	await settle();
+	expect(document.activeElement).toBe(runButtons()[1]);
+	expect(rows()[1].classList.contains("is-selected")).toBe(true);
+
+	component.$destroy();
+});

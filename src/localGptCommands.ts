@@ -30,7 +30,7 @@ function registerContextMenuCommand(plugin: LocalGPT) {
 	plugin.addCommand({
 		id: "context-menu",
 		name: I18n.t("commands.showContextMenu"),
-		editorCallback: (editor: Editor) => {
+		editorCallback: async (editor: Editor) => {
 			// @ts-expect-error, not typed
 			const editorView = editor.cm;
 
@@ -38,11 +38,19 @@ function registerContextMenuCommand(plugin: LocalGPT) {
 			const cursorPositionTo = editor.getCursor("to");
 
 			const contextMenu = new Menu();
+			let providers: IAIProvider[] | undefined;
+			try {
+				const waiter = await waitForAI();
+				providers = (await waiter?.promise)?.providers;
+			} catch {
+				providers = undefined;
+			}
 
 			populateActionContextMenu(
 				contextMenu,
 				plugin.settings.actions,
 				(action) => plugin.runAction(action, editor),
+				providers,
 			);
 
 			const fromRect = editorView.coordsAtPos(

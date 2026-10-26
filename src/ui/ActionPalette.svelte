@@ -210,7 +210,50 @@
 			? (state.filteredItems as SystemPromptReference[])
 			: [];
 
+	let selectedActionIndex = -1;
+
 	$: showSavedActions = savedActions.length > 0 && !state.textTokens.some((token) => token.type !== "file" && token.content.trim()) && state.activeDropdown === "none" && Boolean(onRunSavedAction && getActionModels && onActionModelChange);
+	$: if (!showSavedActions || savedActions.length === 0) {
+		selectedActionIndex = -1;
+	} else if (selectedActionIndex >= savedActions.length) {
+		selectedActionIndex = savedActions.length - 1;
+	}
+
+	function handlePromptKeydown(event: KeyboardEvent) {
+		if (showSavedActions && savedActions.length > 0) {
+			if (event.key === "ArrowDown") {
+				event.preventDefault();
+				selectedActionIndex =
+					selectedActionIndex < 0
+						? 0
+						: (selectedActionIndex + 1) % savedActions.length;
+				return;
+			}
+			if (event.key === "ArrowUp") {
+				event.preventDefault();
+				selectedActionIndex =
+					selectedActionIndex < 0
+						? savedActions.length - 1
+						: (selectedActionIndex - 1 + savedActions.length) %
+							savedActions.length;
+				return;
+			}
+			if (
+				event.key === "Enter" &&
+				!event.shiftKey &&
+				selectedActionIndex >= 0 &&
+				selectedActionIndex < savedActions.length
+			) {
+				event.preventDefault();
+				onRunSavedAction?.(
+					savedActions[selectedActionIndex].id,
+					state.selectedFiles,
+				);
+				return;
+			}
+		}
+		controller.handleKeydown(event);
+	}
 
 	function handleSelection(item: DropdownItem) {
 		controller.handleSelection(item);
@@ -229,7 +272,7 @@
 <div class="local-gpt-action-palette-shell">
 	<div class:has-saved-actions={showSavedActions} class="local-gpt-action-palette-surface">
 	{#if showSavedActions && onRunSavedAction && getActionModels && onActionModelChange}
-		<SavedActionList bind:actions={savedActions} onRun={(id) => onRunSavedAction?.(id, state.selectedFiles)} getModels={getActionModels} onModelChange={onActionModelChange} />
+		<SavedActionList bind:actions={savedActions} bind:selectedIndex={selectedActionIndex} onRun={(id) => onRunSavedAction?.(id, state.selectedFiles)} getModels={getActionModels} onModelChange={onActionModelChange} />
 	{/if}
 	<!-- aria-label triggers a body-level Obsidian tooltip. A referenced label
 	     preserves the accessible name without creating that detached tooltip. -->
@@ -241,7 +284,7 @@
 		role="textbox"
 		tabindex="0"
 		aria-labelledby={labelId}
-		on:keydown={(event) => controller.handleKeydown(event)}
+		on:keydown={handlePromptKeydown}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
 		on:focusin={() => beginHoldingPromptFocus(contentElement)}

@@ -508,11 +508,21 @@ export class LocalGPTSettingTab extends PluginSettingTab {
 	}
 
 	async addNewAction(editingAction: LocalGPTAction) {
-		const actionWithId = ensureActionId(editingAction);
 		const alreadyExistingActionIndex =
 			this.plugin.settings.actions.findIndex(
-				(action) => action.name === actionWithId.name,
+				(action) => action.name === editingAction.name,
 			);
+		const existing =
+			alreadyExistingActionIndex >= 0
+				? this.plugin.settings.actions[alreadyExistingActionIndex]
+				: undefined;
+		const actionWithId = ensureActionId({
+			...editingAction,
+			...(existing?.id && !editingAction.id ? { id: existing.id } : {}),
+			...(existing?.modelSelection && !editingAction.modelSelection
+				? { modelSelection: existing.modelSelection }
+				: {}),
+		});
 
 		if (alreadyExistingActionIndex >= 0) {
 			this.plugin.settings.actions[alreadyExistingActionIndex] =

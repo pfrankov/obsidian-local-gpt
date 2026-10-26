@@ -121,3 +121,31 @@ it("freeform provider/model remains separate after saved action selection", asyn
 		["local", "freeform"],
 	]);
 });
+
+it("preserves existing id and modelSelection when overwriting an action via Quick Add (addNewAction)", async () => {
+	const { LocalGPTSettingTab } = await import("../src/LocalGPTSettingTab");
+	plugin.settings.actions = [
+		{
+			id: "existing-action-id",
+			name: "Translate",
+			prompt: "Old prompt",
+			modelSelection: { providerId: "cloud", model: "precise" },
+		},
+	];
+	(plugin as any).saveSettings = vi.fn().mockResolvedValue(undefined);
+	const tab = Object.assign(Object.create(LocalGPTSettingTab.prototype), { plugin }) as InstanceType<typeof LocalGPTSettingTab>;
+	await tab.addNewAction({
+		name: "Translate",
+		prompt: "Updated prompt from Quick Add",
+		system: "Updated system",
+	});
+
+	expect(plugin.settings.actions).toHaveLength(1);
+	expect(plugin.settings.actions[0]).toEqual({
+		id: "existing-action-id",
+		name: "Translate",
+		prompt: "Updated prompt from Quick Add",
+		system: "Updated system",
+		modelSelection: { providerId: "cloud", model: "precise" },
+	});
+});
