@@ -41,7 +41,64 @@ describe("populateActionContextMenu", () => {
 		items[0].onClick?.();
 		expect(onAction).toHaveBeenCalledWith(actions[0]);
 	});
+
+	it("disambiguates provider name in context menu when multiple providers share the same model id", () => {
+		const actions: LocalGPTAction[] = [
+			{
+				name: "Summarize",
+				prompt: "A",
+				modelSelection: { providerId: "zai", model: "GLM-4.7" },
+			},
+			{
+				name: "Translate",
+				prompt: "B",
+				modelSelection: { providerId: "openai", model: "gpt-5.4-mini" },
+			},
+		];
+		const providers = [
+			{
+				id: "zai",
+				name: "Z.AI",
+				model: "GLM-4.7",
+				availableModels: ["GLM-4.7", "GLM-4.5-Air"],
+			},
+			{
+				id: "openrouter",
+				name: "OpenRouter",
+				model: "GLM-4.7",
+				availableModels: ["GLM-4.7"],
+			},
+			{
+				id: "openai",
+				name: "OpenAI",
+				model: "gpt-5.4",
+				availableModels: ["gpt-5.4", "gpt-5.4-mini"],
+			},
+		];
+		const titles: string[] = [];
+		const menu = {
+			addSeparator: vi.fn(),
+			addItem: (cb: (item: any) => void) => {
+				const item = {
+					setTitle: (title: string) => {
+						titles.push(title);
+						return item;
+					},
+					onClick: () => item,
+				};
+				cb(item);
+			},
+		};
+
+		populateActionContextMenu(menu, actions, vi.fn(), providers);
+
+		expect(titles).toEqual([
+			"Summarize · Z.AI · GLM-4.7",
+			"Translate · gpt-5.4-mini",
+		]);
+	});
 });
+
 
 describe("getRunnableActions", () => {
 	it("filters separators and preserves order", () => {

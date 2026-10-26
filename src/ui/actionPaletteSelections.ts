@@ -139,25 +139,49 @@ export async function showProviderDropdown(context: SelectionContext) {
 		context.state.allProviders = await getProviders();
 		applyProviderFilter(context);
 		showLoadedDropdown(context, "provider", "No providers available");
+		highlightPreferredItem(context, "provider", [
+			context.options.getProviderId(),
+		]);
 	} catch (error) {
 		console.error("Error showing provider dropdown:", error);
 	}
 	context.commit();
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		context.state.cursorPosition >= 0
+			? context.state.cursorPosition
+			: context.state.textContent.length,
+	);
 }
 
 export async function showModelDropdown(context: SelectionContext) {
 	const getModels = context.options.getModels();
-	const providerId = context.options.getProviderId();
-	if (!getModels || !providerId) return;
+	if (!getModels) return;
+	let providerId = context.options.getProviderId();
+	if (!providerId) {
+		try {
+			const providers = await context.options.getProviders()?.();
+			providerId = providers?.[0]?.id;
+		} catch {
+			providerId = undefined;
+		}
+	}
 
 	try {
-		context.state.allModels = await getModels(providerId);
+		context.state.allModels = await getModels(providerId || "");
 		applyModelFilter(context);
 		showLoadedDropdown(context, "model", "No models available");
+		highlightPreferredItem(context, "model", [context.state.modelName]);
 	} catch (error) {
 		console.error("Error showing model dropdown:", error);
 	}
 	context.commit();
+	restorePromptFocus(
+		() => context.options.getContentElement(),
+		context.state.cursorPosition >= 0
+			? context.state.cursorPosition
+			: context.state.textContent.length,
+	);
 }
 
 export async function showCreativityDropdown(context: SelectionContext) {

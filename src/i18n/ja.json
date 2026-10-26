@@ -15,7 +15,11 @@
 			"noMatchingCommands": "一致するコマンドがありません",
 			"noMatchingFiles": "一致するファイルがありません",
 			"replaceSelectionOn": "選択範囲を置き換え: オン ({{hotkey}})",
-			"replaceSelectionOff": "選択範囲を置き換え: オフ ({{hotkey}})"
+			"replaceSelectionOff": "選択範囲を置き換え: オフ ({{hotkey}})",
+			"actionModelDefault": "既定を使用",
+			"changeActionModel": "このアクションのAIプロバイダーを選択",
+			"actionModelUnavailable": "保存されたモデルまたはプロバイダーを利用できません。アクションパレットでモデルを選択してください。",
+			"actionModelNoVision": "選択したモデルは画像に対応していません。画像対応モデルを選択してください。"
 		}
 	},
 	"statusBar": {
@@ -45,6 +49,7 @@
 		"visionProvider": "ビジョンAIプロバイダー",
 		"visionProviderDesc": "オプション。画像に使用されます。設定されていない場合は、メインプロバイダーが使用されます。",
 		"creativity": "創造性",
+		"actionModel": "AIプロバイダー",
 		"creativityNone": "⚪ なし",
 		"creativityLow": "️💡 低",
 		"creativityMedium": "🎨 中",

@@ -5,8 +5,12 @@
 <script lang="ts">
 	import { createEventDispatcher, onDestroy, onMount } from "svelte";
 	import { I18n } from "../i18n";
+	import SavedActionList from "./SavedActionList.svelte";
 	import ActionPaletteDropdowns from "./ActionPaletteDropdowns.svelte";
 	import type {
+		ActionModelChoice,
+		ActionModelSelection,
+		SavedActionReference,
 		ActionPaletteSubmitEvent,
 		ReasoningPaletteSnapshot,
 		CommandReference,
@@ -84,6 +88,19 @@
 		| ((replaceSelection: boolean) => void)
 		| undefined = undefined;
 
+	export let savedActions: SavedActionReference[] = [];
+	export let onRunSavedAction:
+		| ((
+				id: string,
+				selectedFiles: string[],
+				selectionOverride?: ActionModelSelection,
+		  ) => void)
+		| undefined = undefined;
+	export let getActionModels: (() => Promise<ActionModelChoice[]>) | undefined = undefined;
+	export let onActionModelChange: ((id: string, selection?: ActionModelSelection) => Promise<SavedActionReference[]>) | undefined = undefined;
+	void getActionModels;
+	void onActionModelChange;
+
 	const replaceIconId = getReplaceSelectionIconId();
 	const replaceHotkey = getReplaceSelectionHotkeyLabel();
 
@@ -100,6 +117,25 @@
 	let systemDropdownElement: HTMLDivElement | null = null;
 
 	let state = createActionPaletteState(value, providerLabel, providerDetails);
+	const fallbackParts =
+		!state.providerName &&
+		!state.modelName &&
+		savedActions.length > 0 &&
+		savedActions[0].modelLabel
+			? savedActions[0].modelLabel.split(" · ")
+			: [];
+	if (!state.providerName && fallbackParts[0]) {
+		state.providerName = fallbackParts[0];
+	}
+	if (!state.modelName && fallbackParts[1]) {
+		state.modelName = fallbackParts[1];
+	}
+	let baseProviderId = providerId;
+	let baseProviderName = state.providerName;
+	let baseModelName = state.modelName;
+	let highlightedActionId: string | null = null;
+	let sessionOverrideSelection: ActionModelSelection | null = null;
+
 	let invalidateEpoch = 0;
 	let fileItems: FileReference[] = [];
 	let commandItems: CommandReference[] = [];
@@ -107,6 +143,56 @@
 	let modelItems: ModelReference[] = [];
 	let creativityItems: CreativityReference[] = [];
 	let systemItems: SystemPromptReference[] = [];
+
+	async function handlePaletteProviderChange(nextProviderId: string) {
+		const selectedProvider = state.allProviders.find(
+			(item) => item.id === nextProviderId,
+		);
+		const nextModel = selectedProvider?.name || state.modelName;
+		baseProviderId = nextProviderId;
+		baseProviderName = selectedProvider?.providerName || state.providerName;
+		baseModelName = nextModel;
+		sessionOverrideSelection = nextModel
+			? { providerId: nextProviderId, model: nextModel }
+			: null;
+		if (highlightedActionId) {
+			const idx = savedActions.findIndex(
+				(item) => item.id === highlightedActionId,
+			);
+			if (idx >= 0) selectedActionIndex = idx;
+		}
+		await onProviderChange?.(nextProviderId);
+	}
+
+	async function handlePaletteModelChange(nextModel: string) {
+		let effectiveProviderId: string | undefined =
+			providerId ||
+			baseProviderId ||
+			state.allProviders[0]?.id;
+		if (!effectiveProviderId && getProviders) {
+			try {
+				const providers = await getProviders();
+				effectiveProviderId = providers[0]?.id;
+			} catch {
+				effectiveProviderId = undefined;
+			}
+		}
+		effectiveProviderId = effectiveProviderId || "default";
+		baseProviderId = effectiveProviderId;
+		baseProviderName = state.providerName || baseProviderName;
+		baseModelName = nextModel;
+		sessionOverrideSelection = {
+			providerId: effectiveProviderId,
+			model: nextModel,
+		};
+		if (highlightedActionId) {
+			const idx = savedActions.findIndex(
+				(item) => item.id === highlightedActionId,
+			);
+			if (idx >= 0) selectedActionIndex = idx;
+		}
+		await onModelChange?.(nextModel);
+	}
 
 	const controller = new ActionPaletteController(state, {
 		getValue: () => value,
@@ -121,8 +207,8 @@
 		getProviders: () => getProviders,
 		getModels: () => getModels,
 		getSystemPrompts: () => getSystemPrompts,
-		onProviderChange: () => onProviderChange,
-		onModelChange: () => onModelChange,
+		onProviderChange: () => handlePaletteProviderChange,
+		onModelChange: () => handlePaletteModelChange,
 		onCreativityChange: () => onCreativityChange,
 		onSystemPromptChange: () => onSystemPromptChange,
 		onSubmit: () => onSubmit,
@@ -201,6 +287,164 @@
 			? (state.filteredItems as SystemPromptReference[])
 			: [];
 
+	let selectedActionIndex = -1;
+
+	$: hasNonFilePromptText = state.textTokens.some(
+		(token) => token.type !== "file" && token.content.trim(),
+	);
+	$: isCommandOnlyText =
+		!hasNonFilePromptText ||
+		state.textTokens.every(
+			(token) =>
+				token.type === "file" ||
+				token.type === "command" ||
+				!token.content.trim() ||
+				token.content.trim().startsWith("/"),
+		);
+	$: showSavedActions =
+		savedActions.length > 0 &&
+		!hasNonFilePromptText &&
+		state.activeDropdown === "none" &&
+		Boolean(onRunSavedAction);
+	function syncSavedActionsState(
+		visible: boolean,
+		index: number,
+		actions: SavedActionReference[],
+		commandOnly: boolean,
+		dropdown: string,
+	) {
+		if (!visible || actions.length === 0) {
+			if (selectedActionIndex !== -1) {
+				selectedActionIndex = -1;
+			}
+			if (!commandOnly && dropdown === "none") {
+				highlightedActionId = null;
+			}
+			return;
+		}
+		if (index >= actions.length) {
+			selectedActionIndex = actions.length - 1;
+			return;
+		}
+		let effectiveIndex = index;
+		if (effectiveIndex < 0 && highlightedActionId) {
+			const restoredIndex = actions.findIndex(
+				(item) => item.id === highlightedActionId,
+			);
+			if (restoredIndex >= 0) {
+				selectedActionIndex = restoredIndex;
+				effectiveIndex = restoredIndex;
+			}
+		}
+		if (effectiveIndex >= 0 && effectiveIndex < actions.length) {
+			const activeAction = actions[effectiveIndex];
+			highlightedActionId = activeAction.id;
+			if (!sessionOverrideSelection) {
+				const defaultPrefix = `${I18n.t("commands.actionPalette.actionModelDefault")} · `;
+				const strippedLabel = activeAction.modelLabel?.startsWith(
+					defaultPrefix,
+				)
+					? activeAction.modelLabel.slice(defaultPrefix.length)
+					: activeAction.modelLabel;
+				const labelParts = strippedLabel
+					? strippedLabel.split(" · ")
+					: [];
+				const nextProviderName =
+					labelParts.length > 1
+						? labelParts[0]
+						: baseProviderName || state.providerName;
+				const nextModelName =
+					activeAction.selection?.model ||
+					(labelParts.length > 1
+						? labelParts.slice(1).join(" · ")
+						: activeAction.shortModelLabel ||
+							strippedLabel ||
+							baseModelName ||
+							state.modelName);
+				providerId =
+					activeAction.selection?.providerId ?? baseProviderId;
+				if (
+					state.providerName !== nextProviderName ||
+					state.modelName !== nextModelName
+				) {
+					controller.setProviderBadgeLabel(
+						nextProviderName,
+						nextModelName,
+					);
+					state = state;
+				}
+			}
+		} else {
+			highlightedActionId = null;
+			if (
+				!sessionOverrideSelection &&
+				(baseProviderName || baseModelName) &&
+				(state.providerName !== baseProviderName ||
+					state.modelName !== baseModelName)
+			) {
+				providerId = baseProviderId;
+				controller.setProviderBadgeLabel(
+					baseProviderName,
+					baseModelName,
+				);
+				state = state;
+			}
+		}
+	}
+
+	$: syncSavedActionsState(
+		showSavedActions,
+		selectedActionIndex,
+		savedActions,
+		isCommandOnlyText,
+		state.activeDropdown,
+	);
+
+	function runSavedAction(id: string) {
+		if (sessionOverrideSelection) {
+			onRunSavedAction?.(
+				id,
+				state.selectedFiles,
+				sessionOverrideSelection,
+			);
+		} else {
+			onRunSavedAction?.(id, state.selectedFiles);
+		}
+	}
+
+	function handlePromptKeydown(event: KeyboardEvent) {
+		if (showSavedActions && savedActions.length > 0) {
+			if (event.key === "ArrowDown") {
+				event.preventDefault();
+				selectedActionIndex =
+					selectedActionIndex < 0
+						? 0
+						: (selectedActionIndex + 1) % savedActions.length;
+				return;
+			}
+			if (event.key === "ArrowUp") {
+				event.preventDefault();
+				selectedActionIndex =
+					selectedActionIndex < 0
+						? savedActions.length - 1
+						: (selectedActionIndex - 1 + savedActions.length) %
+							savedActions.length;
+				return;
+			}
+			if (
+				event.key === "Enter" &&
+				!event.shiftKey &&
+				selectedActionIndex >= 0 &&
+				selectedActionIndex < savedActions.length
+			) {
+				event.preventDefault();
+				void runSavedAction(savedActions[selectedActionIndex].id);
+				return;
+			}
+		}
+		controller.handleKeydown(event);
+	}
+
 	function handleSelection(item: DropdownItem) {
 		controller.handleSelection(item);
 	}
@@ -216,6 +460,14 @@
 </script>
 
 <div class="local-gpt-action-palette-shell">
+	<div class:has-saved-actions={showSavedActions} class="local-gpt-action-palette-surface">
+	{#if showSavedActions && onRunSavedAction}
+		<SavedActionList
+			bind:actions={savedActions}
+			bind:selectedIndex={selectedActionIndex}
+			onRun={(id) => void runSavedAction(id)}
+		/>
+	{/if}
 	<!-- aria-label triggers a body-level Obsidian tooltip. A referenced label
 	     preserves the accessible name without creating that detached tooltip. -->
 	<span id={labelId} hidden>{I18n.t("commands.actionPalette.name")}</span>
@@ -226,7 +478,7 @@
 		role="textbox"
 		tabindex="0"
 		aria-labelledby={labelId}
-		on:keydown={(event) => controller.handleKeydown(event)}
+		on:keydown={handlePromptKeydown}
 		on:input={handleInput}
 		on:keyup={(event) => controller.handleKeyup(event)}
 		on:focusin={() => beginHoldingPromptFocus(contentElement)}
@@ -235,6 +487,7 @@
 		data-placeholder={placeholder}
 		spellcheck="false"
 	></div>
+	</div>
 	{#if state.activeDropdown !== "none"}
 		<ActionPaletteDropdowns
 			activeDropdown={state.activeDropdown}
@@ -282,11 +535,19 @@
 					: "local-gpt-provider-badge-meta"}
 			>
 				{#if state.providerName || state.modelName}
-					<div class="local-gpt-provider-badge-label">
-						{[state.providerName, state.modelName]
-							.filter(Boolean)
-							.join(" · ")}
-					</div>
+					<div class="local-gpt-provider-badge-label">{#if state.providerName}<button
+								type="button"
+								class="local-gpt-provider-badge-button"
+								title={I18n.t("commands.actionPalette.changeProvider")}
+								on:click={() =>
+									controller.activateCommandDropdown("provider")}
+							>{state.providerName}</button>{/if}{#if state.providerName && state.modelName}{` · `}{/if}{#if state.modelName}<button
+								type="button"
+								class="local-gpt-model-badge-button"
+								title={I18n.t("commands.actionPalette.changeModel")}
+								on:click={() =>
+									controller.activateCommandDropdown("model")}
+							>{state.modelName}</button>{/if}</div>
 				{/if}
 				{#if state.creativityBadge}
 					<button

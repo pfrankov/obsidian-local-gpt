@@ -15,7 +15,11 @@
 			"noMatchingCommands": "No matching commands",
 			"noMatchingFiles": "No matching files",
 			"replaceSelectionOn": "Replace selection: on ({{hotkey}})",
-			"replaceSelectionOff": "Replace selection: off ({{hotkey}})"
+			"replaceSelectionOff": "Replace selection: off ({{hotkey}})",
+			"actionModelDefault": "Use default",
+			"changeActionModel": "Choose AI provider for this action",
+			"actionModelUnavailable": "The saved model or provider is unavailable. Choose a model for this action in the Action Palette.",
+			"actionModelNoVision": "The selected model does not support images. Choose a vision model for this action."
 		}
 	},
 	"statusBar": {
@@ -45,6 +49,7 @@
 		"visionProvider": "Vision AI Provider",
 		"visionProviderDesc": "Optional. This is used for images. If not set, the main AI provider will be used.",
 		"creativity": "Creativity",
+		"actionModel": "AI provider",
 		"creativityNone": "⚪ None",
 		"creativityLow": "️💡 Low",
 		"creativityMedium": "🎨 Medium",

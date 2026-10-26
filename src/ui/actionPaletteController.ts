@@ -432,7 +432,11 @@ export class ActionPaletteController {
 		}
 		dropdownController.refresh();
 		// Footer chips toggle these pickers; a repeat click lands focus on the chip.
-		if (commandName === "creativity" || commandName === "reasoning") {
+		if (
+			["creativity", "reasoning", "provider", "model"].includes(
+				commandName,
+			)
+		) {
 			restorePromptFocus(
 				() => this.options.getContentElement(),
 				this.state.cursorPosition >= 0

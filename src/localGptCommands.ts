@@ -1,3 +1,5 @@
+import { actionModelLabel } from "./actionModels";
+import type { ActionModelSelection } from "./interfaces";
 import { createPaletteFileSource } from "./ui/actionPaletteFiles";
 import type { ProviderLabelParts } from "./ui/actionPaletteOptions";
 import type { ReasoningSelection } from "./interfaces";
@@ -13,7 +15,10 @@ import type {
 } from "@obsidian-ai-providers/sdk";
 import type LocalGPT from "./main";
 import { I18n } from "./i18n";
-import { populateActionContextMenu } from "./actionMenu";
+import {
+	formatActionModelBadge,
+	populateActionContextMenu,
+} from "./actionMenu";
 import { getActionIdentifier, getRunnableActions } from "./actionUtils";
 import { hideActionPalette, showActionPalette } from "./ui/actionPalettePlugin";
 import { formatCreativityBadgeLabel } from "./ui/actionPaletteOptions";
@@ -28,7 +33,7 @@ function registerContextMenuCommand(plugin: LocalGPT) {
 	plugin.addCommand({
 		id: "context-menu",
 		name: I18n.t("commands.showContextMenu"),
-		editorCallback: (editor: Editor) => {
+		editorCallback: async (editor: Editor) => {
 			// @ts-expect-error, not typed
 			const editorView = editor.cm;
 
@@ -36,11 +41,19 @@ function registerContextMenuCommand(plugin: LocalGPT) {
 			const cursorPositionTo = editor.getCursor("to");
 
 			const contextMenu = new Menu();
+			let providers: IAIProvider[] | undefined;
+			try {
+				const waiter = await waitForAI();
+				providers = (await waiter?.promise)?.providers;
+			} catch {
+				providers = undefined;
+			}
 
 			populateActionContextMenu(
 				contextMenu,
 				plugin.settings.actions,
 				(action) => plugin.runAction(action, editor),
+				providers,
 			);
 
 			const fromRect = editorView.coordsAtPos(
@@ -86,10 +99,52 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 				editor,
 			);
 			const paletteLabel = await getActionPaletteLabel(plugin);
+			const service = await (await waitForAI()).promise;
+			const initialFreeformProviderId = plugin.actionPaletteProviderId;
+			const initialFreeformModel = plugin.actionPaletteModel;
+			const initialFreeformModelProviderId =
+				plugin.actionPaletteModelProviderId;
+			const savedActions = () =>
+				getRunnableActions(plugin.settings.actions).map((action) => ({
+					id: getActionIdentifier(action),
+					name: action.name,
+					selection: action.modelSelection,
+					shortModelLabel: formatActionModelBadge(
+						action,
+						plugin.settings.actions,
+						service.providers,
+					),
+					modelLabel: actionModelLabel(
+						action,
+						service.providers,
+						plugin.settings,
+					),
+				}));
 			// Replace mode only makes sense over a selection; hide it otherwise.
 			const canReplaceSelection = Boolean(editor.getSelection());
 
 			showActionPalette(editorView, insertPos, {
+				savedActions: savedActions(),
+				onRunSavedAction: (id, selectedFiles, selectionOverride) => {
+					const action = plugin.settings.actions.find(
+						(item) => getActionIdentifier(item) === id,
+					);
+					if (!action) return;
+					if (selectionOverride) {
+						plugin.actionPaletteProviderId =
+							initialFreeformProviderId;
+						plugin.actionPaletteModel = initialFreeformModel;
+						plugin.actionPaletteModelProviderId =
+							initialFreeformModelProviderId;
+					}
+					hideActionPalette(editorView);
+					void plugin.runAction(
+						action,
+						editor,
+						selectedFiles,
+						selectionOverride,
+					);
+				},
 				canReplaceSelection,
 				replaceSelection: plugin.actionPaletteReplaceSelection,
 				onReplaceSelectionChange: (replaceSelection: boolean) => {
@@ -278,9 +333,20 @@ async function getActionPaletteModels(providerId: string) {
 			(p: IAIProvider) => p.id === providerId,
 		);
 		if (!provider) return [];
-		const models =
+		const fetched =
 			provider.availableModels ||
 			(await aiProviders.fetchModels(provider));
+		const models = Array.isArray(fetched)
+			? [
+					...new Set(
+						[provider.model, ...fetched].filter(
+							(model): model is string => Boolean(model),
+						),
+					),
+				]
+			: provider.model
+				? [provider.model]
+				: [];
 		return models.map((m) => ({ id: m, name: m }));
 	} catch (error) {
 		console.error("Error fetching models:", error);
@@ -296,4 +362,29 @@ function getSystemPrompts(plugin: LocalGPT) {
 			name: action.name,
 			system: action.system!,
 		}));
+}
+
+/** Persist without reloading the plugin or disturbing the open editor. */
+export async function rememberActionModel(
+	plugin: LocalGPT,
+	id: string,
+	selection?: ActionModelSelection,
+) {
+	const action = plugin.settings.actions.find(
+		(item) => getActionIdentifier(item) === id,
+	);
+	if (!action)
+		throw new Error(
+			I18n.t("commands.actionPalette.actionModelUnavailable"),
+		);
+	const previous = action.modelSelection;
+	if (selection) action.modelSelection = { ...selection };
+	else delete action.modelSelection;
+	try {
+		await plugin.saveData(plugin.settings);
+	} catch (error) {
+		if (previous) action.modelSelection = previous;
+		else delete action.modelSelection;
+		throw error;
+	}
 }

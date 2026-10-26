@@ -15,7 +15,11 @@
 			"noMatchingCommands": "No hay comandos coincidentes",
 			"noMatchingFiles": "No hay archivos coincidentes",
 			"replaceSelectionOn": "Reemplazar selección: activado ({{hotkey}})",
-			"replaceSelectionOff": "Reemplazar selección: desactivado ({{hotkey}})"
+			"replaceSelectionOff": "Reemplazar selección: desactivado ({{hotkey}})",
+			"actionModelDefault": "Usar predeterminado",
+			"changeActionModel": "Elegir proveedor de IA para esta acción",
+			"actionModelUnavailable": "El modelo o proveedor guardado no está disponible. Elija un modelo en la paleta de acciones.",
+			"actionModelNoVision": "El modelo seleccionado no admite imágenes. Elija un modelo de visión para esta acción."
 		}
 	},
 	"statusBar": {
@@ -45,6 +49,7 @@
 		"visionProvider": "Proveedor de visión",
 		"visionProviderDesc": "Opcional. Se utiliza para imágenes. Si no se establece, se usará el proveedor principal.",
 		"creativity": "Creatividad",
+		"actionModel": "Proveedor de IA",
 		"creativityNone": "⚪ Ninguna",
 		"creativityLow": "️💡 Baja",
 		"creativityMedium": "🎨 Media",

@@ -1,3 +1,4 @@
+import { resolveActionModel } from "./actionModels";
 import { Notice } from "obsidian";
 import type {
 	IAIProvider,
@@ -142,14 +143,39 @@ export async function executeProviderRequest({
 			abortController,
 		});
 	} catch (error) {
-		if (!abortController.signal.aborted) {
-			new Notice(
-				I18n.t("notices.errorGenerating", {
-					message: (error as any).message,
-				}),
-			);
-		}
+		notifyProviderError(error, abortController);
 		logger.separator();
 		return "";
+	}
+}
+
+export function resolveExecutionProvider(
+	service: IAIProvidersService,
+	settings: LocalGPTSettings,
+	hasImages: boolean,
+	selection: LocalGPTAction["modelSelection"],
+	overrideProviderId?: string | null,
+	paletteModel: string | null = null,
+	paletteModelProviderId: string | null = null,
+): IAIProvider {
+	if (selection) return resolveActionModel(service, selection, hasImages);
+	return overrideProviderModel(
+		selectProvider(service, settings, hasImages, overrideProviderId),
+		overrideProviderId,
+		paletteModel,
+		paletteModelProviderId,
+	);
+}
+
+export function notifyProviderError(
+	error: unknown,
+	abortController: AbortController,
+) {
+	if (!abortController.signal.aborted) {
+		new Notice(
+			I18n.t("notices.errorGenerating", {
+				message: (error as Error).message,
+			}),
+		);
 	}
 }

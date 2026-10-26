@@ -12,6 +12,26 @@ _Action Palette_
 
 In the Action Palette, Enter submits the prompt when a `/` or `@` search has no results. Escape closes the search menu; Shift+Enter inserts a newline. Clicking the Creativity chip keeps keyboard selection available with the arrow keys and Enter. When text is selected, a replace icon appears next to the chips: click it or press Alt+R (⌥R on macOS) to replace the selection with the answer instead of inserting it below. The choice is remembered until Obsidian restarts.
 
+### Models for saved actions
+
+In **Settings → Actions → Edit**, each action can either inherit the global provider
+(**Use global setting**, the default) or bind a specific configured **AI provider**. The
+Action Palette and context menu display a model badge beside an action only when it
+overrides the global model.
+
+In the Action Palette, your saved actions appear when the prompt is empty. Use the
+bottom provider/model badge (or **/provider** and **/model**) to override the
+provider or model for the current run only — without modifying the saved action's
+configured model in settings.
+
+Saved actions keep their prompt, system prompt, creativity, reasoning and replace
+behavior; freeform palette choices remain separate. Model choices are local
+preferences and are not included when sharing a community action. An explicit
+choice never silently switches to another provider, including for images. Choose
+a vision-capable model for image actions. A removed provider must be selected
+again; model availability errors are reported by the provider. RAG continues to
+use the separately configured embedding provider.
+
 ## Features
 ### Works with images  
 <img width="400" src="https://github.com/pfrankov/obsidian-local-gpt/assets/584632/a05d68fa-5419-4386-ac43-82b9513999ad">  
