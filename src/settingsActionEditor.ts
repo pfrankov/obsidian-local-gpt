@@ -173,7 +173,7 @@ export function renderActionEditor({
 			if (actionToEdit.modelSelection && !hasCurrentModelChoice) {
 				dropdown.addOption(
 					currentModelValue,
-					`${actionToEdit.modelSelection.providerId} · ${actionToEdit.modelSelection.model} (${I18n.t("settings.reasoningUnavailable")})`,
+					`${actionToEdit.modelSelection.providerId} ~ ${actionToEdit.modelSelection.model} (${I18n.t("settings.reasoningUnavailable")})`,
 				);
 			}
 			dropdown.setValue(currentModelValue).onChange((value) => {

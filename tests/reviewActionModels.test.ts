@@ -196,6 +196,9 @@ test("Settings → Actions → Edit binds a persistent model or resets to Inheri
 	const modelSelect = selects[2];
 	expect(modelSelect).toBeDefined();
 	expect(modelSelect.value).toBe("");
+	expect(
+		Array.from(modelSelect.options).map((option) => option.text),
+	).toEqual(["Use global setting", "Local ~ fast", "Cloud ~ gpt-5.4"]);
 
 	modelSelect.value = "cloud::gpt-5.4";
 	modelSelect.dispatchEvent(new Event("change"));

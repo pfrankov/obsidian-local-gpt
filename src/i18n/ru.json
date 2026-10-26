@@ -17,7 +17,7 @@
 			"replaceSelectionOn": "Заменять выделение: вкл. ({{hotkey}})",
 			"replaceSelectionOff": "Заменять выделение: выкл. ({{hotkey}})",
 			"actionModelDefault": "По умолчанию",
-			"changeActionModel": "Выбрать модель для действия",
+			"changeActionModel": "Выбрать AI-провайдера для действия",
 			"actionModelUnavailable": "Сохранённая модель или провайдер недоступны. Выберите модель для действия в палитре.",
 			"actionModelNoVision": "Выбранная модель не поддерживает изображения. Выберите модель с поддержкой изображений."
 		}
@@ -49,7 +49,7 @@
 		"visionProvider": "Провайдер для изображений",
 		"visionProviderDesc": "Опционально. Используется для работы с изображениями. Если не выбран, будет использован основной AI-провайдер.",
 		"creativity": "Креативность",
-		"actionModel": "Модель",
+		"actionModel": "AI-провайдер",
 		"creativityNone": "⚪ Отсутствует",
 		"creativityLow": "️💡 Низкая",
 		"creativityMedium": "🎨 Средняя",

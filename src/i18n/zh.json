@@ -17,7 +17,7 @@
 			"replaceSelectionOn": "替换所选内容：开 ({{hotkey}})",
 			"replaceSelectionOff": "替换所选内容：关 ({{hotkey}})",
 			"actionModelDefault": "使用默认模型",
-			"changeActionModel": "为此操作选择模型",
+			"changeActionModel": "为此操作选择 AI 提供商",
 			"actionModelUnavailable": "保存的模型或提供商不可用。请在操作面板中选择模型。",
 			"actionModelNoVision": "所选模型不支持图像。请为此操作选择视觉模型。"
 		}
@@ -49,7 +49,7 @@
 		"visionProvider": "视觉AI提供商",
 		"visionProviderDesc": "可选。此选项用于图片。如果未设置，将使用主要的AI提供商。",
 		"creativity": "创造力",
-		"actionModel": "模型",
+		"actionModel": "AI 提供商",
 		"creativityNone": "⚪ 无",
 		"creativityLow": "️💡 低",
 		"creativityMedium": "🎨 中",

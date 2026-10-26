@@ -15,7 +15,7 @@ In the Action Palette, Enter submits the prompt when a `/` or `@` search has no 
 ### Models for saved actions
 
 In **Settings → Actions → Edit**, each action can either inherit the global provider
-(**Use global setting**, the default) or bind a specific provider and model. The
+(**Use global setting**, the default) or bind a specific configured **AI provider**. The
 Action Palette and context menu display a model badge beside an action only when it
 overrides the global model.
 

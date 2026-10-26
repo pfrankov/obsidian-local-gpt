@@ -17,7 +17,7 @@
 			"replaceSelectionOn": "Auswahl ersetzen: an ({{hotkey}})",
 			"replaceSelectionOff": "Auswahl ersetzen: aus ({{hotkey}})",
 			"actionModelDefault": "Standard verwenden",
-			"changeActionModel": "Modell für diese Aktion wählen",
+			"changeActionModel": "AI-Provider für diese Aktion wählen",
 			"actionModelUnavailable": "Das gespeicherte Modell oder der Anbieter ist nicht verfügbar. Wählen Sie ein Modell in der Aktionspalette.",
 			"actionModelNoVision": "Das gewählte Modell unterstützt keine Bilder. Wählen Sie ein Bildmodell für diese Aktion."
 		}
@@ -49,7 +49,7 @@
 		"visionProvider": "Vision AI Provider",
 		"visionProviderDesc": "Optional. Dies wird für Bilder verwendet. Wenn nicht festgelegt, wird der Haupt-AI-Provider verwendet.",
 		"creativity": "Kreativität",
-		"actionModel": "Modell",
+		"actionModel": "AI-Provider",
 		"creativityNone": "⚪ Keine",
 		"creativityLow": "️💡 Niedrig",
 		"creativityMedium": "🎨 Mittel",

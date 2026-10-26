@@ -17,7 +17,7 @@
 			"replaceSelectionOn": "Selectie vervangen: aan ({{hotkey}})",
 			"replaceSelectionOff": "Selectie vervangen: uit ({{hotkey}})",
 			"actionModelDefault": "Standaard gebruiken",
-			"changeActionModel": "Model voor deze actie kiezen",
+			"changeActionModel": "AI-provider voor deze actie kiezen",
 			"actionModelUnavailable": "Het opgeslagen model of de provider is niet beschikbaar. Kies een model in het actiepalet.",
 			"actionModelNoVision": "Het gekozen model ondersteunt geen afbeeldingen. Kies een visiemodel."
 		}
@@ -49,7 +49,7 @@
 		"visionProvider": "Visie AI-provider",
 		"visionProviderDesc": "Optioneel. Gebruikt voor afbeeldingen. Indien niet ingesteld, wordt de hoofdprovider gebruikt.",
 		"creativity": "Creativiteit",
-		"actionModel": "Model",
+		"actionModel": "AI-provider",
 		"creativityNone": "⚪ Geen",
 		"creativityLow": "️💡 Laag",
 		"creativityMedium": "🎨 Gemiddeld",

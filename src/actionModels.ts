@@ -15,23 +15,17 @@ const ACTION_MODEL_SEPARATOR = "::";
 export function collectActionModelChoices(
 	providers: IAIProvider[],
 ): ActionModelChoice[] {
-	const choices: ActionModelChoice[] = [];
-	for (const provider of providers) {
-		const models = [
-			...new Set(
-				[provider.model, ...(provider.availableModels ?? [])].filter(
-					(model): model is string => Boolean(model?.trim()),
-				),
-			),
-		];
-		for (const model of models) {
-			choices.push({
-				selection: { providerId: provider.id, model },
-				label: `${provider.name} · ${model}`,
-			});
-		}
-	}
-	return choices;
+	return providers
+		.filter((provider) => Boolean(provider.id))
+		.map((provider) => ({
+			selection: {
+				providerId: provider.id,
+				model: provider.model ?? "",
+			},
+			label: provider.model
+				? [provider.name, provider.model].join(" ~ ")
+				: provider.name,
+		}));
 }
 
 export function encodeActionModelSelection(

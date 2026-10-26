@@ -17,7 +17,7 @@
 			"replaceSelectionOn": "Substituir seleção: ativado ({{hotkey}})",
 			"replaceSelectionOff": "Substituir seleção: desativado ({{hotkey}})",
 			"actionModelDefault": "Usar padrão",
-			"changeActionModel": "Escolher modelo para esta ação",
+			"changeActionModel": "Escolher provedor de IA para esta ação",
 			"actionModelUnavailable": "O modelo ou provedor salvo não está disponível. Escolha um modelo na paleta de ações.",
 			"actionModelNoVision": "O modelo selecionado não aceita imagens. Escolha um modelo de visão."
 		}
@@ -49,7 +49,7 @@
 		"visionProvider": "Provedor de IA de Visão",
 		"visionProviderDesc": "Opcional. Usado para imagens. Se não definido, o provedor principal será usado.",
 		"creativity": "Criatividade",
-		"actionModel": "Modelo",
+		"actionModel": "Provedor de IA",
 		"creativityNone": "⚪ Nenhuma",
 		"creativityLow": "️💡 Baixa",
 		"creativityMedium": "🎨 Média",
