@@ -1,6 +1,9 @@
 import type { PaletteFileSource } from "./actionPaletteFiles";
 import type { ProviderLabelParts } from "./actionPaletteOptions";
 import type {
+	ActionModelChoice,
+	ActionModelSelection,
+	SavedActionReference,
 	ReasoningSelection,
 	ReasoningPaletteSnapshot,
 } from "../interfaces";
@@ -17,6 +20,13 @@ import ActionPalette from "./ActionPalette.svelte";
 import { endHoldingPromptFocus } from "./actionPaletteDom";
 
 export interface ActionPaletteOptions {
+	savedActions?: SavedActionReference[];
+	onRunSavedAction?: (id: string, selectedFiles: string[]) => void;
+	getActionModels?: () => Promise<ActionModelChoice[]>;
+	onActionModelChange?: (
+		id: string,
+		selection?: ActionModelSelection,
+	) => Promise<SavedActionReference[]>;
 	/** Created on mount and disposed with the widget. */
 	createFileSource?: () => PaletteFileSource;
 	providerDetails?: ProviderLabelParts;
@@ -145,6 +155,10 @@ class SvelteActionPaletteWidget extends WidgetType {
 		this.app = new ActionPalette({
 			target: mountTarget,
 			props: {
+				savedActions: this.options.savedActions,
+				onRunSavedAction: this.options.onRunSavedAction,
+				getActionModels: this.options.getActionModels,
+				onActionModelChange: this.options.onActionModelChange,
 				placeholder:
 					this.options.placeholder ||
 					I18n.t("commands.actionPalette.placeholder"),

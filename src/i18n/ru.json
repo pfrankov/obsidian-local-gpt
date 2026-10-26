@@ -15,7 +15,11 @@
 			"noMatchingCommands": "Нет подходящих команд",
 			"noMatchingFiles": "Нет подходящих файлов",
 			"replaceSelectionOn": "Заменять выделение: вкл. ({{hotkey}})",
-			"replaceSelectionOff": "Заменять выделение: выкл. ({{hotkey}})"
+			"replaceSelectionOff": "Заменять выделение: выкл. ({{hotkey}})",
+			"actionModelDefault": "По умолчанию",
+			"changeActionModel": "Выбрать модель для действия",
+			"actionModelUnavailable": "Сохранённая модель или провайдер недоступны. Выберите модель для действия в палитре.",
+			"actionModelNoVision": "Выбранная модель не поддерживает изображения. Выберите модель с поддержкой изображений."
 		}
 	},
 	"statusBar": {

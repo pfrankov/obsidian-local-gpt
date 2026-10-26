@@ -15,7 +15,11 @@
 			"noMatchingCommands": "Geen overeenkomende opdrachten",
 			"noMatchingFiles": "Geen overeenkomende bestanden",
 			"replaceSelectionOn": "Selectie vervangen: aan ({{hotkey}})",
-			"replaceSelectionOff": "Selectie vervangen: uit ({{hotkey}})"
+			"replaceSelectionOff": "Selectie vervangen: uit ({{hotkey}})",
+			"actionModelDefault": "Standaard gebruiken",
+			"changeActionModel": "Model voor deze actie kiezen",
+			"actionModelUnavailable": "Het opgeslagen model of de provider is niet beschikbaar. Kies een model in het actiepalet.",
+			"actionModelNoVision": "Het gekozen model ondersteunt geen afbeeldingen. Kies een visiemodel."
 		}
 	},
 	"statusBar": {

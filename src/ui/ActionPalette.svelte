@@ -5,8 +5,12 @@
 <script lang="ts">
 	import { createEventDispatcher, onDestroy, onMount } from "svelte";
 	import { I18n } from "../i18n";
+	import SavedActionList from "./SavedActionList.svelte";
 	import ActionPaletteDropdowns from "./ActionPaletteDropdowns.svelte";
 	import type {
+		ActionModelChoice,
+		ActionModelSelection,
+		SavedActionReference,
 		ActionPaletteSubmitEvent,
 		ReasoningPaletteSnapshot,
 		CommandReference,
@@ -83,6 +87,11 @@
 	export let onReplaceSelectionChange:
 		| ((replaceSelection: boolean) => void)
 		| undefined = undefined;
+
+	export let savedActions: SavedActionReference[] = [];
+	export let onRunSavedAction: ((id: string, selectedFiles: string[]) => void) | undefined = undefined;
+	export let getActionModels: (() => Promise<ActionModelChoice[]>) | undefined = undefined;
+	export let onActionModelChange: ((id: string, selection?: ActionModelSelection) => Promise<SavedActionReference[]>) | undefined = undefined;
 
 	const replaceIconId = getReplaceSelectionIconId();
 	const replaceHotkey = getReplaceSelectionHotkeyLabel();
@@ -201,6 +210,8 @@
 			? (state.filteredItems as SystemPromptReference[])
 			: [];
 
+	$: showSavedActions = savedActions.length > 0 && !state.textTokens.some((token) => token.type !== "file" && token.content.trim()) && state.activeDropdown === "none" && Boolean(onRunSavedAction && getActionModels && onActionModelChange);
+
 	function handleSelection(item: DropdownItem) {
 		controller.handleSelection(item);
 	}
@@ -216,6 +227,10 @@
 </script>
 
 <div class="local-gpt-action-palette-shell">
+	<div class:has-saved-actions={showSavedActions} class="local-gpt-action-palette-surface">
+	{#if showSavedActions && onRunSavedAction && getActionModels && onActionModelChange}
+		<SavedActionList bind:actions={savedActions} onRun={(id) => onRunSavedAction?.(id, state.selectedFiles)} getModels={getActionModels} onModelChange={onActionModelChange} />
+	{/if}
 	<!-- aria-label triggers a body-level Obsidian tooltip. A referenced label
 	     preserves the accessible name without creating that detached tooltip. -->
 	<span id={labelId} hidden>{I18n.t("commands.actionPalette.name")}</span>
@@ -235,6 +250,7 @@
 		data-placeholder={placeholder}
 		spellcheck="false"
 	></div>
+	</div>
 	{#if state.activeDropdown !== "none"}
 		<ActionPaletteDropdowns
 			activeDropdown={state.activeDropdown}
@@ -258,6 +274,7 @@
 		/>
 	{/if}
 
+	{#if !showSavedActions}
 	<div class="local-gpt-provider-badge">
 		{#if state.selectedSystemPromptName}
 			<div
@@ -333,4 +350,5 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 </div>

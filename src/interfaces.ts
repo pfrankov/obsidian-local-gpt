@@ -53,7 +53,27 @@ export interface CommunityActionRef {
 	description?: string;
 }
 
+export interface ActionModelSelection {
+	providerId: string;
+	model: string;
+}
+
+export interface SavedActionReference {
+	id: string;
+	name: string;
+	modelLabel: string;
+	shortModelLabel?: string;
+	selection?: ActionModelSelection;
+}
+
+export interface ActionModelChoice {
+	selection: ActionModelSelection;
+	label: string;
+}
+
 export interface LocalGPTAction {
+	/** Last explicitly chosen model, shared by every saved-action entry point. */
+	modelSelection?: ActionModelSelection;
 	id?: string;
 	name: string;
 	prompt: string;

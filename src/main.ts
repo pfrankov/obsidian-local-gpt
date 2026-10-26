@@ -40,8 +40,8 @@ import { enhanceWithContext as enhanceContext } from "./contextEnhancer";
 import { extractImagesFromSelection } from "./selectionImages";
 import {
 	executeProviderRequest,
-	overrideProviderModel,
-	selectProvider,
+	resolveExecutionProvider,
+	notifyProviderError,
 } from "./providerRequest";
 import { removeThinkingTags } from "./textProcessing";
 
@@ -146,9 +146,15 @@ export default class LocalGPT extends Plugin {
 		);
 	}
 
-	async runAction(action: LocalGPTAction, editor: Editor) {
+	async runAction(
+		action: LocalGPTAction,
+		editor: Editor,
+		selectedFiles?: string[],
+	) {
 		return this.executeAction(
 			{
+				selectedFiles,
+				modelSelection: action.modelSelection,
 				prompt: action.prompt,
 				reasoningEffort: action.reasoningEffort,
 				system: action.system,
@@ -163,6 +169,7 @@ export default class LocalGPT extends Plugin {
 	private async executeAction(
 		params: {
 			prompt: string;
+			modelSelection?: LocalGPTAction["modelSelection"];
 			system?: string;
 			replace?: boolean;
 			temperature?: number | null;
@@ -219,6 +226,16 @@ export default class LocalGPT extends Plugin {
 			const aiProviders: IAIProvidersService =
 				await aiRequestWaiter.promise;
 
+			const adjustedProvider = resolveExecutionProvider(
+				aiProviders,
+				this.settings,
+				imagesInBase64.length > 0,
+				params.modelSelection,
+				params.overrideProviderId,
+				this.actionPaletteModel,
+				this.actionPaletteModelProviderId,
+			);
+
 			const embeddingProvider = aiProviders.providers.find(
 				(provider: IAIProvider) =>
 					provider.id === this.settings.aiProviders.embedding,
@@ -236,47 +253,22 @@ export default class LocalGPT extends Plugin {
 				contextQuery,
 			);
 
-			const provider = selectProvider(
+			const fullText = await executeProviderRequest({
 				aiProviders,
-				this.settings,
-				imagesInBase64.length > 0,
-				params.overrideProviderId,
-			);
-			const adjustedProvider = overrideProviderModel(
-				provider,
-				params.overrideProviderId,
-				this.actionPaletteModel,
-				this.actionPaletteModelProviderId,
-			);
-
-			let fullText = "";
-			try {
-				fullText = await executeProviderRequest({
-					aiProviders,
-					provider: adjustedProvider,
-					settings: this.settings,
-					prompt: params.prompt,
-					system: params.system,
-					temperature: params.temperature,
-					reasoningEffort: params.reasoningEffort,
-					reasoningSelection: params.reasoningSelection,
-					onReasoningResolved,
-					selectedText: cleanedText,
-					context,
-					imagesInBase64,
-					abortController,
-					onUpdate,
-				});
-			} finally {
-				hideSpinner && hideSpinner();
-				this.app.workspace.updateOptions();
-				// Drop finished controllers so a later Escape (e.g. closing the
-				// Action Palette) cannot race a completed request or keep
-				// stale abort listeners around.
-				this.abortControllers = this.abortControllers.filter(
-					(controller) => controller !== abortController,
-				);
-			}
+				provider: adjustedProvider,
+				settings: this.settings,
+				prompt: params.prompt,
+				system: params.system,
+				temperature: params.temperature,
+				reasoningEffort: params.reasoningEffort,
+				reasoningSelection: params.reasoningSelection,
+				onReasoningResolved,
+				selectedText: cleanedText,
+				context,
+				imagesInBase64,
+				abortController,
+				onUpdate,
+			});
 
 			// If the request finished with text, keep it even if Escape raced
 			// the finalization window after the provider returned.
@@ -305,7 +297,14 @@ export default class LocalGPT extends Plugin {
 				mappedRange.from,
 				insertionOffset,
 			);
+		} catch (error) {
+			notifyProviderError(error, abortController);
 		} finally {
+			hideSpinner?.();
+			this.app.workspace.updateOptions();
+			this.abortControllers = this.abortControllers.filter(
+				(controller) => controller !== abortController,
+			);
 			releaseSelectionTracker();
 		}
 	}

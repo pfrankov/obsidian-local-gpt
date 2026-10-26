@@ -23,7 +23,10 @@ export const populateActionContextMenu = (
 		}
 
 		menu.addItem((item) => {
-			item.setTitle(action.name).onClick(() => onAction(action));
+			const title = action.modelSelection
+				? `${action.name} · ${action.modelSelection.model}`
+				: action.name;
+			item.setTitle(title).onClick(() => onAction(action));
 		});
 	});
 };

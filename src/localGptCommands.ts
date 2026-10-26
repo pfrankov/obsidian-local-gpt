@@ -1,3 +1,5 @@
+import { actionModelLabel } from "./actionModels";
+import type { ActionModelChoice, ActionModelSelection } from "./interfaces";
 import { createPaletteFileSource } from "./ui/actionPaletteFiles";
 import type { ProviderLabelParts } from "./ui/actionPaletteOptions";
 import type { ReasoningSelection } from "./interfaces";
@@ -86,10 +88,43 @@ function registerActionPaletteCommand(plugin: LocalGPT) {
 				editor,
 			);
 			const paletteLabel = await getActionPaletteLabel(plugin);
+			const service = await (await waitForAI()).promise;
+			const savedActions = () =>
+				getRunnableActions(plugin.settings.actions).map((action) => ({
+					id: getActionIdentifier(action),
+					name: action.name,
+					selection: action.modelSelection,
+					shortModelLabel:
+						action.modelSelection?.model ??
+						service.providers.find(
+							(provider) =>
+								provider.id ===
+								plugin.settings.aiProviders.main,
+						)?.model,
+					modelLabel: actionModelLabel(
+						action,
+						service.providers,
+						plugin.settings,
+					),
+				}));
 			// Replace mode only makes sense over a selection; hide it otherwise.
 			const canReplaceSelection = Boolean(editor.getSelection());
 
 			showActionPalette(editorView, insertPos, {
+				savedActions: savedActions(),
+				getActionModels: () => getSavedActionModels(service),
+				onActionModelChange: async (id, selection) => {
+					await rememberActionModel(plugin, id, selection);
+					return savedActions();
+				},
+				onRunSavedAction: (id, selectedFiles) => {
+					const action = plugin.settings.actions.find(
+						(item) => getActionIdentifier(item) === id,
+					);
+					if (!action) return;
+					hideActionPalette(editorView);
+					void plugin.runAction(action, editor, selectedFiles);
+				},
 				canReplaceSelection,
 				replaceSelection: plugin.actionPaletteReplaceSelection,
 				onReplaceSelectionChange: (replaceSelection: boolean) => {
@@ -296,4 +331,57 @@ function getSystemPrompts(plugin: LocalGPT) {
 			name: action.name,
 			system: action.system!,
 		}));
+}
+
+/** Persist without reloading the plugin or disturbing the open editor. */
+export async function rememberActionModel(
+	plugin: LocalGPT,
+	id: string,
+	selection?: ActionModelSelection,
+) {
+	const action = plugin.settings.actions.find(
+		(item) => getActionIdentifier(item) === id,
+	);
+	if (!action)
+		throw new Error(
+			I18n.t("commands.actionPalette.actionModelUnavailable"),
+		);
+	const previous = action.modelSelection;
+	if (selection) action.modelSelection = { ...selection };
+	else delete action.modelSelection;
+	try {
+		await plugin.saveData(plugin.settings);
+	} catch (error) {
+		if (previous) action.modelSelection = previous;
+		else delete action.modelSelection;
+		throw error;
+	}
+}
+
+async function getSavedActionModels(
+	service: IAIProvidersService,
+): Promise<ActionModelChoice[]> {
+	const lists = await Promise.all(
+		service.providers.map(async (provider) => {
+			let models = provider.availableModels;
+			if (!models) {
+				try {
+					models = await service.fetchModels(provider);
+				} catch {
+					models = [];
+				}
+			}
+			return [
+				...new Set(
+					[provider.model, ...models].filter(
+						(model): model is string => Boolean(model),
+					),
+				),
+			].map((model) => ({
+				selection: { providerId: provider.id, model },
+				label: `${provider.name} · ${model}`,
+			}));
+		}),
+	);
+	return lists.flat();
 }

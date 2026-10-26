@@ -15,7 +15,11 @@
 			"noMatchingCommands": "Nenhum comando correspondente",
 			"noMatchingFiles": "Nenhum arquivo correspondente",
 			"replaceSelectionOn": "Substituir seleção: ativado ({{hotkey}})",
-			"replaceSelectionOff": "Substituir seleção: desativado ({{hotkey}})"
+			"replaceSelectionOff": "Substituir seleção: desativado ({{hotkey}})",
+			"actionModelDefault": "Usar padrão",
+			"changeActionModel": "Escolher modelo para esta ação",
+			"actionModelUnavailable": "O modelo ou provedor salvo não está disponível. Escolha um modelo na paleta de ações.",
+			"actionModelNoVision": "O modelo selecionado não aceita imagens. Escolha um modelo de visão."
 		}
 	},
 	"statusBar": {

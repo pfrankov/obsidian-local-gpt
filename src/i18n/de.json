@@ -15,7 +15,11 @@
 			"noMatchingCommands": "Keine passenden Befehle",
 			"noMatchingFiles": "Keine passenden Dateien",
 			"replaceSelectionOn": "Auswahl ersetzen: an ({{hotkey}})",
-			"replaceSelectionOff": "Auswahl ersetzen: aus ({{hotkey}})"
+			"replaceSelectionOff": "Auswahl ersetzen: aus ({{hotkey}})",
+			"actionModelDefault": "Standard verwenden",
+			"changeActionModel": "Modell für diese Aktion wählen",
+			"actionModelUnavailable": "Das gespeicherte Modell oder der Anbieter ist nicht verfügbar. Wählen Sie ein Modell in der Aktionspalette.",
+			"actionModelNoVision": "Das gewählte Modell unterstützt keine Bilder. Wählen Sie ein Bildmodell für diese Aktion."
 		}
 	},
 	"statusBar": {
